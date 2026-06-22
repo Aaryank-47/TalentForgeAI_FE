@@ -322,13 +322,20 @@ const AuthPage = () => {
   const isLogin = mode === 'login';
 
   return (
-    <div className="min-h-screen bg-white font-sans overflow-hidden">
-      <div className="flex min-h-screen">
+    <div className="min-h-screen bg-[#F0F4FA] font-sans flex items-center justify-center p-4 sm:p-6 lg:p-8 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute inset-0 -z-10 pointer-events-none">
+        <div className="absolute top-[-10%] left-[-10%] w-[600px] h-[600px] rounded-full opacity-[0.45]" style={{ background: 'radial-gradient(circle, #E0E7FF 0%, transparent 70%)' }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full opacity-[0.45]" style={{ background: 'radial-gradient(circle, #DBEAFE 0%, transparent 70%)' }} />
+        <div className="absolute inset-0 opacity-[0.02]" style={{ backgroundImage: 'radial-gradient(circle, #0F172A 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+      </div>
+
+      <div className="relative max-w-[1020px] w-full min-h-[620px] bg-white rounded-[24px] shadow-2xl shadow-slate-300/80 border border-slate-200/50 flex overflow-hidden">
         {/* Left Panel */}
         <div
           className={`
             transition-all duration-500 ease-in-out
-            ${isLogin ? 'w-[45%] lg:w-[42%]' : 'w-[55%] lg:w-[58%]'}
+            ${isLogin ? 'w-[45%] lg:w-[42%]' : 'w-[55%] lg:w-[58%]' }
             ${animating ? 'opacity-0 scale-[0.98]' : 'opacity-100 scale-100'}
             hidden lg:block flex-shrink-0
           `}
@@ -347,6 +354,7 @@ const AuthPage = () => {
           className={`
             transition-all duration-500 ease-in-out flex-1
             ${animating ? 'opacity-0 scale-[0.98]' : 'opacity-100 scale-100'}
+            hidden lg:block
           `}
         >
           {isLogin ? (
@@ -359,12 +367,12 @@ const AuthPage = () => {
         </div>
 
         {/* Mobile: Single column layout */}
-        <div className="lg:hidden absolute inset-0 bg-white flex items-center justify-center p-6">
+        <div className="lg:hidden w-full flex items-center justify-center p-6 sm:p-8 bg-white">
           {isLogin ? (
             <div className="w-full max-w-md">
               {/* Mobile logo */}
               <Link to="/" className="inline-flex items-center gap-2.5 mb-8">
-                <div className="bg-gradient-to-br from-[#0175b2] to-[#0175b2] p-2 rounded-[10px] shadow-md shadow-blue-200/50">
+                <div className="bg-gradient-to-br from-[#2563EB] to-[#3B82F6] p-2 rounded-[10px] shadow-md shadow-blue-200/50">
                   <img src={jobportal} className="h-5 w-5" alt="TalentForge" />
                 </div>
                 <span className="font-display font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#2563EB]"> AI</span></span>
@@ -374,7 +382,7 @@ const AuthPage = () => {
           ) : (
             <div className="w-full max-w-md">
               <Link to="/" className="inline-flex items-center gap-2.5 mb-8">
-                <div className="bg-gradient-to-br from-[#0175b2] to-[#0175b2] p-2 rounded-[10px] shadow-md shadow-blue-200/50">
+                <div className="bg-gradient-to-br from-[#2563EB] to-[#3B82F6] p-2 rounded-[10px] shadow-md shadow-blue-200/50">
                   <img src={jobportal} className="h-5 w-5" alt="TalentForge" />
                 </div>
                 <span className="font-display font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#2563EB]"> AI</span></span>
