@@ -118,3 +118,101 @@ html {
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* ─── Mic pulse ring ─── */
+@keyframes mic-pulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  70% { transform: scale(1.6); opacity: 0; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+.animate-mic-pulse {
+  animation: mic-pulse 1.5s ease-out infinite;
+}
+
+/* ─── Face scan line ─── */
+@keyframes face-scan {
+  0% { top: 0%; opacity: 1; }
+  100% { top: 100%; opacity: 0.2; }
+}
+.animate-face-scan {
+  animation: face-scan 2s linear infinite;
+}
+
+/* ─── AI thinking spinner dots ─── */
+@keyframes ai-dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+.animate-ai-dot {
+  animation: ai-dot-bounce 1.4s ease-in-out infinite;
+}
+.animate-ai-dot-2 { animation: ai-dot-bounce 1.4s ease-in-out 0.2s infinite; }
+.animate-ai-dot-3 { animation: ai-dot-bounce 1.4s ease-in-out 0.4s infinite; }
+
+/* ─── Upload step shimmer ─── */
+@keyframes upload-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-upload-shimmer {
+  background: linear-gradient(90deg, #e5e7eb 25%, #f1f5f9 50%, #e5e7eb 75%);
+  background-size: 200% 100%;
+  animation: upload-shimmer 1.5s infinite;
+}
+
+/* ─── Tab warning flash ─── */
+@keyframes tab-warning-flash {
+  0%, 100% { background-color: transparent; }
+  50% { background-color: rgba(239, 68, 68, 0.08); }
+}
+.animate-tab-warning {
+  animation: tab-warning-flash 0.8s ease-in-out 3;
+}
+
+/* ─── Gentle spin ─── */
+@keyframes gentle-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-gentle-spin {
+  animation: gentle-spin 2s linear infinite;
+}
+
+/* ─── Speaking wave bars ─── */
+@keyframes speaking-bar {
+  0%, 100% { height: 6px; }
+  50% { height: 22px; }
+}
+.animate-speaking-bar { animation: speaking-bar 0.6s ease-in-out infinite; }
+.animate-speaking-bar-2 { animation: speaking-bar 0.6s ease-in-out 0.15s infinite; }
+.animate-speaking-bar-3 { animation: speaking-bar 0.6s ease-in-out 0.3s infinite; }
+.animate-speaking-bar-4 { animation: speaking-bar 0.6s ease-in-out 0.45s infinite; }
+.animate-speaking-bar-5 { animation: speaking-bar 0.6s ease-in-out 0.1s infinite; }
+
+/* ─── Blink cursor for typewriter ─── */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.animate-blink-cursor {
+  animation: blink-cursor 1s step-end infinite;
+}
+
+/* ─── Slide in from right ─── */
+@keyframes slide-in-right {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 0.35s ease-out;
+}
+
+/* ─── Fade in up ─── */
+@keyframes fade-in-up {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out;
+}
+

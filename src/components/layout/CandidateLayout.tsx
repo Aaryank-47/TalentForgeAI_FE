@@ -13,7 +13,9 @@ const mainNav = [
   { name: 'My Applications', href: '/candidate/applications', icon: FileText },
   { name: 'Assessments', href: '/candidate/assessments', icon: ClipboardList },
   { name: 'Interviews', href: '/candidate/interviews', icon: Video },
+  { name: 'AI Interviews', href: '/candidate/ai-interview', icon: Bot, badge: 2 },
 ];
+
 
 const secondaryNav = [
   { name: 'Messages', href: '/candidate/messages', icon: MessageSquare, badge: 3 },

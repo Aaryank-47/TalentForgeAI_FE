@@ -963,3 +963,219 @@ export const candidateHomeData = {
     profileStrength: { label: 'Great Progress!', change: 'Keep completing your profile', pct: 65 },
   },
 };
+
+// ── AI Interview Module Data ────────────────────────────────
+export const aiInterviewData = {
+  // Pending interviews on candidate dashboard
+  pendingInterviews: [
+    {
+      id: 'ai_int_001',
+      company: 'Google',
+      companyLogo: 'G',
+      companyColor: 'bg-blue-600',
+      role: 'Senior Frontend Developer',
+      deadline: 'Jun 28, 2026',
+      deadlineUrgency: 'urgent', // urgent | moderate | normal
+      attemptsAllowed: 1,
+      attemptsUsed: 0,
+      estimatedDuration: '35–45 min',
+      questionCount: 8,
+      status: 'pending', // pending | in-progress | submitted | expired
+      assignedDate: 'Jun 24, 2026',
+      interviewType: 'Conversational AI',
+      jobId: 'job_1',
+    },
+    {
+      id: 'ai_int_002',
+      company: 'Microsoft',
+      companyLogo: 'M',
+      companyColor: 'bg-emerald-600',
+      role: 'React Developer',
+      deadline: 'Jul 2, 2026',
+      deadlineUrgency: 'moderate',
+      attemptsAllowed: 2,
+      attemptsUsed: 0,
+      estimatedDuration: '30–40 min',
+      questionCount: 7,
+      status: 'pending',
+      assignedDate: 'Jun 22, 2026',
+      interviewType: 'Conversational AI',
+      jobId: 'job_3',
+    },
+  ],
+
+  // Past/submitted interviews
+  pastInterviews: [
+    {
+      id: 'ai_int_003',
+      company: 'Infosys',
+      companyLogo: 'I',
+      companyColor: 'bg-violet-600',
+      role: 'Full Stack Developer',
+      submittedDate: 'Jun 15, 2026',
+      status: 'completed',
+      aiScore: 86,
+      recommendation: 'Hire',
+    },
+  ],
+
+  // Interview details for a specific interview
+  interviewDetail: {
+    id: 'ai_int_001',
+    company: 'Google',
+    companyLogo: 'G',
+    companyColor: 'bg-blue-600',
+    role: 'Senior Frontend Developer',
+    department: 'Engineering',
+    interviewType: 'Conversational AI Interview',
+    estimatedDuration: '35–45 min',
+    questionCount: 8,
+    language: 'English',
+    format: [
+      'AI interviewer will ask one question at a time',
+      'You respond verbally — no typing required',
+      'Timer: 2–3 minutes per question',
+      'Questions progress automatically after your response',
+      'No option to skip or revisit questions',
+    ],
+    evaluationCriteria: [
+      { label: 'Communication Skills', weight: '25%' },
+      { label: 'Technical Knowledge', weight: '30%' },
+      { label: 'Problem Solving', weight: '20%' },
+      { label: 'Confidence & Clarity', weight: '15%' },
+      { label: 'Response Quality', weight: '10%' },
+    ],
+    tips: [
+      'Find a quiet room with good lighting',
+      'Speak clearly and at a comfortable pace',
+      'Use the STAR method (Situation, Task, Action, Result)',
+      'Look at the camera when answering',
+      'It is okay to pause and think before speaking',
+    ],
+  },
+
+  // Preparation center data
+  preparation: {
+    environmentChecklist: [
+      { id: 'quiet', label: 'Quiet environment with no background noise', done: false },
+      { id: 'lighting', label: 'Good lighting — face clearly visible', done: false },
+      { id: 'camera', label: 'Camera positioned at eye level', done: false },
+      { id: 'headphones', label: 'Headphones or earphones ready (optional)', done: false },
+      { id: 'browser', label: 'Only this tab open in browser', done: false },
+      { id: 'phone', label: 'Phone on silent / Do Not Disturb', done: false },
+    ],
+    practiceQuestions: [
+      'Tell me about yourself and your professional background.',
+      'What is your greatest professional achievement?',
+      'Describe a challenging project you worked on.',
+      'How do you handle tight deadlines?',
+      'Where do you see yourself in 5 years?',
+    ],
+    tips: [
+      { icon: '🎤', title: 'Speak Clearly', desc: 'Enunciate words clearly. Avoid filler words like "um" and "uh".' },
+      { icon: '👁', title: 'Eye Contact', desc: 'Look at the camera, not at your own video feed, for natural eye contact.' },
+      { icon: '⏱', title: 'Pace Yourself', desc: 'Take a breath before answering. 2–3 minutes is plenty of time.' },
+      { icon: '📖', title: 'Use STAR Method', desc: 'Structure answers: Situation, Task, Action, Result.' },
+      { icon: '🔇', title: 'Reduce Noise', desc: 'Close windows, notify others not to disturb, silence notifications.' },
+    ],
+  },
+
+  // System check initial state
+  systemCheck: {
+    microphone: { status: 'checking', label: 'Microphone', detail: 'Detecting audio input...' },
+    camera: { status: 'checking', label: 'Camera', detail: 'Detecting video feed...' },
+    tabMonitoring: { status: 'active', label: 'Tab Monitoring', detail: 'Screen sharing simulation active' },
+    noiseDetection: { status: 'checking', label: 'Noise Detection', detail: 'Analyzing environment...' },
+  },
+
+  // Interview questions (conversational, no MCQs/coding)
+  questions: [
+    {
+      id: 'q1',
+      order: 1,
+      text: 'Tell me about yourself — your background, experience, and what brought you to apply for this role at Google.',
+      duration: 180, // seconds
+      category: 'Introduction',
+    },
+    {
+      id: 'q2',
+      order: 2,
+      text: 'Can you walk me through your most significant project as a Frontend Developer? What was your role and what impact did it have?',
+      duration: 180,
+      category: 'Experience',
+    },
+    {
+      id: 'q3',
+      order: 3,
+      text: 'How do you approach optimizing the performance of a React application? Can you describe a specific instance where you improved performance?',
+      duration: 180,
+      category: 'Technical',
+    },
+    {
+      id: 'q4',
+      order: 4,
+      text: 'Describe a situation where you disagreed with a technical decision made by your team. How did you handle it?',
+      duration: 180,
+      category: 'Behavioral',
+    },
+    {
+      id: 'q5',
+      order: 5,
+      text: 'How do you stay up-to-date with the latest trends and best practices in frontend development?',
+      duration: 150,
+      category: 'Growth',
+    },
+    {
+      id: 'q6',
+      order: 6,
+      text: 'Tell me about a time you worked with a cross-functional team under a tight deadline. What was your strategy and what was the outcome?',
+      duration: 180,
+      category: 'Collaboration',
+    },
+    {
+      id: 'q7',
+      order: 7,
+      text: 'What do you consider your greatest professional strength, and how has it contributed to your success as a developer?',
+      duration: 150,
+      category: 'Self-Awareness',
+    },
+    {
+      id: 'q8',
+      order: 8,
+      text: 'Do you have any questions for us about the role, the team, or the culture at Google?',
+      duration: 120,
+      category: 'Closing',
+    },
+  ],
+
+  // Uploading screen steps
+  uploadSteps: [
+    { id: 'recording', label: 'Uploading Interview Recording', icon: '🎥', detail: 'Securely transmitting your video responses' },
+    { id: 'transcript', label: 'Processing Transcript', icon: '📝', detail: 'Generating text transcript from audio' },
+    { id: 'analysis', label: 'Analyzing Responses', icon: '🤖', detail: 'AI evaluating communication, clarity and content' },
+    { id: 'report', label: 'Generating Evaluation Report', icon: '📊', detail: 'Compiling scores and recommendations' },
+  ],
+
+  // Interview submission data
+  submission: {
+    interviewId: 'ai_int_001',
+    company: 'Google',
+    companyLogo: 'G',
+    companyColor: 'bg-blue-600',
+    role: 'Senior Frontend Developer',
+    submittedAt: 'Jun 26, 2026 at 11:58 AM',
+    status: 'Under AI Evaluation',
+    expectedCompletion: 'Within 24 hours',
+    confirmationCode: 'TF-2026-G-88214',
+  },
+
+  // Status timeline
+  statusTimeline: [
+    { id: 'submitted', label: 'Interview Submitted', detail: 'Jun 26, 2026 at 11:58 AM', status: 'done', icon: '✅' },
+    { id: 'ai_review', label: 'Under AI Evaluation', detail: 'Analyzing responses…', status: 'active', icon: '🤖' },
+    { id: 'completed', label: 'Evaluation Complete', detail: 'Expected within 24 hours', status: 'pending', icon: '📊' },
+    { id: 'recruiter', label: 'Recruiter Review', detail: 'Pending evaluation', status: 'pending', icon: '👤' },
+    { id: 'decision', label: 'Decision Ready', detail: 'Will be notified by email', status: 'pending', icon: '🎯' },
+  ],
+};
+

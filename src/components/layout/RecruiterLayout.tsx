@@ -21,6 +21,8 @@ import {
   LogOut,
   User,
   ChevronRight,
+  Workflow,
+  Library,
 } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
 
@@ -29,10 +31,15 @@ const mainNav = [
   { name: 'Jobs', href: '/recruiter/jobs', icon: Briefcase },
   { name: 'Candidates', href: '/recruiter/candidates', icon: Users },
   { name: 'Pipeline', href: '/recruiter/pipeline', icon: GitBranch },
+  { name: 'Workflows', href: '/recruiter/workflows', icon: Workflow },
+  { name: 'AI Interviews', href: '/recruiter/ai-interviews', icon: Bot },
+  { name: 'Interview Config', href: '/recruiter/interview-templates', icon: Library },
+  { name: 'Question Library', href: '/recruiter/question-library', icon: Library },
   { name: 'Assessments', href: '/recruiter/assessments', icon: ClipboardList },
   { name: 'Interviews', href: '/recruiter/interviews', icon: Video },
   { name: 'Analytics', href: '/recruiter/analytics', icon: BarChart3 },
 ];
+
 
 const secondaryNav = [
   { name: 'Messages', href: '/recruiter/messages', icon: MessageSquare, badge: 3 },
