@@ -1,123 +1,434 @@
-import React, { useState, useEffect, useCallback } from 'react';
+/**
+ * TalentForge AI — Interview Room Page
+ *
+ * Phase 2 & 3: Full AI conversation flow with:
+ * - OpenRouter question generation via interviewAI.service.ts
+ * - Browser TTS (SpeechSynthesis) via useSpeechSynthesis hook
+ * - Browser STT (SpeechRecognition) via useSpeechRecognition hook
+ * - Live conversation chat panel in center
+ * - Mic level, voice selector, word counter in right panel
+ * - Enterprise error handling via react-hot-toast
+ *
+ * LAYOUT PRESERVED: Left panel, top bar, right panel structure unchanged.
+ */
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Flag, Lightbulb, Monitor, Clock } from 'lucide-react';
-import { aiInterviewData } from '../../constants/candidate_mockData';
+import { Flag, Lightbulb, Monitor, Clock, Mic, MicOff, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { format } from 'date-fns';
+
+// ── Constants / Data ──────────────────────────────────────────
+import { aiInterviewData, aiInterviewConfig } from '../../constants/candidate_mockData';
+
+// ── Services ──────────────────────────────────────────────────
+import { generateNextQuestion } from '../../services/ai/interviewAI.service';
+import type { InterviewContext, TranscriptEntry } from '../../services/ai/interviewAI.service';
+
+// ── Hooks ─────────────────────────────────────────────────────
+import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+
+// ── Existing Components ───────────────────────────────────────
 import {
   QuestionCard,
-  CountdownTimer,
-  AIInterviewerCard,
   RecordingIndicator,
-  SpeakingIndicator,
-  ListeningIndicator,
 } from '../../components/interview/InterviewComponents';
+
+// ── New Conversation Components ───────────────────────────────
+import {
+  ConversationPanel,
+  AIInterviewerCard,
+  VoiceSelector,
+  MicLevelBar,
+  AIStatePanel,
+  type ConversationMessageData,
+  type FullAIState,
+} from '../../components/interview/InterviewComponents';
+
+// ── Media / Screen ────────────────────────────────────────────
 import { CameraPreview, ScreenPreview, TabSwitchIndicator } from '../../modules/shared/system-check/SystemCheck';
 import { useMedia } from '../../context/MediaProvider';
 
-
-type AIState = 'speaking' | 'listening' | 'thinking' | 'waiting' | 'loading';
-
+// ─────────────────────────────────────────────────────────────
+// Constants
+// ─────────────────────────────────────────────────────────────
 const INTERVIEW_TIPS = [
   'Speak clearly and at a natural pace.',
   'Use the STAR method for behavioral questions.',
   'Look at the camera when answering.',
-  'It\'s okay to pause before responding.',
+  "It's okay to pause before responding.",
   'Be specific — use real examples where possible.',
 ];
 
-const QUESTION_DURATION = 180; // 3 minutes per question (mock)
+// ─────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────
+function nowTimestamp(): string {
+  return format(new Date(), 'h:mm a');
+}
 
+function makeId(): string {
+  return Math.random().toString(36).slice(2);
+}
+
+// ─────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────
 export default function InterviewRoomPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const questions = aiInterviewData.questions;
 
-  const [currentQIdx, setCurrentQIdx] = useState(0);
-  const [aiState, setAiState] = useState<AIState>('loading');
-  const [secondsLeft, setSecondsLeft] = useState(QUESTION_DURATION);
-  const [responded, setResponded] = useState(false);
-  const [answered, setAnswered] = useState<number[]>([]);
+  // ── Config from mock data (never hardcoded here) ─────────────
+  const { questions } = aiInterviewData;
+  const totalQuestions = aiInterviewConfig.totalQuestions;
+  const silenceTimeoutMs = aiInterviewConfig.silenceTimeoutMs;
+  const textRenderDelayMs = aiInterviewConfig.textRenderDelayMs;
+
+  // ── Media context ─────────────────────────────────────────────
   const { cameraStream, screenStream, deviceState, faceState, tabSwitches } = useMedia();
 
+  // ── Speech hooks ──────────────────────────────────────────────
+  const tts = useSpeechSynthesis();
+  const stt = useSpeechRecognition({
+    silenceTimeoutMs,
+    onSilenceStop: () => handleSttSilenceStop(),
+  });
+
+  // ── Interview state ───────────────────────────────────────────
+  const [aiState, setAiState] = useState<FullAIState>('loading');
+  const [currentQIdx, setCurrentQIdx] = useState(0);
+  const [answered, setAnswered] = useState<number[]>([]);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
-  const [displayedText, setDisplayedText] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
 
-  const currentQ = questions[currentQIdx];
-  const isLast = currentQIdx === questions.length - 1;
+  // ── Conversation messages ──────────────────────────────────────
+  const [messages, setMessages] = useState<ConversationMessageData[]>([]);
+  // Live message: current question (AI) or current partial answer (candidate)
+  const [liveMessage, setLiveMessage] = useState<ConversationMessageData | null>(null);
+  const conversationBottomRef = useRef<HTMLDivElement | null>(null);
 
-  // Simulate AI asking question (typewriter + state sequence)
-  const startQuestion = useCallback((qText: string) => {
-    setAiState('speaking');
-    setIsTyping(true);
-    setDisplayedText('');
-    setResponded(false);
-    setSecondsLeft(QUESTION_DURATION);
+  // ── Current displayed question (for left panel) ───────────────
+  const [displayedQuestion, setDisplayedQuestion] = useState('');
+  const [currentCategory, setCurrentCategory] = useState(
+    questions[0]?.category ?? 'Introduction'
+  );
 
-    let i = 0;
-    const speed = 35; // ms per char
-    const interval = setInterval(() => {
-      i++;
-      setDisplayedText(qText.slice(0, i));
-      if (i >= qText.length) {
-        clearInterval(interval);
-        setIsTyping(false);
-        setAiState('listening');
-      }
-    }, speed);
-    return () => clearInterval(interval);
-  }, []);
+  // ── Transcript accumulation (for AI context) ──────────────────
+  const transcriptHistoryRef = useRef<TranscriptEntry[]>([]);
+  const previousQuestionsRef = useRef<string[]>([]);
+  const currentQuestionRef = useRef<string>('');
 
-  // Start first question
+  // ── State guards to prevent overlapping flows ─────────────────
+  const flowLockRef = useRef(false);
+  const isLastQuestion = currentQIdx >= totalQuestions - 1;
+
+  // ─────────────────────────────────────────────────────────────
+  // Scroll to bottom whenever messages change
+  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => startQuestion(currentQ.text), 1200);
-    return () => clearTimeout(t);
-  }, [currentQIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+    conversationBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, liveMessage]);
 
-  // Countdown timer
-  useEffect(() => {
-    if (aiState !== 'listening') return;
-    if (secondsLeft <= 0) {
-      handleMoveNext();
-      return;
-    }
-    const t = setTimeout(() => setSecondsLeft(prev => prev - 1), 1000);
-    return () => clearTimeout(t);
-  }, [secondsLeft, aiState]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Simulate response after some time
-  useEffect(() => {
-    if (aiState !== 'listening') return;
-    const t = setTimeout(() => setResponded(true), 6000);
-    return () => clearTimeout(t);
-  }, [aiState]);
-
+  // ─────────────────────────────────────────────────────────────
   // Rotate tips
+  // ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const t = setInterval(() => setTipIdx(prev => (prev + 1) % INTERVIEW_TIPS.length), 7000);
+    const t = setInterval(() => setTipIdx((prev) => (prev + 1) % INTERVIEW_TIPS.length), 7000);
     return () => clearInterval(t);
   }, []);
 
-  const handleMoveNext = () => {
-    setAnswered(prev => [...prev, currentQIdx]);
-    if (isLast) {
-      navigate(`/candidate/ai-interview/${id}/uploading`);
-    } else {
-      setAiState('thinking');
-      setTimeout(() => {
-        setCurrentQIdx(prev => prev + 1);
-      }, 1500);
+  // ─────────────────────────────────────────────────────────────
+  // Core: generate + speak + listen flow
+  // ─────────────────────────────────────────────────────────────
+  const runQuestionFlow = useCallback(
+    async (questionNumber: number) => {
+      if (flowLockRef.current) return;
+      flowLockRef.current = true;
+
+      // ── Step 1: Generating ──────────────────────────────────
+      setAiState('generating');
+      setLiveMessage({
+        id: makeId(),
+        role: 'ai',
+        text: '', // empty = skeleton dots
+        timestamp: nowTimestamp(),
+        status: 'generating',
+        questionNumber,
+      });
+
+      // Build context from accumulated history
+      const ctx: InterviewContext = {
+        role: aiInterviewConfig.role,
+        company: aiInterviewConfig.company,
+        experience: aiInterviewConfig.experience,
+        interviewType: aiInterviewConfig.interviewType,
+        difficulty: aiInterviewConfig.difficulty,
+        skills: aiInterviewConfig.skills,
+        questionNumber,
+        totalQuestions,
+        previousQuestions: previousQuestionsRef.current,
+        topicsCovered: previousQuestionsRef.current.map((_, i) =>
+          questions[i]?.category ?? ''
+        ).filter(Boolean),
+        transcript: transcriptHistoryRef.current,
+      };
+
+      let generatedQ = '';
+      let isFallback = false;
+
+      try {
+        const result = await generateNextQuestion(ctx);
+        generatedQ = result.question;
+        isFallback = result.isFallback;
+
+        if (result.error) {
+          const errorMessages = {
+            timeout: '⏱ AI took too long — using a prepared question instead.',
+            network: '🌐 Network issue — using a prepared question instead.',
+            api: result.error.message.includes('No API key')
+              ? '🔑 No OpenRouter API key set — using fallback questions. Add VITE_OPENROUTER_API_KEY to .env.local'
+              : `⚠️ AI error — using a prepared question instead.`,
+            empty: '⚠️ AI returned empty — using a prepared question instead.',
+          };
+          toast(errorMessages[result.error.type] ?? '⚠️ Using fallback question.', {
+            icon: isFallback ? '📋' : '✅',
+            duration: 4000,
+          });
+        }
+      } catch {
+        generatedQ = questions[questionNumber - 1]?.text ?? 'Tell me about yourself.';
+        isFallback = true;
+        toast.error('Failed to generate question. Using prepared fallback.');
+      }
+
+      currentQuestionRef.current = generatedQ;
+      previousQuestionsRef.current = [...previousQuestionsRef.current, generatedQ];
+
+      // ── Step 2: Start TTS immediately — show text after delay ──
+      setAiState('speaking');
+
+      // Show skeleton → real text after textRenderDelayMs
+      const renderTimeout = setTimeout(() => {
+        const category =
+          questions[questionNumber - 1]?.category ??
+          ['Introduction', 'Technical', 'Behavioral', 'Experience'][questionNumber % 4];
+
+        setCurrentCategory(category);
+        setDisplayedQuestion(generatedQ);
+
+        setLiveMessage({
+          id: makeId(),
+          role: 'ai',
+          text: generatedQ,
+          timestamp: nowTimestamp(),
+          status: 'speaking',
+          questionNumber,
+          isFallback,
+        });
+      }, textRenderDelayMs);
+
+      // Speak (returns promise that resolves when done)
+      if (tts.isSupported) {
+        await tts.speak(generatedQ);
+      } else {
+        toast('🔇 Text-to-Speech is not supported in this browser. Read the question above.', {
+          duration: 5000,
+        });
+        // Wait a moment for user to read
+        await new Promise((r) => setTimeout(r, 3000));
+      }
+
+      clearTimeout(renderTimeout);
+
+      // Finalize AI message in conversation list (move from live → messages)
+      const finalAiMsg: ConversationMessageData = {
+        id: makeId(),
+        role: 'ai',
+        text: generatedQ,
+        timestamp: nowTimestamp(),
+        status: 'pinned',
+        questionNumber,
+        isFallback,
+      };
+      setMessages((prev) => [...prev, finalAiMsg]);
+      setLiveMessage(null);
+
+      // ── Step 3: Waiting for candidate ─────────────────────────
+      setAiState('waiting');
+      flowLockRef.current = false;
+    },
+    [tts, questions, totalQuestions, textRenderDelayMs]
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // Mount: start first question
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const t = setTimeout(() => {
+      runQuestionFlow(1);
+    }, 800);
+    return () => clearTimeout(t);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─────────────────────────────────────────────────────────────
+  // STT: live transcript → update live candidate bubble
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!stt.isListening) return;
+
+    if (stt.transcript) {
+      setLiveMessage({
+        id: 'candidate-live',
+        role: 'candidate',
+        text: stt.transcript,
+        timestamp: nowTimestamp(),
+        status: 'partial',
+      });
     }
-  };
+  }, [stt.transcript, stt.isListening]);
 
-  const handleFinishInterview = () => {
-    setAnswered(prev => prev.includes(currentQIdx) ? prev : [...prev, currentQIdx]);
+  // ─────────────────────────────────────────────────────────────
+  // STT finalized → process answer → generate next question
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!stt.isFinalized) return;
+    handleAnswerFinalized(stt.finalTranscript);
+  }, [stt.isFinalized]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleAnswerFinalized = useCallback(
+    async (answerText: string) => {
+      if (flowLockRef.current) return;
+      flowLockRef.current = true;
+
+      // Add finalized candidate message to history
+      const candidateMsg: ConversationMessageData = {
+        id: makeId(),
+        role: 'candidate',
+        text: answerText || '[No response detected]',
+        timestamp: nowTimestamp(),
+        status: 'final',
+      };
+      setMessages((prev) => [...prev, candidateMsg]);
+      setLiveMessage(null);
+
+      // Accumulate transcript for AI context
+      transcriptHistoryRef.current = [
+        ...transcriptHistoryRef.current,
+        {
+          questionNumber: currentQIdx + 1,
+          question: currentQuestionRef.current,
+          answer: answerText,
+        },
+      ];
+
+      // Mark question as answered
+      const newAnswered = [...answered, currentQIdx];
+      setAnswered(newAnswered);
+
+      flowLockRef.current = false;
+
+      if (isLastQuestion) {
+        setAiState('loading');
+        toast.success('Interview complete! Uploading your responses…');
+        setTimeout(() => navigate(`/candidate/ai-interview/${id}/uploading`), 1500);
+        return;
+      }
+
+      // ── Processing → Generate next ─────────────────────────
+      setAiState('processing');
+      await new Promise((r) => setTimeout(r, 800));
+
+      const nextIdx = currentQIdx + 1;
+      setCurrentQIdx(nextIdx);
+      await runQuestionFlow(nextIdx + 1);
+    },
+    [currentQIdx, answered, isLastQuestion, id, navigate, runQuestionFlow]
+  );
+
+  // ─────────────────────────────────────────────────────────────
+  // Silence auto-stop handler
+  // ─────────────────────────────────────────────────────────────
+  const handleSttSilenceStop = useCallback(() => {
+    // STT service already stopped; the isFinalized effect handles the rest
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────
+  // Manual STT controls
+  // ─────────────────────────────────────────────────────────────
+  const handleStartListening = useCallback(() => {
+    if (aiState !== 'waiting') return;
+    if (!stt.isSupported) {
+      toast.error(
+        '🎙 Speech recognition is not supported in this browser. Try Chrome or Edge.',
+        { duration: 6000 }
+      );
+      return;
+    }
+    // Cancel any ongoing TTS first
+    tts.cancel();
+    setAiState('listening');
+    stt.reset();
+    stt.start();
+  }, [aiState, stt, tts]);
+
+  const handleStopListening = useCallback(() => {
+    stt.stop();
+  }, [stt]);
+
+  // ─────────────────────────────────────────────────────────────
+  // Replay last question
+  // ─────────────────────────────────────────────────────────────
+  const handleReplay = useCallback(() => {
+    if (aiState !== 'waiting' || !currentQuestionRef.current) return;
+    tts.replay();
+  }, [aiState, tts]);
+
+  // ─────────────────────────────────────────────────────────────
+  // Finish interview early
+  // ─────────────────────────────────────────────────────────────
+  const handleFinishInterview = useCallback(() => {
+    tts.cancel();
+    stt.abort();
     navigate(`/candidate/ai-interview/${id}/uploading`);
-  };
+  }, [id, navigate, tts, stt]);
 
+  // ─────────────────────────────────────────────────────────────
+  // Map FullAIState → existing AIInterviewerCard state
+  // ─────────────────────────────────────────────────────────────
+  type LegacyAIState = 'speaking' | 'listening' | 'thinking' | 'waiting' | 'loading';
+  const legacyState: LegacyAIState = (() => {
+    const map: Record<FullAIState, LegacyAIState> = {
+      loading: 'loading',
+      generating: 'thinking',
+      speaking: 'speaking',
+      waiting: 'waiting',
+      listening: 'listening',
+      processing: 'thinking',
+      thinking: 'thinking',
+      error: 'waiting',
+    };
+    return map[aiState];
+  })();
+
+  // ─────────────────────────────────────────────────────────────
+  // STT error handling via toast
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (stt.errorMessage) {
+      toast.error(stt.errorMessage, { duration: 5000 });
+      if (aiState === 'listening') {
+        setAiState('waiting');
+      }
+    }
+  }, [stt.errorMessage]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────
   return (
     <div className="h-screen bg-slate-50 flex flex-col overflow-hidden">
-      {/* Top Bar */}
+
+      {/* ── Top Bar ───────────────────────────────────────────── */}
       <div className="h-14 bg-white border-b border-slate-200 flex items-center px-6 gap-4 flex-shrink-0 shadow-sm z-10">
         <div className="flex items-center gap-2">
           <div className="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center text-white text-xs font-black">TF</div>
@@ -128,7 +439,7 @@ export default function InterviewRoomPage() {
         <TabSwitchIndicator count={tabSwitches} />
         <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
           <Clock className="w-3.5 h-3.5" />
-          <span>Q {currentQIdx + 1}/{questions.length}</span>
+          <span>Q {currentQIdx + 1}/{totalQuestions}</span>
         </div>
         {showFinishConfirm ? (
           <div className="flex items-center gap-2">
@@ -147,20 +458,20 @@ export default function InterviewRoomPage() {
         )}
       </div>
 
-      {/* Main Content */}
+      {/* ── Main Content ──────────────────────────────────────── */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* LEFT PANEL: Question + Progress */}
+        {/* ── LEFT PANEL: Question + Progress ──────────────────── */}
         <div className="w-72 bg-white border-r border-slate-200 flex flex-col p-4 gap-4 overflow-y-auto flex-shrink-0 z-0">
           {/* Current Question */}
           <div>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mb-2">Current Question</p>
             <QuestionCard
               order={currentQIdx + 1}
-              total={questions.length}
-              text={displayedText || '…'}
-              category={currentQ.category}
-              isTyping={isTyping}
+              total={totalQuestions}
+              text={displayedQuestion || '…'}
+              category={currentCategory}
+              isTyping={aiState === 'generating' || aiState === 'speaking'}
             />
           </div>
 
@@ -168,20 +479,21 @@ export default function InterviewRoomPage() {
           <div>
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mb-2">Question Timeline</p>
             <div className="space-y-1.5">
-              {questions.map((q, i) => {
+              {Array.from({ length: totalQuestions }).map((_, i) => {
                 const isAnswered = answered.includes(i);
                 const isCurrent = i === currentQIdx;
                 const isFuture = i > currentQIdx;
+                const cat = questions[i]?.category ?? `Q${i + 1}`;
                 return (
                   <div
-                    key={q.id}
+                    key={i}
                     className={`flex items-center gap-2.5 p-2 rounded-lg text-xs transition-all ${isCurrent ? 'bg-primary-50 border border-primary-200' : isAnswered ? 'bg-emerald-50 border border-emerald-200' : 'opacity-60 bg-slate-50 border border-slate-100'}`}
                   >
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${isCurrent ? 'bg-primary-600 text-white' : isAnswered ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
                       {isAnswered ? '✓' : i + 1}
                     </div>
                     <span className={`truncate ${isCurrent ? 'text-primary-800 font-semibold' : isAnswered ? 'text-emerald-700' : 'text-slate-500'}`}>
-                      {isFuture && !isCurrent ? '—' : q.category}
+                      {isFuture && !isCurrent ? '—' : cat}
                     </span>
                   </div>
                 );
@@ -193,60 +505,126 @@ export default function InterviewRoomPage() {
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Progress</p>
-              <span className="text-[10px] font-bold text-slate-600">{Math.round((answered.length / questions.length) * 100)}%</span>
+              <span className="text-[10px] font-bold text-slate-600">{Math.round((answered.length / totalQuestions) * 100)}%</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5">
               <div
                 className="h-1.5 rounded-full bg-primary-500 transition-all duration-700"
-                style={{ width: `${(answered.length / questions.length) * 100}%` }}
+                style={{ width: `${(answered.length / totalQuestions) * 100}%` }}
               />
             </div>
             <div className="flex justify-between mt-1.5 text-[10px] text-slate-500">
               <span>{answered.length} answered</span>
-              <span>{questions.length - answered.length} remaining</span>
+              <span>{totalQuestions - answered.length} remaining</span>
             </div>
           </div>
         </div>
 
-        {/* CENTER: AI Interaction */}
-        <div className="flex-1 flex flex-col items-center justify-center p-6 gap-8 bg-slate-50/50">
-          <div className="transform scale-125">
-            <AIInterviewerCard state={aiState} name="TalentForge AI" />
+        {/* ── CENTER PANEL: AI + Conversation ──────────────────── */}
+        <div className="flex-1 flex flex-col overflow-hidden bg-slate-50/50">
+
+          {/* AI Interviewer compact header */}
+          <div className="flex-shrink-0 flex items-center justify-between px-6 pt-4 pb-3 border-b border-slate-200 bg-white">
+            <div className="flex items-center gap-4">
+              <div className="transform scale-75 origin-left">
+                <AIInterviewerCard state={legacyState} name="TalentForge AI" compact />
+              </div>
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-bold text-slate-900">TalentForge AI Interviewer</span>
+                <AIStatePanel state={aiState} />
+              </div>
+            </div>
+
+            {/* TTS controls */}
+            <div className="flex items-center gap-2">
+              {/* Replay */}
+              <button
+                onClick={handleReplay}
+                disabled={aiState !== 'waiting' || !currentQuestionRef.current}
+                title="Replay last question"
+                className="p-2 rounded-lg border border-slate-200 hover:border-primary-300 hover:bg-primary-50 transition-colors text-slate-500 hover:text-primary-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+              {/* Stop TTS */}
+              <button
+                onClick={tts.cancel}
+                disabled={!tts.isSpeaking}
+                title="Stop speaking"
+                className="p-2 rounded-lg border border-slate-200 hover:border-red-300 hover:bg-red-50 transition-colors text-slate-500 hover:text-red-600 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {tts.isSpeaking ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
-          {/* Status + Timer */}
-          <div className="flex flex-col items-center gap-6 mt-8">
-            <CountdownTimer secondsLeft={secondsLeft} totalSeconds={QUESTION_DURATION} size="lg" />
-            <div className="text-slate-800 bg-white shadow-sm border border-slate-200 px-6 py-3 rounded-full flex items-center justify-center min-w-[240px]">
-              {aiState === 'speaking' && <SpeakingIndicator label="AI Asking Question" />}
-              {aiState === 'listening' && <ListeningIndicator label="Your turn — speak now" />}
-              {aiState === 'thinking' && (
-                <div className="flex items-center gap-2">
-                  <div className="flex gap-0.5">
-                    <div className="w-2 h-2 rounded-full bg-violet-500 animate-ai-dot" />
-                    <div className="w-2 h-2 rounded-full bg-violet-500 animate-ai-dot-2" />
-                    <div className="w-2 h-2 rounded-full bg-violet-500 animate-ai-dot-3" />
-                  </div>
-                  <span className="text-sm text-violet-600 font-bold">AI Thinking…</span>
+          {/* Conversation Chat */}
+          <div className="flex-1 flex flex-col overflow-hidden px-6 pt-4">
+            {messages.length === 0 && !liveMessage && (
+              <div className="flex flex-col items-center justify-center flex-1 gap-3 text-slate-400">
+                <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center text-2xl animate-gentle-spin">
+                  🤖
+                </div>
+                <p className="text-sm font-medium">Starting your interview…</p>
+              </div>
+            )}
+            <ConversationPanel
+              messages={messages}
+              liveMessage={liveMessage}
+              bottomRef={conversationBottomRef}
+            />
+          </div>
+
+          {/* Bottom controls — mic button */}
+          <div className="flex-shrink-0 px-6 py-4 border-t border-slate-200 bg-white">
+            <div className="flex items-center gap-4">
+              {/* Mic button */}
+              {aiState === 'waiting' && (
+                <button
+                  onClick={handleStartListening}
+                  className="flex items-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm shadow-emerald-200 animate-fade-in-up"
+                >
+                  <Mic className="w-4 h-4" />
+                  Start Speaking
+                </button>
+              )}
+              {aiState === 'listening' && (
+                <button
+                  onClick={handleStopListening}
+                  className="flex items-center gap-2.5 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm shadow-red-200 animate-fade-in-up"
+                >
+                  <MicOff className="w-4 h-4" />
+                  Done Speaking
+                </button>
+              )}
+              {(aiState === 'generating' || aiState === 'speaking' || aiState === 'processing' || aiState === 'thinking') && (
+                <div className="flex items-center gap-2 text-slate-400 text-sm">
+                  <div className="w-2 h-2 rounded-full bg-slate-300 animate-recording-pulse" />
+                  {aiState === 'speaking' ? 'AI is speaking…' : 'Please wait…'}
+                </div>
+              )}
+
+              <div className="flex-1" />
+
+              {/* Live stats when listening */}
+              {aiState === 'listening' && (
+                <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <span className="font-medium tabular-nums">
+                    {stt.wordCount} words
+                  </span>
+                  <span className="font-medium tabular-nums">
+                    {Math.floor(stt.speakingSeconds / 60)}:{String(stt.speakingSeconds % 60).padStart(2, '0')}
+                  </span>
+                  <MicLevelBar level={stt.micLevel} isActive={stt.isListening} />
                 </div>
               )}
             </div>
           </div>
-
-          {/* Next button — only after response simulation */}
-          {responded && aiState === 'listening' && (
-            <button
-              onClick={handleMoveNext}
-              className="btn-primary px-8 py-3 text-sm animate-fade-in-up"
-            >
-              {isLast ? 'Finish Interview' : 'Next Question →'}
-            </button>
-          )}
         </div>
 
-        {/* RIGHT PANEL: Previews + Tips */}
+        {/* ── RIGHT PANEL: Previews + Tips + Voice ─────────────── */}
         <div className="w-80 bg-white border-l border-slate-200 flex flex-col p-4 gap-4 overflow-y-auto flex-shrink-0 z-0">
-          
+
           {/* Real-time Previews */}
           <div className="space-y-3">
             <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Monitoring Feeds</p>
@@ -259,6 +637,16 @@ export default function InterviewRoomPage() {
               </div>
             )}
           </div>
+
+          {/* Voice Selector */}
+          {tts.isSupported && (
+            <VoiceSelector
+              voices={tts.voices}
+              selectedVoiceURI={tts.selectedVoiceURI}
+              onChange={tts.setSelectedVoice}
+              disabled={tts.isSpeaking}
+            />
+          )}
 
           {/* Interview Tips */}
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -296,8 +684,14 @@ export default function InterviewRoomPage() {
             </div>
             <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
               <span>Questions Answered</span>
-              <span className="font-bold text-primary-600 tabular-nums">{answered.length}/{questions.length}</span>
+              <span className="font-bold text-primary-600 tabular-nums">{answered.length}/{totalQuestions}</span>
             </div>
+            {stt.isListening && (
+              <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
+                <span>Mic Level</span>
+                <MicLevelBar level={stt.micLevel} isActive={stt.isListening} />
+              </div>
+            )}
           </div>
         </div>
       </div>

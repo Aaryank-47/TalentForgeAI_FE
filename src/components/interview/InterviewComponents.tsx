@@ -463,3 +463,218 @@ export const RiskBadge: React.FC<{ level: string }> = ({ level }) => {
     </span>
   );
 };
+
+// ─────────────────────────────────────────────────────────────
+// ConversationMessage — single chat bubble in the interview chat
+// ─────────────────────────────────────────────────────────────
+export type MessageRole = 'ai' | 'candidate';
+export type MessageStatus = 'speaking' | 'listening' | 'final' | 'partial' | 'generating' | 'pinned';
+
+export interface ConversationMessageData {
+  id: string;
+  role: MessageRole;
+  text: string;
+  timestamp: string;
+  status: MessageStatus;
+  questionNumber?: number;
+  isFallback?: boolean;
+}
+
+export const ConversationMessage: React.FC<{
+  message: ConversationMessageData;
+  isLive?: boolean;
+}> = ({ message, isLive }) => {
+  const isAI = message.role === 'ai';
+
+  const bubbleClass = isAI
+    ? 'bg-primary-600 text-white rounded-2xl rounded-tl-sm shadow-sm'
+    : 'bg-white border border-slate-200 text-slate-800 rounded-2xl rounded-tr-sm shadow-sm';
+
+  const statusLabel: Record<MessageStatus, { text: string; color: string }> = {
+    speaking: { text: 'Speaking…', color: 'text-primary-300' },
+    generating: { text: 'Generating…', color: 'text-primary-300' },
+    pinned: { text: 'Current Question', color: 'text-primary-200' },
+    listening: { text: 'Listening…', color: 'text-emerald-600' },
+    partial: { text: 'Speaking…', color: 'text-slate-400' },
+    final: { text: 'Answered', color: 'text-slate-400' },
+  };
+
+  const st = statusLabel[message.status];
+
+  return (
+    <div className={`flex flex-col ${isAI ? 'items-start' : 'items-end'} gap-1 animate-fade-in-up`}>
+      {/* Speaker label */}
+      <div className={`flex items-center gap-2 px-1 ${isAI ? 'flex-row' : 'flex-row-reverse'}`}>
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${isAI ? 'bg-primary-600 text-white' : 'bg-slate-300 text-slate-700'}`}>
+          {isAI ? '🤖' : '👤'}
+        </div>
+        <span className="text-[10px] font-semibold text-slate-400">
+          {isAI ? 'AI Interviewer' : 'You'}
+        </span>
+        <span className="text-[10px] text-slate-300">{message.timestamp}</span>
+        {message.isFallback && (
+          <span className="text-[9px] bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full border border-amber-200 font-medium">
+            Fallback
+          </span>
+        )}
+      </div>
+
+      {/* Bubble */}
+      <div className={`max-w-[88%] px-4 py-3 ${bubbleClass}`}>
+        {message.text ? (
+          <p className="text-sm leading-relaxed">
+            {message.text}
+            {isLive && message.status === 'speaking' && (
+              <span className="animate-blink-cursor ml-0.5 text-primary-200">|</span>
+            )}
+            {isLive && message.status === 'partial' && (
+              <span className="animate-blink-cursor ml-0.5 text-slate-400">|</span>
+            )}
+          </p>
+        ) : (
+          /* Skeleton / generating state */
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full bg-white/60 animate-ai-dot" />
+            <div className="w-2 h-2 rounded-full bg-white/60 animate-ai-dot-2" />
+            <div className="w-2 h-2 rounded-full bg-white/60 animate-ai-dot-3" />
+          </div>
+        )}
+      </div>
+
+      {/* Status tag */}
+      <span className={`text-[10px] font-medium px-1 ${st.color}`}>{st.text}</span>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// ConversationPanel — scrollable chat container
+// ─────────────────────────────────────────────────────────────
+export const ConversationPanel: React.FC<{
+  messages: ConversationMessageData[];
+  liveMessage?: ConversationMessageData | null;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
+}> = ({ messages, liveMessage, bottomRef }) => (
+  <div className="flex flex-col gap-4 overflow-y-auto flex-1 px-1 py-2 scroll-smooth">
+    {messages.map((msg) => (
+      <ConversationMessage key={msg.id} message={msg} />
+    ))}
+    {liveMessage && (
+      <ConversationMessage message={liveMessage} isLive />
+    )}
+    <div ref={bottomRef} />
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────
+// MicLevelBar — audio level visualization
+// ─────────────────────────────────────────────────────────────
+export const MicLevelBar: React.FC<{ level: number; isActive: boolean }> = ({ level, isActive }) => {
+  const bars = 12;
+  return (
+    <div className="flex items-end gap-0.5 h-6">
+      {Array.from({ length: bars }).map((_, i) => {
+        const threshold = ((i + 1) / bars) * 100;
+        const active = isActive && level >= threshold;
+        return (
+          <div
+            key={i}
+            className={`w-1 rounded-full transition-all duration-75 ${active ? 'bg-emerald-500' : 'bg-slate-200'}`}
+            style={{ height: `${Math.max(25, ((i + 1) / bars) * 100)}%` }}
+          />
+        );
+      })}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// VoiceSelector — TTS voice picker
+// ─────────────────────────────────────────────────────────────
+export const VoiceSelector: React.FC<{
+  voices: SpeechSynthesisVoice[];
+  selectedVoiceURI: string | null;
+  onChange: (uri: string) => void;
+  disabled?: boolean;
+}> = ({ voices, selectedVoiceURI, onChange, disabled }) => {
+  if (!voices.length) return null;
+
+  // Prefer English voices
+  const englishVoices = voices.filter((v) => v.lang.startsWith('en'));
+  const displayVoices = englishVoices.length > 0 ? englishVoices : voices;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wide flex items-center gap-1.5">
+        <Volume2 className="w-3 h-3" />
+        AI Voice
+      </label>
+      <select
+        disabled={disabled}
+        value={selectedVoiceURI || ''}
+        onChange={(e) => onChange(e.target.value)}
+        className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-700 font-medium outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-200 disabled:opacity-50 cursor-pointer"
+      >
+        <option value="">System Default</option>
+        {displayVoices.map((v) => (
+          <option key={v.voiceURI} value={v.voiceURI}>
+            {v.name} ({v.lang})
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────
+// AIStatePanel — badge + description for current AI state
+// ─────────────────────────────────────────────────────────────
+export type FullAIState =
+  | 'loading'
+  | 'generating'
+  | 'speaking'
+  | 'waiting'
+  | 'listening'
+  | 'processing'
+  | 'thinking'
+  | 'error';
+
+const FULL_AI_STATE_CONFIG: Record<
+  FullAIState,
+  { label: string; description: string; color: string; bg: string; animate: boolean }
+> = {
+  loading:     { label: 'Connecting',        description: 'Setting up your interview…',            color: 'text-slate-500',    bg: 'bg-slate-100 border-slate-200',       animate: false },
+  generating:  { label: 'Generating',        description: 'AI is crafting your next question…',    color: 'text-violet-600',   bg: 'bg-violet-50 border-violet-200',      animate: true  },
+  speaking:    { label: 'AI Speaking',       description: 'Listen carefully before responding.',    color: 'text-primary-600',  bg: 'bg-primary-50 border-primary-200',    animate: true  },
+  waiting:     { label: 'Ready',             description: 'Click "Start Speaking" when ready.',     color: 'text-amber-600',    bg: 'bg-amber-50 border-amber-200',        animate: false },
+  listening:   { label: 'Listening',         description: 'Speak your answer — I am listening.',   color: 'text-emerald-600',  bg: 'bg-emerald-50 border-emerald-200',    animate: true  },
+  processing:  { label: 'Processing',        description: 'Analyzing your response…',              color: 'text-violet-600',   bg: 'bg-violet-50 border-violet-200',      animate: true  },
+  thinking:    { label: 'Thinking',          description: 'Preparing the next question…',           color: 'text-violet-600',   bg: 'bg-violet-50 border-violet-200',      animate: true  },
+  error:       { label: 'Error',             description: 'Something went wrong. Check toasts.',    color: 'text-red-600',      bg: 'bg-red-50 border-red-200',            animate: false },
+};
+
+export const AIStatePanel: React.FC<{ state: FullAIState }> = ({ state }) => {
+  const cfg = FULL_AI_STATE_CONFIG[state];
+  return (
+    <div className={`flex items-center gap-2.5 px-3 py-2 rounded-full border text-xs font-semibold ${cfg.bg} ${cfg.color}`}>
+      {/* Animated indicator */}
+      {cfg.animate && state === 'speaking' && <SpeakingIndicator label="" />}
+      {cfg.animate && state === 'listening' && (
+        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-recording-pulse" />
+      )}
+      {cfg.animate && (state === 'generating' || state === 'processing' || state === 'thinking') && (
+        <div className="flex gap-0.5">
+          <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-ai-dot" />
+          <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-ai-dot-2" />
+          <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-ai-dot-3" />
+        </div>
+      )}
+      {!cfg.animate && state === 'loading' && (
+        <div className="w-3 h-3 rounded-full border-2 border-slate-400 border-t-transparent animate-gentle-spin" />
+      )}
+      {state === 'error' && <AlertTriangle className="w-3 h-3" />}
+      <span>{cfg.label}</span>
+    </div>
+  );
+};
+

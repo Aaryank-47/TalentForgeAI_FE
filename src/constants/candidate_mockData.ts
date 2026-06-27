@@ -1179,3 +1179,31 @@ export const aiInterviewData = {
   ],
 };
 
+// ── AI Interview Runtime Configuration ─────────────────────
+// All hardcoded values that drive the AI conversation engine.
+// No values from this block should ever appear inside components or services.
+export const aiInterviewConfig = {
+  /** Role being interviewed for */
+  role: 'Senior Frontend Developer',
+  /** Company name for context */
+  company: 'Google',
+  /** Candidate experience level */
+  experience: '4+ years',
+  /** Type of interview */
+  interviewType: 'Conversational AI',
+  /** Difficulty level: 'beginner' | 'intermediate' | 'advanced' */
+  difficulty: 'intermediate' as const,
+  /** Skills to evaluate — drives technical question targeting */
+  skills: ['React', 'TypeScript', 'Next.js', 'JavaScript', 'Tailwind CSS', 'Node.js', 'GraphQL'],
+  /** Total questions to generate */
+  totalQuestions: 8,
+  /** Duration per question in seconds */
+  questionDurationSec: 180,
+  /** Milliseconds of silence before auto-stopping speech recognition */
+  silenceTimeoutMs: 3000,
+  /** TTS speech rate (0.5 – 2.0) */
+  ttsRate: 0.92,
+  /** Delay (ms) before showing AI text after speech starts */
+  textRenderDelayMs: 120,
+};
+
