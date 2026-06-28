@@ -50,6 +50,21 @@ import InterviewTemplatesPage from './pages/recruiter/InterviewTemplatesPage';
 import InterviewTemplateEditorPage from './pages/recruiter/InterviewTemplateEditorPage';
 import QuestionLibraryPage from './pages/recruiter/QuestionLibraryPage';
 
+// ─── Live Interview Module — Recruiter ─────────────────────
+import RecruiterLiveInterviewsPage from './pages/recruiter/live-interview/RecruiterLiveInterviewsPage';
+import RecruiterInterviewCalendarPage from './pages/recruiter/live-interview/RecruiterInterviewCalendarPage';
+import RecruiterInterviewDetailPage from './pages/recruiter/live-interview/RecruiterInterviewDetailPage';
+import RecruiterInterviewHistoryPage from './pages/recruiter/live-interview/RecruiterInterviewHistoryPage';
+import RecruiterLiveRoomPage from './pages/recruiter/live-interview/RecruiterLiveRoomPage';
+import RecruiterInterviewFeedbackPage from './pages/recruiter/live-interview/RecruiterInterviewFeedbackPage';
+
+// ─── Live Interview Module — Candidate ─────────────────────
+import CandidateLiveInterviewsPage from './pages/candidate/live-interview/CandidateLiveInterviewsPage';
+import CandidateLiveInterviewDetailPage from './pages/candidate/live-interview/CandidateLiveInterviewDetailPage';
+import CandidateLiveRoomPage from './pages/candidate/live-interview/CandidateLiveRoomPage';
+import CandidateLiveInterviewHistoryPage from './pages/candidate/live-interview/CandidateLiveInterviewHistoryPage';
+import CandidateLiveInterviewFeedbackPage from './pages/candidate/live-interview/CandidateLiveInterviewFeedbackPage';
+
 // ─── AI Interview Review (Recruiter) ──────────────────────
 import AIInterviewsPage from './pages/recruiter/AIInterviewsPage';
 import AIInterviewDetailPage from './pages/recruiter/AIInterviewDetailPage';
@@ -84,6 +99,10 @@ function App() {
           <Route path="/candidate/assessments/:id/take" element={<AssessmentTakePage />} />
           <Route path="/candidate/assessments/:id/live" element={<LiveMachineCodingPage />} />
 
+          {/* Live Interview Rooms — Fullscreen (no layout) */}
+          <Route path="/recruiter/live-interviews/:id/room" element={<RecruiterLiveRoomPage />} />
+          <Route path="/candidate/live-interviews/:id/room" element={<CandidateLiveRoomPage />} />
+
           {/* With CandidateLayout */}
           <Route element={<CandidateLayout />}>
             <Route path="/candidate/ai-interview" element={<CandidateAIInterviewPage />} />
@@ -109,6 +128,11 @@ function App() {
           <Route path="/candidate/assessments" element={<CandidateAssessmentsPage />} />
           <Route path="/candidate/assessments/:id/submit" element={<ProjectSubmissionPage />} />
           <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
+          {/* ─── Live Interviews (Candidate) ─── */}
+          <Route path="/candidate/live-interviews" element={<CandidateLiveInterviewsPage />} />
+          <Route path="/candidate/live-interviews/history" element={<CandidateLiveInterviewHistoryPage />} />
+          <Route path="/candidate/live-interviews/:id" element={<CandidateLiveInterviewDetailPage />} />
+          <Route path="/candidate/live-interviews/:id/feedback" element={<CandidateLiveInterviewFeedbackPage />} />
           <Route path="/candidate/messages" element={<CandidateMessagesPage />} />
           <Route path="/candidate/saved" element={<SavedJobsPage />} />
           <Route path="/candidate/profile" element={<CandidateProfilePage />} />
@@ -132,6 +156,13 @@ function App() {
           <Route path="/recruiter/assessments/create" element={<CreateAssessmentPage />} />
           <Route path="/recruiter/interviews" element={<InterviewsPage />} />
 
+          {/* ─── Live Interviews (Recruiter) ─── */}
+          <Route path="/recruiter/live-interviews" element={<RecruiterLiveInterviewsPage />} />
+          <Route path="/recruiter/live-interviews/calendar" element={<RecruiterInterviewCalendarPage />} />
+          <Route path="/recruiter/live-interviews/history" element={<RecruiterInterviewHistoryPage />} />
+          <Route path="/recruiter/live-interviews/:id" element={<RecruiterInterviewDetailPage />} />
+          <Route path="/recruiter/live-interviews/:id/feedback" element={<RecruiterInterviewFeedbackPage />} />
+
           {/* AI Interview Review */}
           <Route path="/recruiter/ai-interviews" element={<AIInterviewsPage />} />
           <Route path="/recruiter/ai-interviews/:id" element={<AIInterviewDetailPage />} />
@@ -141,6 +172,8 @@ function App() {
           <Route path="/recruiter/settings" element={<SettingsPage />} />
           <Route path="/recruiter/team" element={<SettingsPage />} />
         </Route>
+
+        {/* Other routes already configured */}
       </Routes>
     </Router>
   );

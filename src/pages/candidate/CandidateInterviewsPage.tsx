@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, CheckCircle, X, ChevronRight, Mic, Camera, Wifi, Home, Play, Star, MoreVertical, TrendingUp } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { interviewsData } from '../../constants/candidate_mockData';
 
 type SelectedInterview = typeof interviewsData.upcoming[0] | null;
@@ -47,6 +48,7 @@ const CandidateInterviewsPage = () => {
   const [selectedUpcoming, setSelectedUpcoming] = useState<typeof interviewsData.upcoming[0] | null>(interviewsData.upcoming[0]);
   const [detailTab, setDetailTab] = useState<'Overview' | 'Instructions & Prep' | 'About the Role' | 'Company'>('Overview');
   const stats = interviewsData.stats;
+  const navigate = useNavigate();
 
   return (
     <div className="-m-6 flex flex-col h-screen overflow-hidden">
@@ -115,7 +117,10 @@ const CandidateInterviewsPage = () => {
                     <p className="text-[10px] text-slate-400">({iv.duration})</p>
                   </div>
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${iv.typeColor}`}>{iv.type}</span>
-                  <button className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs rounded-xl transition-colors whitespace-nowrap flex-shrink-0">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); navigate('/candidate/live-interviews/liv_001/room'); }}
+                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs rounded-xl transition-colors whitespace-nowrap flex-shrink-0"
+                  >
                     Join Interview
                   </button>
                   <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
@@ -225,9 +230,12 @@ const CandidateInterviewsPage = () => {
                 <p className="text-[10px] text-slate-400 mb-0.5">Your interview is</p>
                 <p className="text-sm font-bold text-slate-900">{selectedUpcoming.dateLabel} at {selectedUpcoming.timeStart}</p>
                 <CountdownTimer hrs={selectedUpcoming.countdownHrs} mins={selectedUpcoming.countdownMins} secs={selectedUpcoming.countdownSecs} />
-                <button className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center justify-center gap-2">
+                <button
+                  onClick={() => navigate('/candidate/live-interviews/liv_001/room')}
+                  className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
                   <Play className="w-4 h-4 fill-white" />
-                  Join AI Interview Room
+                  Join Interview Room
                 </button>
                 <p className="text-[10px] text-slate-400 text-center mt-1.5">Please join 5 minutes before the scheduled time.</p>
               </div>

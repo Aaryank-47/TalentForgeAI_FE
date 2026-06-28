@@ -4,6 +4,7 @@ import {
   Play, RefreshCw, X, Mic, Brain, MessageSquare, Code, AlertCircle,
   CheckCircle, XCircle, Plus,
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 type Tab = 'All' | 'Upcoming' | 'Completed' | 'Cancelled';
 
@@ -30,6 +31,7 @@ const InterviewsPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>('All');
   const [selectedInterview, setSelectedInterview] = useState(interviews[4]);
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
 
   const filtered = interviews.filter(iv => {
     const matchTab = activeTab === 'All' || iv.status === activeTab;
@@ -158,7 +160,10 @@ const InterviewsPage = () => {
                     <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1">
                         {iv.status === 'Upcoming' ? (
-                          <button className="text-xs btn-primary py-1 px-2.5 flex items-center gap-1">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate('/recruiter/live-interviews/liv_001/room'); }}
+                            className="text-xs btn-primary py-1 px-2.5 flex items-center gap-1"
+                          >
                             <Play className="w-3 h-3" />
                             Join
                           </button>
@@ -281,7 +286,10 @@ const InterviewsPage = () => {
             <div className="p-4 border-t border-[#E5E7EB] space-y-2">
               {selectedInterview.status === 'Upcoming' ? (
                 <>
-                  <button className="w-full btn-primary text-sm py-2.5 flex items-center justify-center gap-2">
+                  <button
+                    onClick={() => navigate('/recruiter/live-interviews/liv_001/room')}
+                    className="w-full btn-primary text-sm py-2.5 flex items-center justify-center gap-2"
+                  >
                     <Play className="w-4 h-4" />
                     Join Interview
                   </button>
