@@ -54,6 +54,13 @@ import QuestionLibraryPage from './pages/recruiter/QuestionLibraryPage';
 import AIInterviewsPage from './pages/recruiter/AIInterviewsPage';
 import AIInterviewDetailPage from './pages/recruiter/AIInterviewDetailPage';
 
+// ─── Assessment Module ─────────────────────────────────────
+import CreateAssessmentPage from './pages/recruiter/CreateAssessmentPage';
+import AssessmentPreCheckPage from './pages/candidate/AssessmentPreCheckPage';
+import AssessmentTakePage from './pages/candidate/AssessmentTakePage';
+import ProjectSubmissionPage from './pages/candidate/ProjectSubmissionPage';
+import LiveMachineCodingPage from './pages/candidate/LiveMachineCodingPage';
+
 function App() {
   return (
     <Router>
@@ -66,12 +73,16 @@ function App() {
         <Route path="/register" element={<AuthPage />} />
         <Route path="/signup-role" element={<SignupRolePage />} />
 
-        {/* ─── AI Interview Flow (Requires Global MediaProvider) ─── */}
+        {/* ─── AI Interview & Assessment Flows (Requires Global MediaProvider) ─── */}
         <Route element={<MediaProvider><Outlet /></MediaProvider>}>
           {/* Fullscreen — outside layout */}
           <Route path="/candidate/ai-interview/:id/room" element={<InterviewRoomPage />} />
           <Route path="/candidate/ai-interview/:id/uploading" element={<UploadingPage />} />
           <Route path="/candidate/ai-interview/:id/submitted" element={<SubmissionSuccessPage />} />
+          
+          <Route path="/candidate/assessments/:id/preparation" element={<AssessmentPreCheckPage />} />
+          <Route path="/candidate/assessments/:id/take" element={<AssessmentTakePage />} />
+          <Route path="/candidate/assessments/:id/live" element={<LiveMachineCodingPage />} />
 
           {/* With CandidateLayout */}
           <Route element={<CandidateLayout />}>
@@ -96,6 +107,7 @@ function App() {
           <Route path="/candidate/jobs" element={<FindJobsPage />} />
           <Route path="/candidate/applications" element={<MyApplicationsPage />} />
           <Route path="/candidate/assessments" element={<CandidateAssessmentsPage />} />
+          <Route path="/candidate/assessments/:id/submit" element={<ProjectSubmissionPage />} />
           <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
           <Route path="/candidate/messages" element={<CandidateMessagesPage />} />
           <Route path="/candidate/saved" element={<SavedJobsPage />} />
@@ -117,6 +129,7 @@ function App() {
           <Route path="/recruiter/interview-templates/:templateId" element={<InterviewTemplateEditorPage />} />
           <Route path="/recruiter/question-library" element={<QuestionLibraryPage />} />
           <Route path="/recruiter/assessments" element={<AssessmentsPage />} />
+          <Route path="/recruiter/assessments/create" element={<CreateAssessmentPage />} />
           <Route path="/recruiter/interviews" element={<InterviewsPage />} />
 
           {/* AI Interview Review */}

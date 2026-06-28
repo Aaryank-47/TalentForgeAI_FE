@@ -1,153 +1,125 @@
 import { useState } from 'react';
-import { useHiring } from '../../context/HiringContext';
-import { QUESTION_CATEGORIES } from '../../constants/hiring_mockData';
-import type { QuestionCategory, Difficulty } from '../../types/hiring';
+import { aiQuestions, mcqQuestions, dsaQuestions } from '../../constants/questionBankMockData';
+import type { AIInterviewQuestion, MCQQuestion, DSAQuestion } from '../../types/question.types';
 import { Badge } from '../../components/ui/Badge';
-import { Plus, Search, Pencil, Trash2, Library } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Library, Code2, CheckSquare, Bot } from 'lucide-react';
+
+type Tab = 'ai' | 'mcq' | 'dsa';
 
 export default function QuestionLibraryPage() {
-  const { questionLibrary, addLibraryQuestion, updateLibraryQuestion, deleteLibraryQuestion } = useHiring();
+  const [activeTab, setActiveTab] = useState<Tab>('ai');
   const [search, setSearch] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<QuestionCategory | 'all'>('all');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    text: '',
-    category: 'technical' as QuestionCategory,
-    difficulty: 'medium' as Difficulty,
-    tags: '',
-  });
 
-  const filtered = questionLibrary.filter(q => {
-    const matchesSearch = q.text.toLowerCase().includes(search.toLowerCase()) ||
-      q.tags.some(t => t.toLowerCase().includes(search.toLowerCase()));
-    const matchesCategory = categoryFilter === 'all' || q.category === categoryFilter;
-    return matchesSearch && matchesCategory;
-  });
+  // Local state for mock data
+  const [aiList, setAiList] = useState(aiQuestions);
+  const [mcqList, setMcqList] = useState(mcqQuestions);
+  const [dsaList, setDsaList] = useState(dsaQuestions);
 
-  const resetForm = () => {
-    setForm({ text: '', category: 'technical', difficulty: 'medium', tags: '' });
-    setShowAddForm(false);
-    setEditingId(null);
-  };
-
-  const handleSubmit = () => {
-    if (!form.text.trim()) return;
-    const tags = form.tags.split(',').map(t => t.trim()).filter(Boolean);
-    if (editingId) {
-      updateLibraryQuestion(editingId, { text: form.text, category: form.category, difficulty: form.difficulty, tags });
-    } else {
-      addLibraryQuestion({ text: form.text, category: form.category, difficulty: form.difficulty, tags });
-    }
-    resetForm();
-  };
-
-  const startEdit = (id: string) => {
-    const q = questionLibrary.find(x => x.id === id);
-    if (!q) return;
-    setForm({ text: q.text, category: q.category, difficulty: q.difficulty, tags: q.tags.join(', ') });
-    setEditingId(id);
-    setShowAddForm(true);
-  };
-
-  const categoryLabel = (cat: QuestionCategory) =>
-    QUESTION_CATEGORIES.find(c => c.value === cat)?.label ?? cat;
+  const tabs = [
+    { id: 'ai', label: 'AI Interview', icon: Bot, count: aiList.length },
+    { id: 'mcq', label: 'MCQ Bank', icon: CheckSquare, count: mcqList.length },
+    { id: 'dsa', label: 'DSA Problems', icon: Code2, count: dsaList.length },
+  ];
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-display font-bold text-[#0F172A]">Question Library</h1>
+          <h1 className="text-2xl font-display font-bold text-[#0F172A]">Question Bank</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Company-wide reusable interview questions for AI and manual interviews.
+            Manage company-wide questions for AI Interviews, MCQs, and DSA assessments.
           </p>
         </div>
-        <button onClick={() => { resetForm(); setShowAddForm(true); }} className="btn-primary text-sm flex items-center gap-2">
+        <button className="btn-primary text-sm flex items-center gap-2">
           <Plus className="w-4 h-4" /> Add Question
         </button>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {QUESTION_CATEGORIES.map(cat => {
-          const count = questionLibrary.filter(q => q.category === cat.value).length;
+      <div className="flex border-b border-slate-200 gap-6">
+        {tabs.map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
           return (
-            <div key={cat.value} className="card p-3 text-center">
-              <p className="text-lg font-bold text-slate-900">{count}</p>
-              <p className="text-xs text-slate-500">{cat.label}</p>
-            </div>
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as Tab)}
+              className={`flex items-center gap-2 pb-3 px-1 border-b-2 transition-colors ${
+                isActive ? 'border-primary-600 text-primary-700 font-semibold' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              {tab.label}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-600'}`}>
+                {tab.count}
+              </span>
+            </button>
           );
         })}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <input
-            className="input-field pl-9 text-sm"
-            placeholder="Search questions..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        <select
-          className="input-field text-sm w-full sm:w-48"
-          value={categoryFilter}
-          onChange={e => setCategoryFilter(e.target.value as QuestionCategory | 'all')}
-        >
-          <option value="all">All Categories</option>
-          {QUESTION_CATEGORIES.map(c => (
-            <option key={c.value} value={c.value}>{c.label}</option>
-          ))}
-        </select>
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+        <input
+          className="input-field pl-9 text-sm"
+          placeholder="Search questions..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+        />
       </div>
 
-      {showAddForm && (
-        <div className="card p-5 space-y-4">
-          <h2 className="text-base font-semibold text-slate-900">{editingId ? 'Edit Question' : 'Add Question'}</h2>
-          <textarea
-            className="input-field h-24 resize-none text-sm"
-            value={form.text}
-            onChange={e => setForm(f => ({ ...f, text: e.target.value }))}
-            placeholder="Enter interview question..."
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <select className="input-field text-sm" value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as QuestionCategory }))}>
-              {QUESTION_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
-            <select className="input-field text-sm" value={form.difficulty} onChange={e => setForm(f => ({ ...f, difficulty: e.target.value as Difficulty }))}>
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
-            </select>
-            <input className="input-field text-sm" value={form.tags} onChange={e => setForm(f => ({ ...f, tags: e.target.value }))} placeholder="Tags (comma-separated)" />
-          </div>
-          <div className="flex gap-2">
-            <button onClick={handleSubmit} className="btn-primary text-sm">{editingId ? 'Update' : 'Add'} Question</button>
-            <button onClick={resetForm} className="btn-secondary text-sm">Cancel</button>
-          </div>
-        </div>
-      )}
-
       <div className="space-y-3">
-        {filtered.map(q => (
+        {activeTab === 'ai' && aiList.filter(q => q.text.toLowerCase().includes(search.toLowerCase())).map(q => (
           <div key={q.id} className="card p-4 flex items-start gap-4">
-            <Library className="w-5 h-5 text-slate-400 flex-shrink-0 mt-0.5" />
+            <Bot className="w-5 h-5 text-violet-500 flex-shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-slate-800">{q.text}</p>
+              <p className="text-sm text-slate-800 font-medium">{q.text}</p>
               <div className="flex flex-wrap gap-1.5 mt-2">
-                <Badge variant="info">{categoryLabel(q.category)}</Badge>
+                <Badge variant="purple">{q.category}</Badge>
                 <Badge variant={q.difficulty === 'hard' ? 'danger' : q.difficulty === 'medium' ? 'warning' : 'default'}>{q.difficulty}</Badge>
-                {q.tags.map(t => <span key={t} className="text-[10px] text-slate-400">#{t}</span>)}
+                {q.expectedTimeMinutes && <span className="text-xs text-slate-500 border px-2 py-0.5 rounded bg-slate-50">{q.expectedTimeMinutes} mins</span>}
               </div>
-              <p className="text-[10px] text-slate-400 mt-2">Used {q.usageCount} times</p>
             </div>
             <div className="flex gap-1 flex-shrink-0">
-              <button onClick={() => startEdit(q.id)} className="p-2 rounded-lg hover:bg-slate-100 text-slate-400">
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button onClick={() => deleteLibraryQuestion(q.id)} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600">
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-400"><Pencil className="w-4 h-4" /></button>
+              <button className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+            </div>
+          </div>
+        ))}
+
+        {activeTab === 'mcq' && mcqList.filter(q => q.question.toLowerCase().includes(search.toLowerCase())).map(q => (
+          <div key={q.id} className="card p-4 flex items-start gap-4">
+            <CheckSquare className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-slate-800 font-medium">{q.question}</p>
+              <p className="text-xs text-slate-500 mt-1 line-clamp-1">Options: {q.options.join(', ')}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <Badge variant="info">{q.category}</Badge>
+                <Badge variant={q.difficulty === 'hard' ? 'danger' : q.difficulty === 'medium' ? 'warning' : 'default'}>{q.difficulty}</Badge>
+                <span className="text-xs text-slate-500 border px-2 py-0.5 rounded bg-slate-50">+{q.marks} / -{q.negativeMarks || 0}</span>
+              </div>
+            </div>
+            <div className="flex gap-1 flex-shrink-0">
+              <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-400"><Pencil className="w-4 h-4" /></button>
+              <button className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+            </div>
+          </div>
+        ))}
+
+        {activeTab === 'dsa' && dsaList.filter(q => q.title.toLowerCase().includes(search.toLowerCase())).map(q => (
+          <div key={q.id} className="card p-4 flex items-start gap-4">
+            <Code2 className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-slate-800 font-medium">{q.title}</p>
+              <p className="text-xs text-slate-500 mt-1 line-clamp-1">{q.problemStatement}</p>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                <Badge variant="success">{q.category}</Badge>
+                <Badge variant={q.difficulty === 'hard' ? 'danger' : q.difficulty === 'medium' ? 'warning' : 'default'}>{q.difficulty}</Badge>
+                <span className="text-xs text-slate-500 border px-2 py-0.5 rounded bg-slate-50">{q.visibleTestCases.length} Public / {q.hiddenTestCases.length} Hidden</span>
+              </div>
+            </div>
+            <div className="flex gap-1 flex-shrink-0">
+              <button className="p-2 rounded-lg hover:bg-slate-100 text-slate-400"><Pencil className="w-4 h-4" /></button>
+              <button className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
             </div>
           </div>
         ))}

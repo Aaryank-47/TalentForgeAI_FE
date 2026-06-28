@@ -1,7 +1,10 @@
 export type CheckStatus = 'checking' | 'ok' | 'error' | 'warning' | 'active';
 
+import { ProctoringSettings } from '../../../types/systemCheck.types';
+
 export interface SystemCheckProps {
   mode: 'ai-interview' | 'assessment' | 'live-interview';
+  settings?: Partial<ProctoringSettings>;
   onReady?: () => void;
   onFailed?: (reason: string) => void;
 }

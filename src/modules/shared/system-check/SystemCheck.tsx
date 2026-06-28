@@ -215,14 +215,28 @@ const CheckCard = ({
 };
 
 // Main SystemCheck Component
-export const SystemCheck: React.FC<SystemCheckProps> = ({ mode, onReady, onFailed }) => {
+export const SystemCheck: React.FC<SystemCheckProps> = ({ mode, settings, onReady, onFailed }) => {
   const { 
     cameraStream, screenStream, deviceState, audioState, faceState, 
     tabSwitches, isFullscreen, requestCamera, requestScreen, requestFullscreen 
   } = useMedia();
 
-  // Check if everything is ready
-  const isOverallReady = deviceState.hasVideo && deviceState.hasAudio && deviceState.hasScreen && isFullscreen && faceState.detected && audioState.noiseLevel === 'Low';
+  // Resolve requirements from settings or defaults based on mode
+  const reqCamera = settings?.cameraRequired ?? true;
+  const reqMic = settings?.microphoneRequired ?? true;
+  const reqScreen = settings?.screenSharingRequired ?? false;
+  const reqFullscreen = settings?.fullscreenRequired ?? true;
+  const reqNoise = settings?.noiseDetection ?? true;
+  const reqFace = settings?.faceDetection ?? true;
+
+  // Check if everything required is ready
+  const isCameraReady = !reqCamera || (deviceState.hasVideo && (!reqFace || faceState.detected));
+  const isMicReady = !reqMic || deviceState.hasAudio;
+  const isScreenReady = !reqScreen || deviceState.hasScreen;
+  const isFullscreenReady = !reqFullscreen || isFullscreen;
+  const isNoiseReady = !reqNoise || audioState.noiseLevel === 'Low';
+
+  const isOverallReady = isCameraReady && isMicReady && isScreenReady && isFullscreenReady && isNoiseReady;
 
   useEffect(() => {
     if (isOverallReady && onReady) onReady();
@@ -233,61 +247,71 @@ export const SystemCheck: React.FC<SystemCheckProps> = ({ mode, onReady, onFaile
       {/* Left: Checks */}
       <div className="space-y-3">
         {/* Mic Check */}
-        <CheckCard
-          icon={<Mic className="w-4 h-4" />}
-          label="Microphone"
-          detail={deviceState.hasAudio ? 'Microphone connected and receiving audio' : deviceState.audioError || 'Click to allow microphone'}
-          status={deviceState.hasAudio ? 'ok' : 'error'}
-          extra={deviceState.hasAudio ? (
-            <div className="space-y-2">
-              <MicLevelBar volume={audioState.volume} />
-              {audioState.volume === 0 && <p className="text-[10px] text-amber-600">No input detected. Say something!</p>}
-            </div>
-          ) : (
-            <button onClick={requestCamera} className="text-xs bg-primary-100 text-primary-700 px-3 py-1.5 rounded-lg font-bold hover:bg-primary-200">Request Permission</button>
-          )}
-        />
+        {reqMic && (
+          <CheckCard
+            icon={<Mic className="w-4 h-4" />}
+            label="Microphone"
+            detail={deviceState.hasAudio ? 'Microphone connected and receiving audio' : deviceState.audioError || 'Click to allow microphone'}
+            status={deviceState.hasAudio ? 'ok' : 'error'}
+            extra={deviceState.hasAudio ? (
+              <div className="space-y-2">
+                <MicLevelBar volume={audioState.volume} />
+                {audioState.volume === 0 && <p className="text-[10px] text-amber-600">No input detected. Say something!</p>}
+              </div>
+            ) : (
+              <button onClick={requestCamera} className="text-xs bg-primary-100 text-primary-700 px-3 py-1.5 rounded-lg font-bold hover:bg-primary-200">Request Permission</button>
+            )}
+          />
+        )}
 
         {/* Camera Check */}
-        <CheckCard
-          icon={<Eye className="w-4 h-4" />}
-          label="Camera & Face Detection"
-          detail={deviceState.hasVideo ? `Camera connected. Face visibility: ${faceState.status}` : deviceState.videoError || 'Click to allow camera'}
-          status={deviceState.hasVideo && faceState.detected ? 'ok' : deviceState.hasVideo ? 'warning' : 'error'}
-          extra={deviceState.hasVideo ? null : (
-            <button onClick={requestCamera} className="text-xs bg-primary-100 text-primary-700 px-3 py-1.5 rounded-lg font-bold hover:bg-primary-200">Request Permission</button>
-          )}
-        />
+        {reqCamera && (
+          <CheckCard
+            icon={<Eye className="w-4 h-4" />}
+            label="Camera & Face Detection"
+            detail={deviceState.hasVideo ? `Camera connected. Face visibility: ${faceState.status}` : deviceState.videoError || 'Click to allow camera'}
+            status={deviceState.hasVideo && (!reqFace || faceState.detected) ? 'ok' : deviceState.hasVideo ? 'warning' : 'error'}
+            extra={deviceState.hasVideo ? null : (
+              <button onClick={requestCamera} className="text-xs bg-primary-100 text-primary-700 px-3 py-1.5 rounded-lg font-bold hover:bg-primary-200">Request Permission</button>
+            )}
+          />
+        )}
 
         {/* Screen Share */}
-        <CheckCard
-          icon={<Monitor className="w-4 h-4" />}
-          label="Screen Share"
-          detail={deviceState.hasScreen ? 'Screen is being shared securely' : deviceState.screenError || 'Screen sharing is required for proctoring'}
-          status={deviceState.hasScreen ? 'ok' : 'error'}
-          extra={deviceState.hasScreen ? null : (
-            <button onClick={requestScreen} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200">Share Entire Screen</button>
-          )}
-        />
+        {reqScreen && (
+          <CheckCard
+            icon={<Monitor className="w-4 h-4" />}
+            label="Screen Share"
+            detail={deviceState.hasScreen ? 'Screen is being shared securely' : deviceState.screenError || 'Screen sharing is required for proctoring'}
+            status={deviceState.hasScreen ? 'ok' : 'error'}
+            extra={deviceState.hasScreen ? null : (
+              <button onClick={requestScreen} className="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-bold hover:bg-blue-200">Share Entire Screen</button>
+            )}
+          />
+        )}
 
         {/* Noise & Environment */}
-        <CheckCard
-          icon={<Volume2 className="w-4 h-4" />}
-          label="Environment Noise"
-          detail={audioState.noiseLevel === 'Low' ? 'Environment is clean' : 'High background noise detected'}
-          status={audioState.noiseLevel === 'Low' ? 'ok' : 'warning'}
-        />
+        {reqNoise && (
+          <CheckCard
+            icon={<Volume2 className="w-4 h-4" />}
+            label="Environment Noise"
+            detail={audioState.noiseLevel === 'Low' ? 'Environment is clean' : 'High background noise detected'}
+            status={audioState.noiseLevel === 'Low' ? 'ok' : 'warning'}
+          />
+        )}
 
         {/* Fullscreen Requirement */}
-        <CheckCard
-          icon={<Shield className="w-4 h-4" />}
-          label="Fullscreen Mode"
-          detail={isFullscreen ? 'Fullscreen active' : 'Interview must be taken in fullscreen'}
-          status={isFullscreen ? 'ok' : 'error'}
-          extra={isFullscreen ? null : (
-            <button onClick={requestFullscreen} className="text-xs bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-300">Enter Fullscreen</button>
-          )}
-        />
+        {reqFullscreen && (
+          <CheckCard
+            icon={<Shield className="w-4 h-4" />}
+            label="Fullscreen Mode"
+            detail={isFullscreen ? 'Fullscreen active' : 'Interview must be taken in fullscreen'}
+            status={isFullscreen ? 'ok' : 'error'}
+            extra={isFullscreen ? null : (
+              <button onClick={requestFullscreen} className="text-xs bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-300">Enter Fullscreen</button>
+            )}
+          />
+        )}
       </div>
 
       {/* Right: Previews */}

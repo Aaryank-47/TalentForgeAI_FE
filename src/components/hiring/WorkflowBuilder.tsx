@@ -55,6 +55,7 @@ export function WorkflowBuilder({ stages, onChange }: WorkflowBuilderProps) {
       enabled: true,
       order: stages.length,
       interviewTemplateId: type === 'ai_interview' ? interviewTemplates[0]?.id : undefined,
+      assessments: type === 'assessment' ? [] : undefined,
     };
     onChange([...stages, newStage]);
     setShowAddPanel(false);
@@ -123,7 +124,7 @@ export function WorkflowBuilder({ stages, onChange }: WorkflowBuilderProps) {
 
                 <div className="flex items-center gap-2">
                   <Toggle checked={stage.enabled} onChange={() => toggleStage(stage.id)} />
-                  {stage.type === 'ai_interview' && (
+                  {(stage.type === 'ai_interview' || stage.type === 'assessment') && (
                     <button
                       type="button"
                       onClick={() => setExpandedStageId(isExpanded ? null : stage.id)}
@@ -159,7 +160,7 @@ export function WorkflowBuilder({ stages, onChange }: WorkflowBuilderProps) {
                   {template && (
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                       <Bot className="w-4 h-4" />
-                      {template.config.questionCount} questions · {template.config.durationMinutes} min · {template.config.difficulty}
+                      {template.config?.questionCount} questions · {template.config?.durationMinutes} min · {template.config?.difficulty}
                     </div>
                   )}
                   <Link
@@ -171,6 +172,49 @@ export function WorkflowBuilder({ stages, onChange }: WorkflowBuilderProps) {
                   >
                     Edit interview template →
                   </Link>
+                </div>
+              )}
+
+              {isExpanded && stage.type === 'assessment' && (
+                <div className="border-t border-[#E5E7EB] p-5 bg-slate-50/50 space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-2">Chained Assessment Rounds</label>
+                    <p className="text-xs text-slate-500 mb-3">Add the types of assessments the candidate must complete in order.</p>
+                    
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {stage.assessments?.map((a, i) => (
+                        <div key={i} className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-sm font-medium text-slate-700">
+                          <span>{i + 1}.</span>
+                          <span className="capitalize">{a.replace('_', ' ')}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updated = [...(stage.assessments || [])];
+                              updated.splice(i, 1);
+                              updateStage(stage.id, { assessments: updated });
+                            }}
+                            className="ml-1 text-slate-400 hover:text-red-500"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {['mcq', 'dsa', 'coding', 'machine_coding', 'descriptive'].map(type => (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => updateStage(stage.id, { assessments: [...(stage.assessments || []), type as any] })}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 hover:border-primary-400 hover:bg-primary-50 text-xs font-medium text-slate-600 hover:text-primary-700 transition-colors capitalize"
+                        >
+                          <Plus className="w-3 h-3" />
+                          {type.replace('_', ' ')}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

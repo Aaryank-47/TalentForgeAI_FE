@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Clock, ChevronRight, MoreVertical, Play, TrendingUp, Star } from 'lucide-react';
 import { assessmentsData } from '../../constants/candidate_mockData';
 
 type Tab = 'Pending' | 'Completed' | 'All Assessments';
 
 const AssessmentsPage = () => {
+  const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('Pending');
   const perf = assessmentsData.performance;
 
@@ -83,7 +85,7 @@ const AssessmentsPage = () => {
                           <p className="text-[10px] text-slate-500">{a.duration} min</p>
                           <p className="text-[10px] text-slate-400">Duration</p>
                         </div>
-                        <button className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl transition-colors whitespace-nowrap">
+                        <button onClick={() => navigate(`/candidate/assessments/${a.id}/preparation`)} className="flex items-center gap-2 px-4 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl transition-colors whitespace-nowrap">
                           <Play className="w-4 h-4 fill-white" />
                           Start Assessment
                         </button>

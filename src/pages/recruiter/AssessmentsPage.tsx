@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Plus, Search, Filter, MoreHorizontal, Eye, Copy, Archive, X,
   ChevronDown, BarChart3, ClipboardList, Activity, TrendingUp,
@@ -30,6 +31,7 @@ const statusStyle = (s: string) => ({
 })[s] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const AssessmentsPage = () => {
+  const navigate = useNavigate();
   const [selectedAssessment, setSelectedAssessment] = useState(assessments[0]);
   const [detailTab, setDetailTab] = useState('Overview');
   const [search, setSearch] = useState('');
@@ -51,7 +53,7 @@ const AssessmentsPage = () => {
             <BookOpen className="w-4 h-4" />
             Question Bank
           </button>
-          <button className="btn-primary text-sm flex items-center gap-2">
+          <button onClick={() => navigate('/recruiter/assessments/create')} className="btn-primary text-sm flex items-center gap-2">
             <Plus className="w-4 h-4" />
             Create Assessment
           </button>
