@@ -187,6 +187,7 @@ function App() {
               <Route path="/recruiter/messages" element={<MessagesPage />} />
               <Route path="/recruiter/settings" element={<SettingsPage />} />
               <Route path="/recruiter/team" element={<SettingsPage />} />
+              <Route path="/recruiter/company" element={<SettingsPage />} />
             </Route>
           </Route>
 

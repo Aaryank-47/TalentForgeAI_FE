@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Building, Users, GitBranch, Mail, CreditCard, Plus, MoreHorizontal,
   Upload, Trash2, GripVertical, CheckCircle, X, Edit2, Crown,
@@ -21,7 +22,20 @@ const roleStyle = (r: string) => ({
 })[r] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const SettingsPage = () => {
-  const [activeTab, setActiveTab] = useState('Company Profile');
+  const location = useLocation();
+
+  const getTabFromPath = (path: string) => {
+    if (path.includes('/recruiter/team')) return 'Team Members';
+    if (path.includes('/recruiter/company')) return 'Company Profile';
+    return 'Company Profile';
+  };
+
+  const [activeTab, setActiveTab] = useState(getTabFromPath(location.pathname));
+
+  useEffect(() => {
+    setActiveTab(getTabFromPath(location.pathname));
+  }, [location.pathname]);
+
   const [stages, setStages] = useState(defaultStages);
   const [emailToggles, setEmailToggles] = useState<Record<string, boolean>>({
     newApplicant: true,
