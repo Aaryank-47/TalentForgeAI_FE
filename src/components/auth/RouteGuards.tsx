@@ -57,7 +57,7 @@ interface RoleRouteProps {
  * Requires the authenticated user to have one of the specified platform roles.
  * Must be nested inside ProtectedRoute (assumes user is authenticated).
  */
-export function RoleRoute( allowedRoles: string[], redirectTo = '/') {
+export function RoleRoute(_props: RoleRouteProps) {
   // BYPASSED FOR DEVELOPMENT
   return <Outlet />;
 }
