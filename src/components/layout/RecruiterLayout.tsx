@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import {
   LayoutDashboard,
   Briefcase,
@@ -186,6 +187,7 @@ const RecruiterLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const { logout } = useAuth();
   const location = useLocation();
 
   const isActive = (path: string) =>
@@ -401,7 +403,10 @@ const RecruiterLayout = () => {
                     <Settings className="w-4 h-4 text-slate-400" /> Account Settings
                   </Link>
                   <div className="h-px bg-slate-100 my-2" />
-                  <button className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium">
+                  <button 
+                    onClick={() => logout()}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
+                  >
                     <LogOut className="w-4 h-4" /> Sign Out
                   </button>
                 </div>

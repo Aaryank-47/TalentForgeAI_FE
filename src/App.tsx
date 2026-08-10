@@ -1,10 +1,11 @@
-import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { MediaProvider } from './context/MediaProvider';
+import { ProtectedRoute, RoleRoute, PublicRoute } from './components/auth/RouteGuards';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/auth/AuthPage';
 import SignupRolePage from './pages/SignupRolePage';
 
-// ─── Candidate Layout ─────────────────────────────────────
+// ─── Candidate Layout ─────────────────────────────────────────
 import CandidateLayout from './components/layout/CandidateLayout';
 
 // Candidate Pages
@@ -76,104 +77,123 @@ import AssessmentTakePage from './pages/candidate/AssessmentTakePage';
 import ProjectSubmissionPage from './pages/candidate/ProjectSubmissionPage';
 import LiveMachineCodingPage from './pages/candidate/LiveMachineCodingPage';
 
+// ─── Auth Pages (missing auth flows) ─────────────────────────
+import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import VerifyEmailPage from './pages/auth/VerifyEmailPage';
+
 function App() {
   return (
     <Router>
       <Routes>
-        {/* Public Routes */}
+        {/* ─── Fully Public Routes (no auth required) ─── */}
         <Route path="/" element={<LandingPage />} />
-
-        {/* Auth Routes */}
-        <Route path="/login" element={<AuthPage />} />
-        <Route path="/register" element={<AuthPage />} />
         <Route path="/signup-role" element={<SignupRolePage />} />
 
-        {/* ─── AI Interview & Assessment Flows (Requires Global MediaProvider) ─── */}
-        <Route element={<MediaProvider><Outlet /></MediaProvider>}>
-          {/* Fullscreen — outside layout */}
-          <Route path="/candidate/ai-interview/:id/room" element={<InterviewRoomPage />} />
-          <Route path="/candidate/ai-interview/:id/uploading" element={<UploadingPage />} />
-          <Route path="/candidate/ai-interview/:id/submitted" element={<SubmissionSuccessPage />} />
-          
-          <Route path="/candidate/assessments/:id/preparation" element={<AssessmentPreCheckPage />} />
-          <Route path="/candidate/assessments/:id/take" element={<AssessmentTakePage />} />
-          <Route path="/candidate/assessments/:id/live" element={<LiveMachineCodingPage />} />
+        {/* ─── Auth Routes (redirect authenticated users to their portal) ─── */}
+        <Route element={<PublicRoute />}>
+          <Route path="/login" element={<AuthPage />} />
+          <Route path="/register" element={<AuthPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/verify-email" element={<VerifyEmailPage />} />
+        </Route>
 
-          {/* Live Interview Rooms — Fullscreen (no layout) */}
-          <Route path="/recruiter/live-interviews/:id/room" element={<RecruiterLiveRoomPage />} />
-          <Route path="/candidate/live-interviews/:id/room" element={<CandidateLiveRoomPage />} />
+        {/* ─── All Authenticated Routes ─── */}
+        <Route element={<ProtectedRoute />}>
 
-          {/* With CandidateLayout */}
-          <Route element={<CandidateLayout />}>
-            <Route path="/candidate/ai-interview" element={<CandidateAIInterviewPage />} />
-            <Route path="/candidate/ai-interview/:id/*" element={
-              <Routes>
-                <Route path="details" element={<InterviewDetailsPage />} />
-                <Route path="preparation" element={<PreparationCenterPage />} />
-                <Route path="system-check" element={<SystemCheckPage />} />
-                <Route path="consent" element={<ConsentPage />} />
-                <Route path="waiting-room" element={<WaitingRoomPage />} />
-                <Route path="status" element={<InterviewStatusPage />} />
-              </Routes>
-            } />
+          {/* ─── AI Interview & Assessment Flows (Requires MediaProvider) ─── */}
+          <Route element={<MediaProvider><Outlet /></MediaProvider>}>
+            {/* Candidate-only fullscreen routes (outside layout) */}
+            <Route element={<RoleRoute allowedRoles={['CANDIDATE']} redirectTo="/recruiter/dashboard" />}>
+              <Route path="/candidate/ai-interview/:id/room" element={<InterviewRoomPage />} />
+              <Route path="/candidate/ai-interview/:id/uploading" element={<UploadingPage />} />
+              <Route path="/candidate/ai-interview/:id/submitted" element={<SubmissionSuccessPage />} />
+              <Route path="/candidate/assessments/:id/preparation" element={<AssessmentPreCheckPage />} />
+              <Route path="/candidate/assessments/:id/take" element={<AssessmentTakePage />} />
+              <Route path="/candidate/assessments/:id/live" element={<LiveMachineCodingPage />} />
+              {/* BACKEND DEPENDENCY: Live Interview backend not yet implemented */}
+              <Route path="/candidate/live-interviews/:id/room" element={<CandidateLiveRoomPage />} />
+            </Route>
+
+            {/* Recruiter-only fullscreen routes */}
+            <Route element={<RoleRoute allowedRoles={['EMPLOYER']} redirectTo="/candidate/home" />}>
+              {/* BACKEND DEPENDENCY: Live Interview backend not yet implemented */}
+              <Route path="/recruiter/live-interviews/:id/room" element={<RecruiterLiveRoomPage />} />
+            </Route>
+
+            {/* Candidate AI Interview flow — within CandidateLayout */}
+            <Route element={<RoleRoute allowedRoles={['CANDIDATE']} redirectTo="/recruiter/dashboard" />}>
+              <Route element={<CandidateLayout />}>
+                <Route path="/candidate/ai-interview" element={<CandidateAIInterviewPage />} />
+                <Route path="/candidate/ai-interview/:id/details" element={<InterviewDetailsPage />} />
+                <Route path="/candidate/ai-interview/:id/preparation" element={<PreparationCenterPage />} />
+                <Route path="/candidate/ai-interview/:id/system-check" element={<SystemCheckPage />} />
+                <Route path="/candidate/ai-interview/:id/consent" element={<ConsentPage />} />
+                <Route path="/candidate/ai-interview/:id/waiting-room" element={<WaitingRoomPage />} />
+                <Route path="/candidate/ai-interview/:id/status" element={<InterviewStatusPage />} />
+              </Route>
+            </Route>
           </Route>
-        </Route>
 
-        {/* ─── Candidate Module ─── */}
-        <Route element={<CandidateLayout />}>
-          <Route path="/candidate/home" element={<CandidateHomePage />} />
-          <Route path="/candidate/dashboard" element={<CandidateHomePage />} />
-          <Route path="/candidate/jobs" element={<FindJobsPage />} />
-          <Route path="/candidate/applications" element={<MyApplicationsPage />} />
-          <Route path="/candidate/assessments" element={<CandidateAssessmentsPage />} />
-          <Route path="/candidate/assessments/:id/submit" element={<ProjectSubmissionPage />} />
-          <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
-          {/* ─── Live Interviews (Candidate) ─── */}
-          <Route path="/candidate/live-interviews" element={<CandidateLiveInterviewsPage />} />
-          <Route path="/candidate/live-interviews/history" element={<CandidateLiveInterviewHistoryPage />} />
-          <Route path="/candidate/live-interviews/:id" element={<CandidateLiveInterviewDetailPage />} />
-          <Route path="/candidate/live-interviews/:id/feedback" element={<CandidateLiveInterviewFeedbackPage />} />
-          <Route path="/candidate/messages" element={<CandidateMessagesPage />} />
-          <Route path="/candidate/saved" element={<SavedJobsPage />} />
-          <Route path="/candidate/profile" element={<CandidateProfilePage />} />
-          <Route path="/candidate/resume" element={<CandidateProfilePage />} />
-          <Route path="/candidate/settings" element={<CandidateSettingsPage />} />
-        </Route>
+          {/* ─── Candidate Module ─── */}
+          <Route element={<RoleRoute allowedRoles={['CANDIDATE']} redirectTo="/recruiter/dashboard" />}>
+            <Route element={<CandidateLayout />}>
+              <Route path="/candidate/home" element={<CandidateHomePage />} />
+              <Route path="/candidate/dashboard" element={<CandidateHomePage />} />
+              <Route path="/candidate/jobs" element={<FindJobsPage />} />
+              <Route path="/candidate/applications" element={<MyApplicationsPage />} />
+              <Route path="/candidate/assessments" element={<CandidateAssessmentsPage />} />
+              <Route path="/candidate/assessments/:id/submit" element={<ProjectSubmissionPage />} />
+              <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
+              {/* BACKEND DEPENDENCY: Live Interview module not yet implemented */}
+              <Route path="/candidate/live-interviews" element={<CandidateLiveInterviewsPage />} />
+              <Route path="/candidate/live-interviews/history" element={<CandidateLiveInterviewHistoryPage />} />
+              <Route path="/candidate/live-interviews/:id" element={<CandidateLiveInterviewDetailPage />} />
+              <Route path="/candidate/live-interviews/:id/feedback" element={<CandidateLiveInterviewFeedbackPage />} />
+              <Route path="/candidate/messages" element={<CandidateMessagesPage />} />
+              <Route path="/candidate/saved" element={<SavedJobsPage />} />
+              <Route path="/candidate/profile" element={<CandidateProfilePage />} />
+              <Route path="/candidate/resume" element={<CandidateProfilePage />} />
+              <Route path="/candidate/settings" element={<CandidateSettingsPage />} />
+            </Route>
+          </Route>
 
-        {/* ─── Recruiter Module ─── */}
-        <Route element={<RecruiterLayout />}>
-          <Route path="/recruiter/dashboard" element={<RecruiterDashboard />} />
-          <Route path="/recruiter/jobs" element={<JobsPage />} />
-          <Route path="/recruiter/jobs/create" element={<CreateJobPage />} />
-          <Route path="/recruiter/candidates" element={<CandidatesPage />} />
-          <Route path="/recruiter/pipeline" element={<PipelinePage />} />
-          <Route path="/recruiter/workflows" element={<HiringWorkflowsPage />} />
-          <Route path="/recruiter/workflows/:workflowId" element={<WorkflowBuilderPage />} />
-          <Route path="/recruiter/interview-templates" element={<InterviewTemplatesPage />} />
-          <Route path="/recruiter/interview-templates/:templateId" element={<InterviewTemplateEditorPage />} />
-          <Route path="/recruiter/question-library" element={<QuestionLibraryPage />} />
-          <Route path="/recruiter/assessments" element={<AssessmentsPage />} />
-          <Route path="/recruiter/assessments/create" element={<CreateAssessmentPage />} />
-          <Route path="/recruiter/interviews" element={<InterviewsPage />} />
+          {/* ─── Recruiter / Employer Module ─── */}
+          <Route element={<RoleRoute allowedRoles={['EMPLOYER']} redirectTo="/candidate/home" />}>
+            <Route element={<RecruiterLayout />}>
+              <Route path="/recruiter/dashboard" element={<RecruiterDashboard />} />
+              <Route path="/recruiter/jobs" element={<JobsPage />} />
+              <Route path="/recruiter/jobs/create" element={<CreateJobPage />} />
+              <Route path="/recruiter/candidates" element={<CandidatesPage />} />
+              <Route path="/recruiter/pipeline" element={<PipelinePage />} />
+              <Route path="/recruiter/workflows" element={<HiringWorkflowsPage />} />
+              <Route path="/recruiter/workflows/:workflowId" element={<WorkflowBuilderPage />} />
+              <Route path="/recruiter/interview-templates" element={<InterviewTemplatesPage />} />
+              <Route path="/recruiter/interview-templates/:templateId" element={<InterviewTemplateEditorPage />} />
+              <Route path="/recruiter/question-library" element={<QuestionLibraryPage />} />
+              <Route path="/recruiter/assessments" element={<AssessmentsPage />} />
+              <Route path="/recruiter/assessments/create" element={<CreateAssessmentPage />} />
+              <Route path="/recruiter/interviews" element={<InterviewsPage />} />
+              {/* BACKEND DEPENDENCY: Live Interview module not yet implemented */}
+              <Route path="/recruiter/live-interviews" element={<RecruiterLiveInterviewsPage />} />
+              <Route path="/recruiter/live-interviews/calendar" element={<RecruiterInterviewCalendarPage />} />
+              <Route path="/recruiter/live-interviews/history" element={<RecruiterInterviewHistoryPage />} />
+              <Route path="/recruiter/live-interviews/:id" element={<RecruiterInterviewDetailPage />} />
+              <Route path="/recruiter/live-interviews/:id/feedback" element={<RecruiterInterviewFeedbackPage />} />
+              {/* BACKEND DEPENDENCY: AI Interview backend not yet implemented */}
+              <Route path="/recruiter/ai-interviews" element={<AIInterviewsPage />} />
+              <Route path="/recruiter/ai-interviews/:id" element={<AIInterviewDetailPage />} />
+              {/* BACKEND DEPENDENCY: Analytics endpoints not yet implemented */}
+              <Route path="/recruiter/analytics" element={<AnalyticsPage />} />
+              <Route path="/recruiter/messages" element={<MessagesPage />} />
+              <Route path="/recruiter/settings" element={<SettingsPage />} />
+              <Route path="/recruiter/team" element={<SettingsPage />} />
+            </Route>
+          </Route>
 
-          {/* ─── Live Interviews (Recruiter) ─── */}
-          <Route path="/recruiter/live-interviews" element={<RecruiterLiveInterviewsPage />} />
-          <Route path="/recruiter/live-interviews/calendar" element={<RecruiterInterviewCalendarPage />} />
-          <Route path="/recruiter/live-interviews/history" element={<RecruiterInterviewHistoryPage />} />
-          <Route path="/recruiter/live-interviews/:id" element={<RecruiterInterviewDetailPage />} />
-          <Route path="/recruiter/live-interviews/:id/feedback" element={<RecruiterInterviewFeedbackPage />} />
+        </Route>{/* end ProtectedRoute */}
 
-          {/* AI Interview Review */}
-          <Route path="/recruiter/ai-interviews" element={<AIInterviewsPage />} />
-          <Route path="/recruiter/ai-interviews/:id" element={<AIInterviewDetailPage />} />
-
-          <Route path="/recruiter/analytics" element={<AnalyticsPage />} />
-          <Route path="/recruiter/messages" element={<MessagesPage />} />
-          <Route path="/recruiter/settings" element={<SettingsPage />} />
-          <Route path="/recruiter/team" element={<SettingsPage />} />
-        </Route>
-
-        {/* Other routes already configured */}
+        {/* ─── Catch-all: redirect unknown paths to home ─── */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Router>
   );

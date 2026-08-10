@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Mail, Lock, User, Building, Eye, EyeOff, ArrowRight, Bot, Sparkles, Users, BarChart2, Check } from 'lucide-react';
+import { Mail, Lock, User, Building, Eye, EyeOff, ArrowRight, Bot, Sparkles, Users, BarChart2, Check, Loader2 } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
+import { useAuth } from '../../context/AuthContext';
+import { resolvePortalRoute } from '../../lib/permissions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type AuthMode = 'login' | 'register';
-type UserRole = 'recruiter' | 'candidate';
+type UIRole = 'recruiter' | 'candidate';
 
 // ─── Illustration Panel ───────────────────────────────────────────────────────
 
@@ -87,13 +89,22 @@ const IllustrationPanel = ({ mode }: { mode: AuthMode }) => (
 
 const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) => {
   const navigate = useNavigate();
+  const { login, isLoading, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate('/recruiter/dashboard');
+    setLocalError(null);
+    try {
+      const user = await login({ email, password });
+      // Role-based redirect — NO MORE hardcoded recruiter
+      navigate(resolvePortalRoute(user), { replace: true });
+    } catch {
+      setLocalError(error ?? 'Invalid email or password. Please try again.');
+    }
   };
 
   return (
@@ -136,7 +147,8 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="you@company.com"
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
+              disabled={isLoading}
+              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all disabled:opacity-60"
             />
           </div>
         </div>
@@ -144,7 +156,7 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
         <div>
           <div className="flex items-center justify-between mb-1.5">
             <label className="block text-[13px] font-medium text-slate-700">Password</label>
-            <a href="#" className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8]">Forgot password?</a>
+            <Link to="/forgot-password" className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8]">Forgot password?</Link>
           </div>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -154,7 +166,8 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all"
+              disabled={isLoading}
+              className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all disabled:opacity-60"
             />
             <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -162,13 +175,18 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
           </div>
         </div>
 
+        {(localError) && (
+          <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">{localError}</p>
+        )}
+
         <div className="flex items-center gap-2">
           <input id="remember" type="checkbox" className="w-4 h-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30" />
           <label htmlFor="remember" className="text-[13px] text-slate-600">Remember me for 30 days</label>
         </div>
 
-        <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-2">
-          Sign in <ArrowRight className="w-4 h-4" />
+        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-2 disabled:opacity-70 disabled:cursor-not-allowed">
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+          {isLoading ? 'Signing in…' : 'Sign in'}
         </button>
       </form>
     </div>
@@ -177,17 +195,33 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
 
 // ─── Register Form ────────────────────────────────────────────────────────────
 
-const RegisterForm = ({ defaultRole, onSwitchToLogin }: { defaultRole: UserRole; onSwitchToLogin: () => void }) => {
+const RegisterForm = ({ defaultRole, onSwitchToLogin }: { defaultRole: UIRole; onSwitchToLogin: () => void }) => {
   const navigate = useNavigate();
-  const [role, setRole] = useState<UserRole>(defaultRole);
+  const { registerCandidate, registerEmployer, isLoading, error } = useAuth();
+  const [role, setRole] = useState<UIRole>(defaultRole);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', company: '' });
+  const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (role === 'recruiter') navigate('/recruiter/dashboard');
-    else navigate('/candidate/dashboard');
+    setLocalError(null);
+    if (form.password !== form.confirm) {
+      setLocalError('Passwords do not match.');
+      return;
+    }
+    try {
+      if (role === 'recruiter') {
+        const user = await registerEmployer({ fullName: form.name, email: form.email, password: form.password, companyName: form.company || form.name + "'s Company" });
+        navigate(resolvePortalRoute(user), { replace: true });
+      } else {
+        const user = await registerCandidate({ fullName: form.name, email: form.email, password: form.password });
+        navigate(resolvePortalRoute(user), { replace: true });
+      }
+    } catch {
+      setLocalError(error ?? 'Registration failed. Please try again.');
+    }
   };
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -206,9 +240,10 @@ const RegisterForm = ({ defaultRole, onSwitchToLogin }: { defaultRole: UserRole;
 
       {/* Role selector */}
       <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-slate-100 rounded-[12px]">
-        {(['recruiter', 'candidate'] as UserRole[]).map((r) => (
+        {(['recruiter', 'candidate'] as UIRole[]).map((r) => (
           <button
             key={r}
+            type="button"
             onClick={() => setRole(r)}
             className={`py-2.5 rounded-[10px] text-[13px] font-semibold transition-all capitalize flex items-center justify-center gap-1.5 ${role === r ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
           >
@@ -267,8 +302,13 @@ const RegisterForm = ({ defaultRole, onSwitchToLogin }: { defaultRole: UserRole;
           </div>
         </div>
 
-        <button type="submit" className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-1">
-          Create Account <ArrowRight className="w-4 h-4" />
+        {localError && (
+          <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">{localError}</p>
+        )}
+
+        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-1 disabled:opacity-70 disabled:cursor-not-allowed">
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+          {isLoading ? 'Creating account…' : 'Create Account'}
         </button>
       </form>
 
@@ -298,7 +338,7 @@ const RegisterForm = ({ defaultRole, onSwitchToLogin }: { defaultRole: UserRole;
 
 const AuthPage = () => {
   const [searchParams] = useSearchParams();
-  const initialRole = (searchParams.get('role') as UserRole) ?? 'recruiter';
+  const initialRole = (searchParams.get('role') as UIRole) ?? 'recruiter';
   const isRegisterUrl = window.location.pathname === '/register';
 
   const [mode, setMode] = useState<AuthMode>(isRegisterUrl ? 'register' : 'login');

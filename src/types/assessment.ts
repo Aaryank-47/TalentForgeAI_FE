@@ -21,6 +21,20 @@ export type SubmissionType =
   | 'video'
   | 'notes';
 
+// ─── Backend-aligned: AttemptStatus mirrors backend status enum ──────────────
+// Backend enum values: PENDING, ONGOING, SUBMITTED, EVALUATED, EXPIRED, FAILED
+export type AttemptStatus =
+  | 'PENDING'      // Not yet started
+  | 'ONGOING'      // In progress
+  | 'SUBMITTED'    // Completed and waiting evaluation
+  | 'EVALUATED'    // Score assigned
+  | 'EXPIRED'      // Time ran out
+  | 'FAILED';      // Failed attempt
+
+/**
+ * @deprecated Use AttemptStatus (backend-aligned, SCREAMING_SNAKE_CASE) instead.
+ * Kept for backwards compatibility with existing UI components.
+ */
 export type CandidateAttemptStatus =
   | 'pending'
   | 'in_progress'
@@ -151,13 +165,40 @@ export interface Assessment {
   projectConfig?: ProjectConfig;
 }
 
-// ─── Candidate Attempt ─────────────────────────────────────────
+// ─── Proctoring ────────────────────────────────────────────────
 export interface ProctoringViolation {
   type: 'tab_switch' | 'fullscreen_exit' | 'multiple_faces' | 'noise' | 'copy_paste';
   timestamp: string;
   severity: 'low' | 'medium' | 'high';
 }
 
+// ─── Backend-aligned: AssessmentAttempt ────────────────────────────────────────
+/**
+ * Backend-aligned assessment attempt type.
+ * Maps to Prisma AssessmentAttempt model.
+ * Use this for all new integration work (API calls, state from server).
+ */
+export interface AssessmentAttempt {
+  id: string;
+  assessmentId: string;
+  candidateId: string;
+  status: AttemptStatus;
+  startedAt?: string;
+  submittedAt?: string;
+  score?: number;
+  totalMarks: number;
+  violations: ProctoringViolation[];
+  /** Map of questionId -> answer value */
+  answers: Record<string, string | number>;
+  /** Time spent in seconds (backend: timeSpentSeconds) */
+  timeSpentSeconds?: number;
+}
+
+/**
+ * @deprecated Use AssessmentAttempt instead (backend-aligned).
+ * Kept to avoid breaking existing UI components during migration.
+ * Includes UI-specific fields (assessmentName, candidateName) not in backend model.
+ */
 export interface CandidateAttempt {
   id: string;
   assessmentId: string;
@@ -172,6 +213,42 @@ export interface CandidateAttempt {
   violations: ProctoringViolation[];
   answers: Record<string, string | number>;
   timeSpent?: number; // seconds
+}
+
+// ─── Backend-aligned: AssessmentAnswer ────────────────────────────────────────
+/**
+ * Backend-aligned answer type for assessment question answers.
+ * Maps to Prisma AssessmentAnswer model.
+ * Note: Backend uses singular submissionUrl + meta JSON (not plural url arrays).
+ */
+export interface AssessmentAnswer {
+  id: string;
+  attemptId: string;
+  questionId: string;
+  selectedOption?: number;        // MCQ: 0-based index of selected option
+  codeAnswer?: string;            // DSA / Machine Coding: code submission
+  submissionUrl?: string;         // Project: primary URL (github or live url)
+  meta?: Record<string, unknown>; // Project: additional urls, notes, etc.
+  isCorrect?: boolean;
+  marksAwarded?: number;
+}
+
+/**
+ * @deprecated Use AssessmentAnswer instead (backend-aligned).
+ * ProjectSubmission had plural url fields which don't match backend schema.
+ * Backend uses: submissionUrl (singular) + meta JSON object.
+ */
+export interface ProjectSubmission {
+  id: string;
+  attemptId: string;
+  githubUrl?: string;
+  liveUrl?: string;
+  zipFileUrl?: string;
+  documentationUrl?: string;
+  videoUrl?: string;
+  notes?: string;
+  submittedAt?: string;
+  status: CandidateAttemptStatus;
 }
 
 // ─── Assessment Template ───────────────────────────────────────
@@ -194,20 +271,9 @@ export interface BuilderStep {
   description: string;
 }
 
-// ─── Submission (Project) ──────────────────────────────────────
-export interface ProjectSubmission {
-  id: string;
-  attemptId: string;
-  githubUrl?: string;
-  liveUrl?: string;
-  zipFileUrl?: string;
-  documentationUrl?: string;
-  videoUrl?: string;
-  notes?: string;
-  submittedAt?: string;
-  status: CandidateAttemptStatus;
-}
-
+// ─── Code Execution (BACKEND DEPENDENCY) ──────────────────────
+// NOTE: Real code execution requires a sandboxed backend service (Judge0 or Docker).
+// This type is used for mock results during development.
 export interface MockExecutionResult {
   type: 'success' | 'error';
   message: string;
@@ -217,4 +283,3 @@ export interface MockExecutionResult {
   runtimeMs: number;
   memoryMb: number;
 }
-

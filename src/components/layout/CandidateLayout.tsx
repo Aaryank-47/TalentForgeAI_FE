@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import {
   Home, Briefcase, FileText, ClipboardList, Video, MessageSquare,
   Bookmark, User, FileText as Resume, Settings, Bell, Search,
@@ -68,6 +69,7 @@ const CandidateLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const { logout } = useAuth();
   const location = useLocation();
 
   const isActive = (path: string) =>
@@ -268,7 +270,10 @@ const CandidateLayout: React.FC = () => {
                     </Link>
                   ))}
                   <div className="border-t border-[#E5E7EB]">
-                    <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors">
+                    <button 
+                      onClick={() => logout()}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    >
                       <LogOut className="w-4 h-4" />
                       Sign Out
                     </button>
