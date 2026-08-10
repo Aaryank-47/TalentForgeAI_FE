@@ -8,7 +8,7 @@ import { cn } from '../../lib/cn';
 import {
   GripVertical, Plus, Trash2, ChevronDown, ChevronUp, Bot, Settings2,
   FileSearch, ClipboardList, Code, Users, UserCheck, FileText,
-  Shield, FileCheck, LogIn, CheckCircle, XCircle, Circle,
+  Shield, FileCheck, LogIn, CheckCircle, XCircle, Circle, X,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -202,17 +202,28 @@ export function WorkflowBuilder({ stages, onChange }: WorkflowBuilderProps) {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      {['mcq', 'dsa', 'coding', 'machine_coding', 'descriptive'].map(type => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => updateStage(stage.id, { assessments: [...(stage.assessments || []), type as any] })}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 hover:border-primary-400 hover:bg-primary-50 text-xs font-medium text-slate-600 hover:text-primary-700 transition-colors capitalize"
-                        >
-                          <Plus className="w-3 h-3" />
-                          {type.replace('_', ' ')}
-                        </button>
-                      ))}
+                      {['mcq', 'dsa', 'coding', 'machine_coding', 'descriptive'].map(type => {
+                        const isSelected = stage.assessments?.includes(type as any);
+                        const isDisabled = type === 'descriptive' || isSelected;
+
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => updateStage(stage.id, { assessments: [...(stage.assessments || []), type as any] })}
+                            className={cn(
+                              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-dashed border-slate-300 text-xs font-medium text-slate-600 transition-colors capitalize",
+                              isDisabled
+                                ? "opacity-50 cursor-not-allowed" 
+                                : "hover:border-primary-400 hover:bg-primary-50 hover:text-primary-700"
+                            )}
+                          >
+                            <Plus className="w-3 h-3" />
+                            {type.replace('_', ' ')}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 </div>

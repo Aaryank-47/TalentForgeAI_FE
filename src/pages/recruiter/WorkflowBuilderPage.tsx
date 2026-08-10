@@ -5,6 +5,7 @@ import { WorkflowBuilder } from '../../components/hiring/WorkflowBuilder';
 import { getStageLabel } from '../../constants/hiring_mockData';
 import { ChevronLeft, Save, Star } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
+import toast from 'react-hot-toast';
 
 export default function WorkflowBuilderPage() {
   const { workflowId } = useParams<{ workflowId: string }>();
@@ -35,6 +36,15 @@ export default function WorkflowBuilderPage() {
   }
 
   const handleSave = () => {
+    const invalidAssessmentStage = workflow.stages.find(
+      s => s.type === 'assessment' && s.enabled && (!s.assessments || s.assessments.length === 0)
+    );
+
+    if (invalidAssessmentStage) {
+      toast.error('Please select at least one assessment type for the Assessment stage.');
+      return;
+    }
+
     updateWorkflow(workflow.id, { name, description });
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

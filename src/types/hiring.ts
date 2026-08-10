@@ -56,6 +56,8 @@ export interface WorkflowStage {
   interviewTemplateId?: string;
   /** Custom stage name when type is custom */
   customLabel?: string;
+  /** List of assessment types when type is assessment */
+  assessments?: string[];
 }
 
 export interface HiringWorkflowTemplate {
