@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useOnClickOutside } from '../../hooks/useOnClickOutside';
 import {
   LayoutDashboard,
   Briefcase,
@@ -188,6 +189,12 @@ const RecruiterLayout = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const { logout } = useAuth();
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useOnClickOutside(profileRef, () => setProfileOpen(false));
+  useOnClickOutside(notifRef, () => setNotifOpen(false));
   const location = useLocation();
 
   const isActive = (path: string) =>
@@ -310,7 +317,7 @@ const RecruiterLayout = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="h-16 bg-white border-b border-[#E5E7EB] flex items-center justify-between px-4 sm:px-6 flex-shrink-0">
+        <header className="h-16 border-b border-[#E5E7EB] bg-white flex items-center justify-between px-4 sm:px-6 flex-shrink-0 z-30 sticky top-0">
           <div className="flex items-center gap-4">
             <button
               onClick={() => setSidebarOpen(true)}
@@ -342,7 +349,7 @@ const RecruiterLayout = () => {
             <div className="w-px h-6 bg-slate-200 hidden sm:block" />
 
             {/* Notifications */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button 
                 className="relative p-2 text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors focus:outline-none"
                 onClick={() => setNotifOpen(!notifOpen)}
@@ -375,7 +382,7 @@ const RecruiterLayout = () => {
             </div>
 
             {/* Profile Dropdown */}
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button 
                 onClick={() => setProfileOpen(!profileOpen)}
                 className="flex items-center gap-3 hover:bg-slate-50 p-1 pr-2 rounded-xl transition-colors border border-transparent hover:border-slate-200"

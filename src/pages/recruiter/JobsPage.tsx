@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Plus, Search, Share2, Eye, Edit2, Archive, MoreHorizontal,
@@ -23,6 +23,16 @@ const JobsPage = () => {
   const [search, setSearch] = useState('');
   const [dept, setDept] = useState('All Departments');
   const [menuOpen, setMenuOpen] = useState<number | null>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuOpen !== null && !(event.target as Element).closest('.more-menu-container')) {
+        setMenuOpen(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
 
   const filtered = jobs.filter(j => {
     const matchTab = activeTab === 'All Jobs' || j.status === activeTab.replace('s', '').trim() || (activeTab === 'Active' && j.status === 'Active') || (activeTab === 'Draft' && j.status === 'Draft') || (activeTab === 'Archived' && j.status === 'Archived');
@@ -170,13 +180,13 @@ const JobsPage = () => {
                       <button title="View" className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
                         <Eye className="w-4 h-4" />
                       </button>
-                      <button title="Edit" className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
+                      <Link to="/recruiter/jobs/create" title="Edit" className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
                         <Edit2 className="w-4 h-4" />
-                      </button>
+                      </Link>
                       <button title="Share" className="p-1.5 rounded-lg text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors">
                         <Share2 className="w-4 h-4" />
                       </button>
-                      <div className="relative">
+                      <div className="relative more-menu-container">
                         <button
                           title="More"
                           onClick={() => setMenuOpen(menuOpen === job.id ? null : job.id)}
