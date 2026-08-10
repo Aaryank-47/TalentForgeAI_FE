@@ -130,23 +130,7 @@ export const MediaProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     setDeviceState({ hasVideo: false, hasAudio: false, hasScreen: false });
   }, [cameraStream, screenStream]);
 
-  // Auto-resume camera if permissions were already granted
-  useEffect(() => {
-    const checkPermissions = async () => {
-      try {
-        const camPerm = await navigator.permissions.query({ name: 'camera' as PermissionName });
-        if (camPerm.state === 'granted') {
-          // Fire and forget
-          requestCamera();
-        }
-      } catch (e) {
-        // Ignored (e.g. Safari doesn't support 'camera' in permissions.query)
-      }
-    };
-    if (!cameraStream) {
-      checkPermissions();
-    }
-  }, []); // Run once on mount
+
 
   // NOTE: We do NOT stop tracks on unmount of MediaProvider.
   // The provider will wrap the whole interview flow.

@@ -88,8 +88,8 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(initialUser);
 
   // Media
-  const [isMicOn, setIsMicOn] = useState(true);
-  const [isCameraOn, setIsCameraOn] = useState(true);
+  const [isMicOn, setIsMicOn] = useState(false);
+  const [isCameraOn, setIsCameraOn] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   // Room

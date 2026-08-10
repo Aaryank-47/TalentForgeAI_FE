@@ -32,7 +32,7 @@ export const ParticipantGrid: React.FC<ParticipantGridProps> = ({
     return (
       <div className={`w-full h-full flex ${isCinemaMode ? '' : 'gap-2'} ${className}`}>
         {/* Main large tile for screen share */}
-        <div className="flex-1 relative bg-slate-900 rounded-2xl overflow-hidden group">
+        <div className="flex-1 relative bg-slate-900 rounded-2xl overflow-hidden group" id="screenshare-container">
           <VideoTile
             participant={sharingParticipant}
             isLocal={sharingParticipant.id === localUserId}
@@ -40,10 +40,17 @@ export const ParticipantGrid: React.FC<ParticipantGridProps> = ({
             className="w-full h-full"
           />
           <button
-            onClick={toggleCinemaMode}
+            onClick={() => {
+              const el = document.getElementById('screenshare-container');
+              if (document.fullscreenElement) {
+                document.exitFullscreen();
+              } else if (el) {
+                el.requestFullscreen();
+              }
+            }}
             className="absolute top-4 right-4 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-30"
           >
-            {isCinemaMode ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+            {document.fullscreenElement ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
           </button>
         </div>
         
