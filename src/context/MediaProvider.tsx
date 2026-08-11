@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { MediaDeviceState, AudioState, FaceState } from '../modules/shared/system-check/SystemCheck.types';
 import { setupAudioAnalysis, initFaceLandmarker } from '../modules/shared/system-check/SystemCheck.utils';
 
