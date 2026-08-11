@@ -9,9 +9,11 @@ import { useNavigate } from 'react-router-dom';
 type Tab = 'All' | 'Upcoming' | 'Completed' | 'Cancelled';
 
 import {
-  interviewsList as interviews,
+  interviewsList as initialInterviews,
   interviewAiScores as aiScores,
 } from '../../constants/recruiter_mockData';
+import ScheduleInterviewModal from '../../components/interview/ScheduleInterviewModal';
+import type { InterviewSession } from '../../constants/interview/scheduleMockData';
 
 
 const typeColor = (t: string) => ({
@@ -29,21 +31,48 @@ const statusStyle = (s: string) => ({
 
 const InterviewsPage = () => {
   const [activeTab, setActiveTab] = useState<Tab>('All');
-  const [selectedInterview, setSelectedInterview] = useState(interviews[4]);
+  const [sessions, setSessions] = useState<any[]>(initialInterviews); // Using any[] to mix initial mock data with new mock session data for simplicity
+  const [selectedInterview, setSelectedInterview] = useState(initialInterviews[4]);
   const [search, setSearch] = useState('');
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const navigate = useNavigate();
 
-  const filtered = interviews.filter(iv => {
+  const filtered = sessions.filter(iv => {
     const matchTab = activeTab === 'All' || iv.status === activeTab;
-    const matchSearch = iv.candidate.toLowerCase().includes(search.toLowerCase()) || iv.job.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = iv.candidate?.toLowerCase().includes(search.toLowerCase()) || 
+                        (iv.candidates && iv.candidates[0]?.name.toLowerCase().includes(search.toLowerCase())) ||
+                        iv.job?.toLowerCase?.().includes(search.toLowerCase()) ||
+                        iv.job?.title?.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
   const counts: Record<Tab, number> = {
-    All: interviews.length,
-    Upcoming: interviews.filter(i => i.status === 'Upcoming').length,
-    Completed: interviews.filter(i => i.status === 'Completed').length,
-    Cancelled: interviews.filter(i => i.status === 'Cancelled').length,
+    All: sessions.length,
+    Upcoming: sessions.filter(i => i.status === 'Upcoming').length,
+    Completed: sessions.filter(i => i.status === 'Completed').length,
+    Cancelled: sessions.filter(i => i.status === 'Cancelled').length,
+  };
+
+  const handleSchedule = (newSession: InterviewSession) => {
+    // Adapt InterviewSession to match the table's expected format (interviewsList)
+    const adaptedSession = {
+      id: newSession.id,
+      candidate: newSession.candidates.map(c => c.name).join(', '),
+      initials: newSession.candidates[0]?.name.substring(0, 2).toUpperCase() || 'NA',
+      color: 'from-blue-500 to-blue-700',
+      job: newSession.job.title,
+      type: newSession.interview.title,
+      date: new Date(newSession.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      time: new Date(newSession.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      status: 'Upcoming',
+      aiScore: null
+    };
+    
+    setSessions(prev => [adaptedSession, ...prev]);
+    setIsScheduleModalOpen(false);
+    
+    // Optional: show a toast
+    // toast.success("Interview scheduled successfully");
   };
 
 
@@ -55,7 +84,10 @@ const InterviewsPage = () => {
           <h1 className="text-2xl font-display font-bold text-[#0F172A]">Interviews</h1>
           <p className="text-sm text-[#64748B] mt-0.5">Schedule, manage and review all interview sessions.</p>
         </div>
-        <button className="btn-primary text-sm flex items-center gap-2">
+        <button 
+          onClick={() => setIsScheduleModalOpen(true)}
+          className="btn-primary text-sm flex items-center gap-2"
+        >
           <Plus className="w-4 h-4" />
           Schedule Interview
         </button>
@@ -319,6 +351,12 @@ const InterviewsPage = () => {
           </div>
         )}
       </div>
+
+      <ScheduleInterviewModal 
+        isOpen={isScheduleModalOpen} 
+        onClose={() => setIsScheduleModalOpen(false)} 
+        onSchedule={handleSchedule} 
+      />
     </div>
   );
 };
