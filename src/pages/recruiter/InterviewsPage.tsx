@@ -13,7 +13,8 @@ import {
   interviewAiScores as aiScores,
 } from '../../constants/recruiter_mockData';
 import ScheduleInterviewModal from '../../components/interview/ScheduleInterviewModal';
-import type { InterviewSession } from '../../constants/interview/scheduleMockData';
+import { mockInterviewSessions } from '../../constants/interview/scheduleMockData';
+import { type InterviewSession } from '../../types/interviewSession.types'
 
 
 const typeColor = (t: string) => ({
@@ -39,10 +40,10 @@ const InterviewsPage = () => {
 
   const filtered = sessions.filter(iv => {
     const matchTab = activeTab === 'All' || iv.status === activeTab;
-    const matchSearch = iv.candidate?.toLowerCase().includes(search.toLowerCase()) || 
-                        (iv.candidates && iv.candidates[0]?.name.toLowerCase().includes(search.toLowerCase())) ||
-                        iv.job?.toLowerCase?.().includes(search.toLowerCase()) ||
-                        iv.job?.title?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = iv.candidate?.toLowerCase().includes(search.toLowerCase()) ||
+      (iv.candidates && iv.candidates[0]?.name.toLowerCase().includes(search.toLowerCase())) ||
+      iv.job?.toLowerCase?.().includes(search.toLowerCase()) ||
+      iv.job?.title?.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
@@ -54,6 +55,9 @@ const InterviewsPage = () => {
   };
 
   const handleSchedule = (newSession: InterviewSession) => {
+    // Save new session to global mock memory list
+    mockInterviewSessions.push(newSession);
+
     // Adapt InterviewSession to match the table's expected format (interviewsList)
     const adaptedSession = {
       id: newSession.id,
@@ -67,10 +71,10 @@ const InterviewsPage = () => {
       status: 'Upcoming',
       aiScore: null
     };
-    
+
     setSessions(prev => [adaptedSession, ...prev]);
     setIsScheduleModalOpen(false);
-    
+
     // Optional: show a toast
     // toast.success("Interview scheduled successfully");
   };
@@ -84,7 +88,7 @@ const InterviewsPage = () => {
           <h1 className="text-2xl font-display font-bold text-[#0F172A]">Interviews</h1>
           <p className="text-sm text-[#64748B] mt-0.5">Schedule, manage and review all interview sessions.</p>
         </div>
-        <button 
+        <button
           onClick={() => setIsScheduleModalOpen(true)}
           className="btn-primary text-sm flex items-center gap-2"
         >
@@ -100,14 +104,12 @@ const InterviewsPage = () => {
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === tab ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors flex items-center gap-2 ${activeTab === tab ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
             >
               {tab}
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                activeTab === tab ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500'
-              }`}>{counts[tab]}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${activeTab === tab ? 'bg-primary-100 text-primary-700' : 'bg-slate-100 text-slate-500'
+                }`}>{counts[tab]}</span>
             </button>
           ))}
         </div>
@@ -193,7 +195,7 @@ const InterviewsPage = () => {
                       <div className="flex items-center gap-1">
                         {iv.status === 'Upcoming' ? (
                           <button
-                            onClick={(e) => { e.stopPropagation(); navigate('/recruiter/live-interviews/liv_001/room'); }}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/recruiter/interviews/${iv.id === 1 || String(iv.id) === '1' ? 'sess-1' : iv.id}/room`); }}
                             className="text-xs btn-primary py-1 px-2.5 flex items-center gap-1"
                           >
                             <Play className="w-3 h-3" />
@@ -319,7 +321,7 @@ const InterviewsPage = () => {
               {selectedInterview.status === 'Upcoming' ? (
                 <>
                   <button
-                    onClick={() => navigate('/recruiter/live-interviews/liv_001/room')}
+                    onClick={() => navigate(`/recruiter/interviews/${selectedInterview.id === 1 || String(selectedInterview.id) === '1' ? 'sess-1' : selectedInterview.id}/room`)}
                     className="w-full btn-primary text-sm py-2.5 flex items-center justify-center gap-2"
                   >
                     <Play className="w-4 h-4" />
@@ -352,10 +354,10 @@ const InterviewsPage = () => {
         )}
       </div>
 
-      <ScheduleInterviewModal 
-        isOpen={isScheduleModalOpen} 
-        onClose={() => setIsScheduleModalOpen(false)} 
-        onSchedule={handleSchedule} 
+      <ScheduleInterviewModal
+        isOpen={isScheduleModalOpen}
+        onClose={() => setIsScheduleModalOpen(false)}
+        onSchedule={handleSchedule}
       />
     </div>
   );

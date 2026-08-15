@@ -7,7 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { getInterviewById } from '../../../constants/interview.mock';
+import { getInterviewSessionById, toLiveInterview } from '../../../services/interviewSession.service';
 import { mockRoomParticipants, mockCurrentUserCandidate } from '../../../constants/participants.mock';
 import { InterviewProvider, useInterview } from '../../../context/InterviewContext';
 import { InterviewTimer, RecordingBadge, ConnectionIndicator } from '../../../components/live-interview/LiveInterviewTimer';
@@ -142,7 +142,8 @@ const CandidateRoomInner: React.FC<{
 const CandidateLiveRoomPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const interview = getInterviewById(id ?? '');
+  const session = getInterviewSessionById(id ?? '');
+  const interview = session ? toLiveInterview(session) : null;
 
   if (!interview) {
     return (

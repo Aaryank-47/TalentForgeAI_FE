@@ -5,15 +5,16 @@ import {
 import { 
   mockJobs, 
   mockApplications, 
-  mockInterviewDefinitions, 
+  mockInterviews, 
   mockJobInterviews, 
-  mockCompanyMembers
+  mockCompanyMembers,
+  mockInterviewAssignments
 } from '../../constants/interview/scheduleMockData';
 import type {
   InterviewSession,
   InterviewType,
   InterviewMode
-} from '../../constants/interview/scheduleMockData';
+} from '../../types/interviewSession.types';
 
 interface ScheduleInterviewModalProps {
   isOpen: boolean;
@@ -36,10 +37,10 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen,
   const availableInterviews = useMemo(() => {
     if (!jobId) return [];
     const relations = mockJobInterviews.filter(ji => ji.jobId === jobId);
-    return relations.map(r => mockInterviewDefinitions.find(i => i.id === r.interviewId)!).filter(Boolean);
+    return relations.map(r => mockInterviews.find(i => i.id === r.interviewId)!).filter(Boolean);
   }, [jobId]);
 
-  const selectedInterview = useMemo(() => mockInterviewDefinitions.find(i => i.id === interviewId), [interviewId]);
+  const selectedInterview = useMemo(() => mockInterviews.find(i => i.id === interviewId), [interviewId]);
 
   const availableCandidates = useMemo(() => {
     if (!jobId) return [];
@@ -88,6 +89,8 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen,
   const handleSchedule = () => {
     if (!isValid || !selectedJob || !selectedInterview) return;
 
+    const sessionId = `session-${Date.now()}`;
+
     const candidates = selectedCandidateIds.map(id => {
       const app = mockApplications.find(a => a.id === id)!;
       return {
@@ -100,12 +103,38 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen,
 
     const interviewers = selectedInterviewerIds.map(id => mockCompanyMembers.find(cm => cm.id === id)!);
 
+    // Create participants list
+    const candidateParticipants = selectedCandidateIds.map(appId => {
+      const app = mockApplications.find(a => a.id === appId)!;
+      const assignment = mockInterviewAssignments.find(
+        a => a.interviewId === selectedInterview.id && a.applicationId === appId
+      );
+      const assignmentId = assignment ? assignment.id : `asg-${Date.now()}-${appId}`;
+      return {
+        id: `part-${Date.now()}-can-${appId}`,
+        sessionId,
+        participantType: 'CANDIDATE' as const,
+        assignmentId
+      };
+    });
+
+    const interviewerParticipants = selectedInterviewerIds.map(interviewerId => {
+      return {
+        id: `part-${Date.now()}-int-${interviewerId}`,
+        sessionId,
+        participantType: 'INTERVIEWER' as const,
+        companyMemberId: interviewerId
+      };
+    });
+
+    const participants = [...candidateParticipants, ...interviewerParticipants];
+
     const newSession: InterviewSession = {
-      id: `session-${Date.now()}`,
-      assignmentId: `assignment-${Date.now()}`,
+      id: sessionId,
+      assignmentId: candidateParticipants[0]?.assignmentId || `assignment-${Date.now()}`,
       interviewId: selectedInterview.id,
       jobId: selectedJob.id,
-      applicationId: candidates[0].applicationId, // For individual fallback
+      applicationId: candidates[0]?.applicationId || '', // For individual fallback
       candidates,
       job: { id: selectedJob.id, title: selectedJob.title },
       interview: {
@@ -116,6 +145,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen,
         durationMinutes: selectedInterview.durationMinutes
       },
       interviewers,
+      participants,
       scheduledAt: `${date}T${time}:00`,
       startedAt: null,
       endedAt: null,

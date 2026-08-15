@@ -112,13 +112,13 @@ function App() {
               <Route path="/candidate/assessments/:id/take" element={<AssessmentTakePage />} />
               <Route path="/candidate/assessments/:id/live" element={<LiveMachineCodingPage />} />
               {/* BACKEND DEPENDENCY: Live Interview backend not yet implemented */}
-              <Route path="/candidate/live-interviews/:id/room" element={<CandidateLiveRoomPage />} />
+              <Route path="/candidate/interviews/:id/room" element={<CandidateLiveRoomPage />} />
             </Route>
 
             {/* Recruiter-only fullscreen routes */}
             <Route element={<RoleRoute allowedRoles={['EMPLOYER']} redirectTo="/candidate/home" />}>
               {/* BACKEND DEPENDENCY: Live Interview backend not yet implemented */}
-              <Route path="/recruiter/live-interviews/:id/room" element={<RecruiterLiveRoomPage />} />
+              <Route path="/recruiter/interviews/:id/room" element={<RecruiterLiveRoomPage />} />
             </Route>
 
             {/* Candidate AI Interview flow — within CandidateLayout */}

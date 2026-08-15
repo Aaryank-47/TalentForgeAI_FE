@@ -118,7 +118,7 @@ const CandidateInterviewsPage = () => {
                   </div>
                   <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${iv.typeColor}`}>{iv.type}</span>
                   <button
-                    onClick={(e) => { e.stopPropagation(); navigate('/candidate/live-interviews/liv_001/room'); }}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/candidate/interviews/${iv.id === 'iv_1' ? 'sess-1' : iv.id}/room`); }}
                     className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs rounded-xl transition-colors whitespace-nowrap flex-shrink-0"
                   >
                     Join Interview
@@ -231,7 +231,7 @@ const CandidateInterviewsPage = () => {
                 <p className="text-sm font-bold text-slate-900">{selectedUpcoming.dateLabel} at {selectedUpcoming.timeStart}</p>
                 <CountdownTimer hrs={selectedUpcoming.countdownHrs} mins={selectedUpcoming.countdownMins} secs={selectedUpcoming.countdownSecs} />
                 <button
-                  onClick={() => navigate('/candidate/live-interviews/liv_001/room')}
+                  onClick={() => navigate(`/candidate/interviews/${selectedUpcoming.id === 'iv_1' ? 'sess-1' : selectedUpcoming.id}/room`)}
                   className="w-full py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-bold text-sm rounded-xl transition-colors flex items-center justify-center gap-2"
                 >
                   <Play className="w-4 h-4 fill-white" />

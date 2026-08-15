@@ -118,7 +118,7 @@ const CandidateLiveInterviewsPage: React.FC = () => {
                     key={iv.id}
                     interview={iv}
                     mode="candidate"
-                    onJoinClick={(id) => navigate(`/candidate/live-interviews/${id}`)}
+                    onJoinClick={(id) => navigate(`/candidate/live-interviews/${id}/room`)}
                     onViewDetails={(id) => navigate(`/candidate/live-interviews/${id}`)}
                   />
                 ))
