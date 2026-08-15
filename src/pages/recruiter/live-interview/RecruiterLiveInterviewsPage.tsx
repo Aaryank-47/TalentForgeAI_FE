@@ -1,19 +1,17 @@
 // ─────────────────────────────────────────────────────────────
-// TalentForge AI — Recruiter Live Interviews Page
+// TalentForge AI — Recruiter Live Interviews Page (Phase 6)
 // Main hub: list of all interviews + schedule button + tabs
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Plus, Search, Filter, Calendar, LayoutGrid, List,
-  TrendingUp, Video, CheckCircle, XCircle, Clock,
+  TrendingUp, Video, CheckCircle, Clock,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
-import { mockInterviews, liveInterviewStats } from '../../../constants/interview.mock';
+import { getInterviewSessions, toLiveInterview } from '../../../services/interviewSession.service';
 import type { LiveInterview, InterviewStatus } from '../../../types/interview.types';
 import { LiveInterviewCard } from '../../../components/live-interview/LiveInterviewCard';
-import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
 import { CreateInterviewModal } from '../../../components/live-interview/CreateInterviewModal';
-import { InterviewEmptyState, InterviewLoadingState } from '../../../components/live-interview/InterviewUIComponents';
+import { InterviewEmptyState } from '../../../components/live-interview/InterviewUIComponents';
 import { useNavigate } from 'react-router-dom';
 
 type TabFilter = 'All' | 'Upcoming' | 'Live' | 'Completed' | 'Cancelled';
@@ -26,43 +24,59 @@ const TAB_STATUSES: Record<TabFilter, InterviewStatus[]> = {
   Cancelled: ['Cancelled', 'Missed', 'Rescheduled'],
 };
 
-const STAT_CARDS = [
-  { label: 'Scheduled', value: liveInterviewStats.totalScheduled, icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-50' },
-  { label: 'Live Now', value: liveInterviewStats.live, icon: Video, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  { label: 'Completed', value: liveInterviewStats.completed, icon: CheckCircle, color: 'text-violet-600', bg: 'bg-violet-50' },
-  { label: 'Avg Duration', value: liveInterviewStats.avgDuration, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-];
-
 const RecruiterLiveInterviewsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabFilter>('All');
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [createOpen, setCreateOpen] = useState(false);
+  const [interviewsList, setInterviewsList] = useState<LiveInterview[]>([]);
   const navigate = useNavigate();
 
-  const filtered = mockInterviews.filter((iv) => {
+  // Load and map sessions on render or when modal submits
+  const loadSessions = () => {
+    const sessions = getInterviewSessions();
+    const mapped = sessions.map(toLiveInterview);
+    setInterviewsList(mapped);
+  };
+
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const filtered = interviewsList.filter((iv) => {
     const matchTab =
       activeTab === 'All' || TAB_STATUSES[activeTab].includes(iv.status);
     const matchSearch =
       !search ||
       iv.candidateName.toLowerCase().includes(search.toLowerCase()) ||
       iv.title.toLowerCase().includes(search.toLowerCase()) ||
-      iv.company.toLowerCase().includes(search.toLowerCase());
+      iv.jobTitle.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
   const tabCounts: Record<TabFilter, number> = {
-    All: mockInterviews.length,
-    Upcoming: mockInterviews.filter((iv) => TAB_STATUSES.Upcoming.includes(iv.status)).length,
-    Live: mockInterviews.filter((iv) => TAB_STATUSES.Live.includes(iv.status)).length,
-    Completed: mockInterviews.filter((iv) => TAB_STATUSES.Completed.includes(iv.status)).length,
-    Cancelled: mockInterviews.filter((iv) => TAB_STATUSES.Cancelled.includes(iv.status)).length,
+    All: interviewsList.length,
+    Upcoming: interviewsList.filter((iv) => TAB_STATUSES.Upcoming.includes(iv.status)).length,
+    Live: interviewsList.filter((iv) => TAB_STATUSES.Live.includes(iv.status)).length,
+    Completed: interviewsList.filter((iv) => TAB_STATUSES.Completed.includes(iv.status)).length,
+    Cancelled: interviewsList.filter((iv) => TAB_STATUSES.Cancelled.includes(iv.status)).length,
   };
 
-  const handleCreate = () => {
-    toast.success('Interview scheduled successfully!');
+  const handleCreateSubmit = () => {
+    loadSessions(); // reload list
     setCreateOpen(false);
   };
+
+  const scheduledCount = interviewsList.filter((iv) => ['Scheduled', 'Upcoming', 'Today'].includes(iv.status)).length;
+  const liveCount = interviewsList.filter((iv) => iv.status === 'Live').length;
+  const completedCount = interviewsList.filter((iv) => iv.status === 'Completed').length;
+
+  const STAT_CARDS = [
+    { label: 'Scheduled', value: scheduledCount, icon: Calendar, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Live Now', value: liveCount, icon: Video, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Completed', value: completedCount, icon: CheckCircle, color: 'text-violet-600', bg: 'bg-violet-50' },
+    { label: 'Avg Duration', value: '52 min', icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
+  ];
 
   return (
     <div className="space-y-6">
@@ -171,14 +185,14 @@ const RecruiterLiveInterviewsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Interview list / grid */}
+      {/* Session list / grid */}
       {filtered.length === 0 ? (
         <InterviewEmptyState
-          title={search ? 'No interviews match your search' : 'No interviews yet'}
+          title={search ? 'No interviews match your search' : 'No interviews scheduled'}
           subtitle={
             search
               ? 'Try different keywords or clear the search.'
-              : 'Schedule your first interview to get started.'
+              : 'Schedule your first session to get started.'
           }
           action={!search ? { label: 'Schedule Interview', onClick: () => setCreateOpen(true) } : undefined}
         />
@@ -205,7 +219,7 @@ const RecruiterLiveInterviewsPage: React.FC = () => {
       <CreateInterviewModal
         isOpen={createOpen}
         onClose={() => setCreateOpen(false)}
-        onSubmit={handleCreate}
+        onSubmit={handleCreateSubmit}
       />
     </div>
   );

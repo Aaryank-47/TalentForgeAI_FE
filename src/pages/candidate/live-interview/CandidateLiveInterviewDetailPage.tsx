@@ -1,25 +1,35 @@
 // ─────────────────────────────────────────────────────────────
-// TalentForge AI — Candidate Interview Detail Page
+// TalentForge AI — Candidate Interview Detail Page (Phase 6)
 // ─────────────────────────────────────────────────────────────
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Clock, Video, Users, CheckCircle,
   XCircle, MapPin, Info, Play,
 } from 'lucide-react';
-import { getInterviewById } from '../../../constants/interview.mock';
-import { getRecruitersByIds } from '../../../constants/participants.mock';
+import {
+  getInterviewSessionById,
+  toLiveInterview
+} from '../../../services/interviewSession.service';
+import type { InterviewSession } from '../../../types/interviewSession.types';
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
 
 const CandidateLiveInterviewDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const interview = getInterviewById(id ?? '');
+  const [session, setSession] = useState<InterviewSession | undefined>(undefined);
 
-  if (!interview) {
+  useEffect(() => {
+    if (id) {
+      const found = getInterviewSessionById(id);
+      setSession(found);
+    }
+  }, [id]);
+
+  if (!session) {
     return (
       <div className="flex flex-col items-center justify-center py-20">
-        <p className="text-slate-500 text-sm">Interview not found.</p>
+        <p className="text-slate-500 text-sm">Interview Session not found.</p>
         <button onClick={() => navigate('/candidate/live-interviews')} className="mt-4 btn-secondary text-sm">
           ← Back
         </button>
@@ -27,9 +37,9 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
     );
   }
 
-  const recruiters = getRecruitersByIds(interview.recruiterIds);
-  const isJoinable = ['Live', 'Waiting', 'Today', 'Upcoming'].includes(interview.status);
-  const isCompleted = interview.status === 'Completed';
+  const mappedInterview = toLiveInterview(session);
+  const isJoinable = ['SCHEDULED', 'IN_PROGRESS', 'Upcoming', 'Live', 'Today'].includes(session.status);
+  const isCompleted = session.status === 'COMPLETED';
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -46,33 +56,33 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
       <div className="card p-6">
         <div className="flex items-start gap-5 flex-wrap">
           <div
-            className={`w-16 h-16 rounded-2xl ${interview.companyColor} flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 shadow-lg`}
+            className={`w-16 h-16 rounded-2xl bg-primary-600 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 shadow-lg`}
           >
-            {interview.companyLogo}
+            TF
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap mb-1">
-              <h1 className="text-xl font-display font-bold text-slate-900">{interview.title}</h1>
-              <LiveInterviewStatusBadge status={interview.status} size="md" />
+              <h1 className="text-xl font-display font-bold text-slate-900">{mappedInterview.title}</h1>
+              <LiveInterviewStatusBadge status={mappedInterview.status} size="md" />
             </div>
-            <p className="text-sm text-slate-500">{interview.company} · {interview.jobTitle}</p>
+            <p className="text-sm text-slate-500">{session.job?.title} · {session.interview?.mode} Session</p>
 
             <div className="flex flex-wrap items-center gap-4 mt-4">
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                {interview.date}
+                {mappedInterview.date}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                {interview.timeStart} – {interview.timeEnd}
+                {mappedInterview.timeStart} – {mappedInterview.timeEnd}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Video className="w-3.5 h-3.5 text-slate-400" />
-                <span className="capitalize">{interview.meetingType.replace('-', ' ')}</span>
+                <span className="capitalize">Video Room</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                {interview.timezone}
+                {mappedInterview.timezone}
               </div>
             </div>
           </div>
@@ -82,24 +92,24 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
         <div className="flex gap-3 mt-6 flex-wrap">
           {isJoinable && (
             <button
-              onClick={() => navigate(`/candidate/live-interviews/${interview.id}/room`)}
+              onClick={() => navigate(`/candidate/live-interviews/${session.id}/room`)}
               id="join-interview-btn"
               className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-colors ${
-                interview.status === 'Live'
+                session.status === 'IN_PROGRESS'
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                   : 'btn-primary'
               }`}
             >
-              {interview.status === 'Live' && (
+              {session.status === 'IN_PROGRESS' && (
                 <span className="w-2 h-2 bg-white rounded-full animate-recording-pulse" />
               )}
               <Play className="w-4 h-4" />
-              {interview.status === 'Live' ? 'Join Now' : 'Join Interview'}
+              {session.status === 'IN_PROGRESS' ? 'Join Now' : 'Join Interview'}
             </button>
           )}
           {isCompleted && (
             <button
-              onClick={() => navigate(`/candidate/live-interviews/${interview.id}/feedback`)}
+              onClick={() => navigate(`/candidate/live-interviews/${session.id}/feedback`)}
               className="btn-primary text-sm"
             >
               Submit Feedback
@@ -115,21 +125,19 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
           Your Interview Panel
         </h3>
         <div className="space-y-3">
-          {recruiters.map((r) => (
+          {session.interviewers?.map((r) => (
             <div key={r.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
               <div
-                className={`w-10 h-10 rounded-full bg-gradient-to-br ${r.avatarColor} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
+                className={`w-10 h-10 rounded-full bg-gradient-to-br ${r.avatarColor || 'from-slate-400 to-slate-600'} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}
               >
                 {r.initials}
               </div>
               <div className="flex-1">
                 <p className="text-sm font-semibold text-slate-900">{r.name}</p>
-                <p className="text-xs text-slate-500">{r.title}</p>
+                <p className="text-xs text-slate-500">{r.role}</p>
               </div>
-              <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full capitalize ${
-                r.role === 'recruiter' ? 'bg-primary-100 text-primary-700' : 'bg-violet-100 text-violet-700'
-              }`}>
-                {r.role}
+              <span className="text-[10px] bg-violet-100 text-violet-700 font-semibold px-2 py-0.5 rounded-full capitalize">
+                Interviewer
               </span>
             </div>
           ))}
@@ -143,14 +151,14 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
           Instructions for You
         </h3>
         <p className="text-sm text-slate-600 leading-relaxed mb-4">
-          {interview.settings.instructions}
+          Please ensure a quiet environment with good lighting. Keep your camera on throughout the interview. You may be asked to share your screen for coding tasks.
         </p>
 
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: 'Camera', allowed: interview.settings.allowCamera },
-            { label: 'Microphone', allowed: interview.settings.allowMicrophone },
-            { label: 'Screen Share', allowed: interview.settings.allowScreenShare },
+            { label: 'Camera', allowed: true },
+            { label: 'Microphone', allowed: true },
+            { label: 'Screen Share', allowed: true },
           ].map(({ label, allowed }) => (
             <div
               key={label}

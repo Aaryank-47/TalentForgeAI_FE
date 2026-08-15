@@ -1,39 +1,48 @@
 // ─────────────────────────────────────────────────────────────
-// TalentForge AI — Candidate Live Interviews Page
+// TalentForge AI — Candidate Live Interviews Page (Phase 6)
 // Upcoming + history for the candidate
 // ─────────────────────────────────────────────────────────────
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import {
-  getUpcomingInterviews,
-  getCompletedInterviews,
-} from '../../../constants/interview.mock';
+import { getInterviewSessions, toLiveInterview } from '../../../services/interviewSession.service';
 import { mockCandidateNotifications } from '../../../constants/notifications.mock';
 import { LiveInterviewCard } from '../../../components/live-interview/LiveInterviewCard';
-import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
 import { NotificationCard } from '../../../components/live-interview/InterviewUIComponents';
 import { InterviewEmptyState } from '../../../components/live-interview/InterviewUIComponents';
+import type { LiveInterview } from '../../../types/interview.types';
 
-// Use cand_001 as the logged in candidate
-const MY_CANDIDATE_ID = 'cand_001';
+// Logged in candidate matches Karan Malhotra in scheduleMockData
+const MY_CANDIDATE_ID = 'can-1';
 
 const CandidateLiveInterviewsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
+  const [upcomingList, setUpcomingList] = useState<LiveInterview[]>([]);
+  const [pastList, setPastList] = useState<LiveInterview[]>([]);
   const navigate = useNavigate();
 
-  const upcoming = getUpcomingInterviews().filter(
-    (iv) => iv.candidateId === MY_CANDIDATE_ID
-  );
-  const history = getCompletedInterviews().filter(
-    (iv) => iv.candidateId === MY_CANDIDATE_ID
-  );
+  useEffect(() => {
+    const sessions = getInterviewSessions();
+    
+    // Filter sessions where this candidate is participating
+    const mySessions = sessions.filter((sess) =>
+      sess.candidates?.some((c) => c.id === MY_CANDIDATE_ID)
+    );
 
-  // Also show all as demo (since we only have one candidate in mock)
-  const allUpcoming = upcoming.length > 0 ? upcoming : getUpcomingInterviews().slice(0, 3);
-  const allHistory = history.length > 0 ? history : getCompletedInterviews().slice(0, 3);
+    const mapped = mySessions.map(toLiveInterview);
 
-  const liveNow = allUpcoming.filter((iv) => iv.status === 'Live');
+    const upcoming = mapped.filter((iv) =>
+      ['Scheduled', 'Upcoming', 'Today', 'Live', 'Waiting'].includes(iv.status)
+    );
+    const history = mapped.filter((iv) =>
+      ['Completed', 'Cancelled', 'Missed', 'Rescheduled'].includes(iv.status)
+    );
+
+    setUpcomingList(upcoming);
+    setPastList(history);
+  }, []);
+
+  const liveNow = upcomingList.filter((iv) => iv.status === 'Live');
 
   return (
     <div className="space-y-6">
@@ -56,7 +65,7 @@ const CandidateLiveInterviewsPage: React.FC = () => {
             </p>
           </div>
           <button
-            onClick={() => navigate(`/candidate/live-interviews/${liveNow[0].id}/room`)}
+            onClick={() => navigate(`/candidate/live-interviews/${liveNow[0].id}`)}
             className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors flex-shrink-0"
           >
             Join Now
@@ -71,8 +80,8 @@ const CandidateLiveInterviewsPage: React.FC = () => {
           <div className="border-b border-[#E5E7EB]">
             <div className="flex gap-0">
               {([
-                { key: 'upcoming', label: 'Upcoming', count: allUpcoming.length, icon: Calendar },
-                { key: 'history', label: 'Past', count: allHistory.length, icon: Clock },
+                { key: 'upcoming', label: 'Upcoming', count: upcomingList.length, icon: Calendar },
+                { key: 'history', label: 'Past', count: pastList.length, icon: Clock },
               ] as const).map(({ key, label, count, icon: Icon }) => (
                 <button
                   key={key}
@@ -98,18 +107,18 @@ const CandidateLiveInterviewsPage: React.FC = () => {
           {/* Interview cards */}
           {activeTab === 'upcoming' && (
             <div className="space-y-3">
-              {allUpcoming.length === 0 ? (
+              {upcomingList.length === 0 ? (
                 <InterviewEmptyState
                   title="No upcoming interviews"
                   subtitle="Your scheduled interviews will appear here."
                 />
               ) : (
-                allUpcoming.map((iv) => (
+                upcomingList.map((iv) => (
                   <LiveInterviewCard
                     key={iv.id}
                     interview={iv}
                     mode="candidate"
-                    onJoinClick={(id) => navigate(`/candidate/live-interviews/${id}/room`)}
+                    onJoinClick={(id) => navigate(`/candidate/live-interviews/${id}`)}
                     onViewDetails={(id) => navigate(`/candidate/live-interviews/${id}`)}
                   />
                 ))
@@ -119,14 +128,14 @@ const CandidateLiveInterviewsPage: React.FC = () => {
 
           {activeTab === 'history' && (
             <div className="space-y-3">
-              {allHistory.length === 0 ? (
+              {pastList.length === 0 ? (
                 <InterviewEmptyState
                   title="No past interviews"
                   subtitle="Completed interviews will appear here."
                   variant="history"
                 />
               ) : (
-                allHistory.map((iv) => (
+                pastList.map((iv) => (
                   <LiveInterviewCard
                     key={iv.id}
                     interview={iv}
