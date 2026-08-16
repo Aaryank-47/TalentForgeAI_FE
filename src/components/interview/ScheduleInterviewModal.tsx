@@ -143,7 +143,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ isOpen,
         type: selectedInterview.type,
         mode: selectedInterview.mode,
         durationMinutes: selectedInterview.durationMinutes
-      },
+      },  
       interviewers,
       participants,
       scheduledAt: `${date}T${time}:00`,

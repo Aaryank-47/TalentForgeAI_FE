@@ -12,7 +12,7 @@ type UIRole = 'recruiter' | 'candidate';
 
 // ─── Illustration Panel ───────────────────────────────────────────────────────
 
-const IllustrationPanel = ({ mode }: { mode: AuthMode }) => (
+const IllustrationPanel = ({ mode, role }: { mode: AuthMode; role?: UIRole }) => (
   <div className="relative flex flex-col justify-between h-full px-12 py-14 overflow-hidden">
     {/* Background gradient */}
     <div className="absolute inset-0 bg-gradient-to-br from-[#1E3A8A] via-[#2563EB] to-[#3B82F6]" />
@@ -39,6 +39,8 @@ const IllustrationPanel = ({ mode }: { mode: AuthMode }) => (
       <h2 className="text-[36px] font-display font-extrabold text-white leading-tight mb-4">
         {mode === 'login' ? (
           <>Welcome<br />back. 👋</>
+        ) : role === 'candidate' ? (
+          <>Land your dream.<br />Grow faster. 🚀</>
         ) : (
           <>Hire smarter.<br />Grow faster. 🚀</>
         )}
@@ -46,16 +48,25 @@ const IllustrationPanel = ({ mode }: { mode: AuthMode }) => (
       <p className="text-blue-100/80 text-[15px] leading-relaxed mb-10 max-w-xs">
         {mode === 'login'
           ? 'Sign in to your account and continue building your dream team.'
+          : role === 'candidate'
+          ? 'Join 10,000+ candidates and job seekers who trust TalentForge AI.'
           : 'Join 10,000+ hiring teams and candidates who trust TalentForge AI.'}
       </p>
 
       {/* Feature highlights */}
       <div className="space-y-4 w-full">
-        {[
-          { icon: <Bot className="w-4 h-4" />, text: 'AI resume screening & matching' },
-          { icon: <Users className="w-4 h-4" />, text: 'End-to-end ATS pipeline' },
-          { icon: <BarChart2 className="w-4 h-4" />, text: 'Real-time hiring analytics' },
-        ].map((item, i) => (
+        {(mode === 'register' && role === 'candidate'
+          ? [
+              { icon: <Bot className="w-4 h-4" />, text: 'AI-powered mock interviews' },
+              { icon: <Users className="w-4 h-4" />, text: 'Instant resume matching & feedback' },
+              { icon: <BarChart2 className="w-4 h-4" />, text: 'Real-time performance analytics' },
+            ]
+          : [
+              { icon: <Bot className="w-4 h-4" />, text: 'AI resume screening & matching' },
+              { icon: <Users className="w-4 h-4" />, text: 'End-to-end ATS pipeline' },
+              { icon: <BarChart2 className="w-4 h-4" />, text: 'Real-time hiring analytics' },
+            ]
+        ).map((item, i) => (
           <div key={i} className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-white/15 flex items-center justify-center text-blue-100 border border-white/20 flex-shrink-0">
               {item.icon}
@@ -77,8 +88,12 @@ const IllustrationPanel = ({ mode }: { mode: AuthMode }) => (
           ))}
         </div>
         <div>
-          <div className="text-[12px] font-bold text-white">10,000+ teams onboard</div>
-          <div className="text-[11px] text-blue-200">Avg. 3.5× faster time-to-hire</div>
+          <div className="text-[12px] font-bold text-white">
+            {mode === 'register' && role === 'candidate' ? '10,000+ candidates onboard' : '10,000+ teams onboard'}
+          </div>
+          <div className="text-[11px] text-blue-200">
+            {mode === 'register' && role === 'candidate' ? 'Avg. 3.5× faster job landing' : 'Avg. 3.5× faster time-to-hire'}
+          </div>
         </div>
       </div>
     </div>
@@ -195,10 +210,9 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
 
 // ─── Register Form ────────────────────────────────────────────────────────────
 
-const RegisterForm = ({ defaultRole, onSwitchToLogin }: { defaultRole: UIRole; onSwitchToLogin: () => void }) => {
+const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRole: (r: UIRole) => void; onSwitchToLogin: () => void }) => {
   const navigate = useNavigate();
   const { registerCandidate, registerEmployer, isLoading, error } = useAuth();
-  const [role, setRole] = useState<UIRole>(defaultRole);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', company: '' });
@@ -314,10 +328,16 @@ const RegisterForm = ({ defaultRole, onSwitchToLogin }: { defaultRole: UIRole; o
 
       {/* Trust indicators */}
       <div className="flex items-center justify-center gap-4 mt-5">
-        {[
-          { icon: <Check className="w-3 h-3" />, text: 'Free 14-day trial' },
-          { icon: <Check className="w-3 h-3" />, text: 'No credit card' },
-        ].map((item, i) => (
+        {(role === 'recruiter'
+          ? [
+              { icon: <Check className="w-3 h-3" />, text: 'Free 14-day trial' },
+              { icon: <Check className="w-3 h-3" />, text: 'No credit card' },
+            ]
+          : [
+              { icon: <Check className="w-3 h-3" />, text: 'Free forever for basic use' },
+              { icon: <Check className="w-3 h-3" />, text: 'Instant profile creation' },
+            ]
+        ).map((item, i) => (
           <div key={i} className="flex items-center gap-1 text-[11px] text-slate-400">
             <span className="text-emerald-500">{item.icon}</span>
             {item.text}
@@ -343,6 +363,7 @@ const AuthPage = () => {
 
   const [mode, setMode] = useState<AuthMode>(isRegisterUrl ? 'register' : 'login');
   const [animating, setAnimating] = useState(false);
+  const [registerRole, setRegisterRole] = useState<UIRole>(initialRole);
 
   useEffect(() => {
     if (isRegisterUrl && mode === 'login') setMode('register');
@@ -384,7 +405,7 @@ const AuthPage = () => {
             <IllustrationPanel mode={mode} />
           ) : (
             <div className="h-full bg-white flex items-center justify-center">
-              <RegisterForm defaultRole={initialRole} onSwitchToLogin={() => switchMode('login')} />
+              <RegisterForm role={registerRole} setRole={setRegisterRole} onSwitchToLogin={() => switchMode('login')} />
             </div>
           )}
         </div>
@@ -402,7 +423,7 @@ const AuthPage = () => {
               <LoginForm onSwitchToRegister={() => switchMode('register')} />
             </div>
           ) : (
-            <IllustrationPanel mode={mode} />
+            <IllustrationPanel mode={mode} role={registerRole} />
           )}
         </div>
 
@@ -427,7 +448,7 @@ const AuthPage = () => {
                 </div>
                 <span className="font-display font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#2563EB]"> AI</span></span>
               </Link>
-              <RegisterForm defaultRole={initialRole} onSwitchToLogin={() => switchMode('login')} />
+              <RegisterForm role={registerRole} setRole={setRegisterRole} onSwitchToLogin={() => switchMode('login')} />
             </div>
           )}
         </div>
