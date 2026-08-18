@@ -75,7 +75,9 @@ type AuthAction =
   | { type: 'SET_USER'; payload: AuthUser | null }
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'INITIALIZE' }
-  | { type: 'CLEAR' };
+  | { type: 'CLEAR' }
+  | { type: 'SET_COMPANY'; payload: { companyId: string; companyRole: CompanyMemberRole } }
+  | { type: 'SET_ROLE'; payload: UserRole };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -89,6 +91,25 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       return { ...state, isInitialized: true, isLoading: false };
     case 'CLEAR':
       return { user: null, isLoading: false, isInitialized: true, error: null };
+    case 'SET_COMPANY':
+      if (!state.user) return state;
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          companyId: action.payload.companyId,
+          companyRole: action.payload.companyRole,
+        },
+      };
+    case 'SET_ROLE':
+      if (!state.user) return state;
+      return {
+        ...state,
+        user: {
+          ...state.user,
+          role: action.payload,
+        },
+      };
     default:
       return state;
   }
@@ -107,6 +128,10 @@ interface AuthContextValue extends AuthState {
   logout: () => Promise<void>;
   /** Log out from all devices */
   logoutAll: () => Promise<void>;
+  /** Set selected company */
+  setSelectedCompany: (companyId: string, companyRole: CompanyMemberRole) => void;
+  /** Set active user role */
+  setUserRole: (role: UserRole) => void;
   /** Whether the user is fully authenticated */
   isAuthenticated: boolean;
 }
@@ -199,6 +224,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'CLEAR' });
   }, []);
 
+  const setSelectedCompany = useCallback((companyId: string, companyRole: CompanyMemberRole) => {
+    dispatch({ type: 'SET_COMPANY', payload: { companyId, companyRole } });
+  }, []);
+
+  const setUserRole = useCallback((role: UserRole) => {
+    localStorage.setItem('tf_mock_role', role);
+    dispatch({ type: 'SET_ROLE', payload: role });
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       ...state,
@@ -208,8 +242,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       registerEmployer,
       logout,
       logoutAll,
+      setSelectedCompany,
+      setUserRole,
     }),
-    [state, login, registerCandidate, registerEmployer, logout, logoutAll],
+    [state, login, registerCandidate, registerEmployer, logout, logoutAll, setSelectedCompany, setUserRole],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

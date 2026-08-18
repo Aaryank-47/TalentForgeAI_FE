@@ -114,9 +114,8 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
     e.preventDefault();
     setLocalError(null);
     try {
-      const user = await login({ email, password });
-      // Role-based redirect — NO MORE hardcoded recruiter
-      navigate(resolvePortalRoute(user), { replace: true });
+      await login({ email, password });
+      navigate('/select-company', { replace: true });
     } catch {
       setLocalError(error ?? 'Invalid email or password. Please try again.');
     }
@@ -227,12 +226,11 @@ const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRol
     }
     try {
       if (role === 'recruiter') {
-        const user = await registerEmployer({ fullName: form.name, email: form.email, password: form.password, companyName: form.company || form.name + "'s Company" });
-        navigate(resolvePortalRoute(user), { replace: true });
+        await registerEmployer({ fullName: form.name, email: form.email, password: form.password, companyName: form.company || form.name + "'s Company" });
       } else {
-        const user = await registerCandidate({ fullName: form.name, email: form.email, password: form.password });
-        navigate(resolvePortalRoute(user), { replace: true });
+        await registerCandidate({ fullName: form.name, email: form.email, password: form.password });
       }
+      navigate('/select-company', { replace: true });
     } catch {
       setLocalError(error ?? 'Registration failed. Please try again.');
     }

@@ -4,6 +4,7 @@ import { ProtectedRoute, RoleRoute, PublicRoute } from './components/auth/RouteG
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/auth/AuthPage';
 import SignupRolePage from './pages/SignupRolePage';
+import SelectCompanyPage from './pages/auth/SelectCompanyPage';
 
 // ─── Candidate Layout ─────────────────────────────────────────
 import CandidateLayout from './components/layout/CandidateLayout';
@@ -100,6 +101,7 @@ function App() {
 
         {/* ─── All Authenticated Routes ─── */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/select-company" element={<SelectCompanyPage />} />
 
           {/* ─── AI Interview & Assessment Flows (Requires MediaProvider) ─── */}
           <Route element={<MediaProvider><Outlet /></MediaProvider>}>
