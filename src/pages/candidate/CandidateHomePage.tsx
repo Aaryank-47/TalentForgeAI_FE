@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Bookmark, ArrowUpRight, TrendingUp, TrendingDown, ChevronRight, Star, Zap, Activity } from 'lucide-react';
 import { candidateHomeData, jobsData, interviewsData, assessmentsData, applicationsData, profileData } from '../../constants/candidate_mockData';
+import { useQuery } from '@tanstack/react-query';
+import { candidateApi } from '../../services/api/candidate.api';
+import { candidateKeys } from '../../constants/queryKeys';
+import { useAuth } from '../../context/AuthContext';
 
 // ─── Profile Completion Ring ──────────────────────────────
 const ProfileRing = ({ pct }: { pct: number }) => {
@@ -34,6 +38,16 @@ const MatchBadge = ({ pct }: { pct: number }) => {
 };
 
 const CandidateHomePage = () => {
+  const { user } = useAuth();
+  const { data: candidate } = useQuery({
+    queryKey: candidateKeys.me,
+    queryFn: () => candidateApi.getCandidateProfile(),
+  });
+  const { data: completionData } = useQuery({
+    queryKey: candidateKeys.completion,
+    queryFn: () => candidateApi.getProfileCompletion(),
+  });
+
   const [savedJobs, setSavedJobs] = useState<string[]>(['job_1', 'job_5']);
   const aiJobs = jobsData.slice(0, 3);
   const upcomingInterviews = interviewsData.upcoming;
@@ -45,6 +59,9 @@ const CandidateHomePage = () => {
     { label: 'Offer', value: 1 },
     { label: 'Rejected', value: 2 },
   ];
+
+  const candidateName = candidate?.fullName || user?.fullName || 'Candidate';
+  const profileCompletion = completionData?.completion ?? candidate?.profileCompletion ?? 60;
 
   const toggleSave = (id: string) =>
     setSavedJobs(prev => prev.includes(id) ? prev.filter(j => j !== id) : [...prev, id]);
@@ -61,7 +78,7 @@ const CandidateHomePage = () => {
         <div className="flex-1 min-w-0 z-10">
           <p className="text-blue-100 text-sm font-medium mb-1">Welcome back,</p>
           <h1 className="text-3xl font-display font-bold text-white mb-1">
-            {profileData.name} <span className="text-yellow-300">👋</span>
+            {candidateName} <span className="text-yellow-300">👋</span>
           </h1>
           <p className="text-blue-200 text-sm mb-5">Let's find the right opportunity for you.</p>
           <div className="flex gap-3 flex-wrap">
@@ -87,21 +104,30 @@ const CandidateHomePage = () => {
           <p className="text-xs font-bold text-slate-700 mb-0.5">Complete Your Profile</p>
           <p className="text-[10px] text-slate-400 mb-3">A complete profile gets 3x more job opportunities.</p>
           <div className="flex items-center gap-4">
-            <ProfileRing pct={profileData.profileCompletion} />
+            <ProfileRing pct={profileCompletion} />
             <div className="flex-1 space-y-1.5">
-              {profileData.completionChecklist.map(item => (
-                <div key={item.label} className="flex items-center gap-2 text-xs">
-                  {item.done ? (
-                    <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" viewBox="0 0 14 14" fill="none">
-                      <circle cx="7" cy="7" r="7" fill="#22C55E" />
-                      <path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  ) : (
-                    <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-200 flex-shrink-0" />
-                  )}
-                  <span className={item.done ? 'text-slate-700' : 'text-slate-400'}>{item.label}</span>
-                </div>
-              ))}
+              <div className="flex items-center gap-2 text-xs">
+                {candidate?.headline ? (
+                  <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="7" fill="#22C55E" />
+                    <path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-200 flex-shrink-0" />
+                )}
+                <span className={candidate?.headline ? 'text-slate-700' : 'text-slate-400'}>Headline & Title</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {candidate?.skills && candidate.skills.length > 0 ? (
+                  <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" viewBox="0 0 14 14" fill="none">
+                    <circle cx="7" cy="7" r="7" fill="#22C55E" />
+                    <path d="M4 7l2 2 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                ) : (
+                  <div className="w-3.5 h-3.5 rounded-full border-2 border-slate-200 flex-shrink-0" />
+                )}
+                <span className={candidate?.skills && candidate.skills.length > 0 ? 'text-slate-700' : 'text-slate-400'}>Key Skills</span>
+              </div>
             </div>
           </div>
           <Link

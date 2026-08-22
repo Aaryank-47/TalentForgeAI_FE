@@ -1,5 +1,11 @@
-import React, { useState } from 'react';
-import { Lock, Bell, Shield, Trash2, Eye, EyeOff, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Lock, Bell, Shield, Trash2, Eye, EyeOff, ChevronRight, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { candidateApi, type UpdateCandidateProfileDto } from '../../services/api/candidate.api';
+import { authApi } from '../../services/api/auth.api';
+import { candidateKeys, authKeys } from '../../constants/queryKeys';
+import { useAuth } from '../../context/AuthContext';
+import toast from 'react-hot-toast';
 
 const tabs = ['Account', 'Security', 'Notifications', 'Privacy'];
 
@@ -13,8 +19,17 @@ const Toggle = ({ on, onToggle }: { on: boolean; onToggle: () => void }) => (
 );
 
 const CandidateSettingsPage = () => {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
   const [activeTab, setActiveTab] = useState('Account');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   const [notifications, setNotifications] = useState({
     newJobs: true, applicationUpdate: true, interviewReminder: true,
     assessmentAssigned: true, offerReceived: true, emailDigest: false, smsAlerts: false,
@@ -23,8 +38,101 @@ const CandidateSettingsPage = () => {
     profileVisible: true, resumeVisible: false, searchable: true, activityStatus: false,
   });
 
+  // Account & Preferences Form
+  const [accountForm, setAccountForm] = useState<UpdateCandidateProfileDto>({
+    fullName: '',
+    headline: '',
+    phoneNumber: '',
+    currentLocation: '',
+    preferredLocation: '',
+    currentCompany: '',
+    currentDesignation: '',
+    websiteUrl: '',
+    bio: '',
+    expectedSalary: undefined,
+    currentSalary: undefined,
+    noticePeriod: undefined,
+  });
+
+  // Fetch Candidate Profile (GET /candidates/me)
+  const { data: candidate, isLoading: isLoadingProfile } = useQuery({
+    queryKey: candidateKeys.me,
+    queryFn: () => candidateApi.getCandidateProfile(),
+  });
+
+  // Sync profile data to local form state
+  useEffect(() => {
+    if (candidate) {
+      setAccountForm({
+        fullName: candidate.fullName || user?.fullName || '',
+        headline: candidate.headline || '',
+        phoneNumber: candidate.phoneNumber || '',
+        currentLocation: candidate.currentLocation || '',
+        preferredLocation: candidate.preferredLocation || '',
+        currentCompany: candidate.currentCompany || '',
+        currentDesignation: candidate.currentDesignation || '',
+        websiteUrl: candidate.websiteUrl || '',
+        bio: candidate.bio || '',
+        expectedSalary: candidate.expectedSalary || undefined,
+        currentSalary: candidate.currentSalary || undefined,
+        noticePeriod: candidate.noticePeriod || undefined,
+      });
+    }
+  }, [candidate, user]);
+
+  // Update Profile Mutation (PATCH /candidates/me)
+  const updateProfileMutation = useMutation({
+    mutationFn: (data: UpdateCandidateProfileDto) => candidateApi.updateCandidateProfile(data),
+    onSuccess: () => {
+      toast.success('Settings updated successfully!');
+      queryClient.invalidateQueries({ queryKey: candidateKeys.me });
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to update settings');
+    },
+  });
+
+  // Change Password Mutation
+  const changePasswordMutation = useMutation({
+    mutationFn: () => {
+      if (newPassword !== confirmPassword) {
+        throw new Error('New passwords do not match');
+      }
+      return authApi.changePassword({
+        oldPassword: currentPassword,
+        newPassword,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to change password');
+    },
+  });
+
   const toggle = (key: string) => setNotifications(n => ({ ...n, [key]: !n[key as keyof typeof n] }));
   const togglePrivacy = (key: string) => setPrivacy(p => ({ ...p, [key]: !p[key as keyof typeof p] }));
+
+  const handleSaveAccount = (e: React.FormEvent) => {
+    e.preventDefault();
+    const payload: Record<string, any> = {};
+    Object.entries(accountForm).forEach(([k, v]) => {
+      if (v !== '' && v !== null && v !== undefined) {
+        payload[k] = typeof v === 'string' ? v.trim() : v;
+      }
+    });
+    updateProfileMutation.mutate(payload as UpdateCandidateProfileDto);
+  };
+
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    changePasswordMutation.mutate();
+  };
 
   return (
     <div className="max-w-4xl space-y-5">
@@ -54,78 +162,218 @@ const CandidateSettingsPage = () => {
           {/* Account */}
           {activeTab === 'Account' && (
             <div className="space-y-4">
-              <div className="card p-6 space-y-5">
-                <h2 className="font-display font-bold text-[#0F172A] text-base">Personal Information</h2>
+              <form onSubmit={handleSaveAccount} className="card p-6 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display font-bold text-[#0F172A] text-base">Personal Information</h2>
+                  {isLoadingProfile && <Loader2 className="w-4 h-4 animate-spin text-primary-600" />}
+                </div>
                 <div className="grid grid-cols-2 gap-5">
-                  {[
-                    { label: 'Full Name', value: 'Aaryan ' },
-                    { label: 'Title', value: 'Senior Frontend Developer' },
-                    { label: 'Email', value: 'aaryan.singh@email.com' },
-                    { label: 'Phone', value: '+91 98765 43210' },
-                    { label: 'Location', value: 'Bangalore, India' },
-                    { label: 'Website', value: 'https://aaryansingh.dev' },
-                  ].map(f => (
-                    <div key={f.label}>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">{f.label}</label>
-                      <input type="text" defaultValue={f.value} className="input-field text-sm" />
-                    </div>
-                  ))}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Full Name</label>
+                    <input
+                      type="text"
+                      value={accountForm.fullName || ''}
+                      onChange={e => setAccountForm({ ...accountForm, fullName: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="Your full name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Headline / Title</label>
+                    <input
+                      type="text"
+                      value={accountForm.headline || ''}
+                      onChange={e => setAccountForm({ ...accountForm, headline: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="e.g. Full Stack Developer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
+                    <input
+                      type="text"
+                      disabled
+                      value={user?.email || ''}
+                      className="input-field text-sm bg-slate-50 text-slate-500 cursor-not-allowed"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone</label>
+                    <input
+                      type="text"
+                      value={accountForm.phoneNumber || ''}
+                      onChange={e => setAccountForm({ ...accountForm, phoneNumber: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="+1 (555) 000-0000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Location</label>
+                    <input
+                      type="text"
+                      value={accountForm.currentLocation || ''}
+                      onChange={e => setAccountForm({ ...accountForm, currentLocation: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="e.g. Bangalore, India"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Website / Portfolio</label>
+                    <input
+                      type="text"
+                      value={accountForm.websiteUrl || ''}
+                      onChange={e => setAccountForm({ ...accountForm, websiteUrl: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="https://yourwebsite.com"
+                    />
+                  </div>
                   <div className="col-span-2">
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Bio</label>
-                    <textarea className="input-field text-sm resize-none h-24" defaultValue="Passionate Frontend Developer with 4+ years of experience..." />
+                    <textarea
+                      rows={3}
+                      value={accountForm.bio || ''}
+                      onChange={e => setAccountForm({ ...accountForm, bio: e.target.value })}
+                      className="input-field text-sm resize-none"
+                      placeholder="Tell recruiters about yourself..."
+                    />
                   </div>
                 </div>
                 <div className="flex justify-end gap-3 pt-3 border-t border-[#E5E7EB]">
-                  <button className="btn-secondary text-sm">Cancel</button>
-                  <button className="btn-primary text-sm">Save Changes</button>
+                  <button
+                    type="submit"
+                    disabled={updateProfileMutation.isPending}
+                    className="btn-primary text-sm flex items-center gap-2"
+                  >
+                    {updateProfileMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    Save Changes
+                  </button>
                 </div>
-              </div>
+              </form>
 
               {/* Job Preferences */}
-              <div className="card p-6 space-y-4">
-                <h2 className="font-display font-bold text-[#0F172A] text-base">Job Preferences</h2>
+              <form onSubmit={handleSaveAccount} className="card p-6 space-y-4">
+                <h2 className="font-display font-bold text-[#0F172A] text-base">Job & Career Preferences</h2>
                 <div className="grid grid-cols-2 gap-4">
-                  {[
-                    { label: 'Desired Role', value: 'Frontend Developer' },
-                    { label: 'Preferred Location', value: 'Bangalore, Remote' },
-                    { label: 'Expected Salary', value: '₹20 – ₹30 LPA' },
-                    { label: 'Job Type', value: 'Full-time' },
-                  ].map(f => (
-                    <div key={f.label}>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">{f.label}</label>
-                      <input type="text" defaultValue={f.value} className="input-field text-sm" />
-                    </div>
-                  ))}
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Current Company</label>
+                    <input
+                      type="text"
+                      value={accountForm.currentCompany || ''}
+                      onChange={e => setAccountForm({ ...accountForm, currentCompany: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="e.g. Google"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Current Designation</label>
+                    <input
+                      type="text"
+                      value={accountForm.currentDesignation || ''}
+                      onChange={e => setAccountForm({ ...accountForm, currentDesignation: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="e.g. Senior Software Engineer"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Preferred Location</label>
+                    <input
+                      type="text"
+                      value={accountForm.preferredLocation || ''}
+                      onChange={e => setAccountForm({ ...accountForm, preferredLocation: e.target.value })}
+                      className="input-field text-sm"
+                      placeholder="e.g. Remote, San Francisco"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Expected Salary (Annual)</label>
+                    <input
+                      type="number"
+                      value={accountForm.expectedSalary ?? ''}
+                      onChange={e => setAccountForm({ ...accountForm, expectedSalary: Number(e.target.value) || undefined })}
+                      className="input-field text-sm"
+                      placeholder="e.g. 120000"
+                    />
+                  </div>
                 </div>
                 <div className="flex justify-end pt-3 border-t border-[#E5E7EB]">
-                  <button className="btn-primary text-sm">Save Preferences</button>
+                  <button
+                    type="submit"
+                    disabled={updateProfileMutation.isPending}
+                    className="btn-primary text-sm flex items-center gap-2"
+                  >
+                    {updateProfileMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    Save Preferences
+                  </button>
                 </div>
-              </div>
+              </form>
             </div>
           )}
 
           {/* Security */}
           {activeTab === 'Security' && (
             <div className="space-y-4">
-              <div className="card p-6">
+              <form onSubmit={handleChangePassword} className="card p-6">
                 <h2 className="font-display font-bold text-[#0F172A] text-base mb-5">Change Password</h2>
                 <div className="space-y-4 max-w-md">
-                  {['Current Password', 'New Password', 'Confirm New Password'].map(label => (
-                    <div key={label}>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">{label}</label>
-                      <div className="relative">
-                        <input type={showPassword ? 'text' : 'password'} className="input-field text-sm pr-10" placeholder="••••••••••" />
-                        <button onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Current Password</label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        value={currentPassword}
+                        onChange={e => setCurrentPassword(e.target.value)}
+                        className="input-field text-sm pr-10"
+                        placeholder="••••••••••"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
                     </div>
-                  ))}
-                  <button className="btn-primary text-sm flex items-center gap-2">
-                    <Lock className="w-4 h-4" />Update Password
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">New Password</label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={newPassword}
+                      onChange={e => setNewPassword(e.target.value)}
+                      className="input-field text-sm"
+                      placeholder="Minimum 8 characters"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Confirm New Password</label>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={e => setConfirmPassword(e.target.value)}
+                      className="input-field text-sm"
+                      placeholder="Repeat new password"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={changePasswordMutation.isPending}
+                    className="btn-primary text-sm flex items-center gap-2"
+                  >
+                    {changePasswordMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Lock className="w-4 h-4" />
+                    )}
+                    Update Password
                   </button>
                 </div>
-              </div>
+              </form>
 
               {/* 2FA */}
               <div className="card p-6">
