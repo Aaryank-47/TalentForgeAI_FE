@@ -1,10 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
   Building, Users, GitBranch, Mail, CreditCard, Plus, MoreHorizontal,
   Upload, Trash2, GripVertical, CheckCircle, X, Edit2, Crown,
-  ChevronDown,
+  ChevronDown, Loader2,
 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
+
+import { useAuth } from '../../context/AuthContext';
+import { companyApi, type UpdateCompanyDto } from '../../services/api/company.api';
+import { companyKeys, authKeys } from '../../constants/queryKeys';
 
 import {
   settingsTabs as tabs,
@@ -12,7 +18,6 @@ import {
   settingsDefaultStages as defaultStages,
   settingsEmailPrefs as emailPrefs,
 } from '../../constants/recruiter_mockData';
-
 
 const roleStyle = (r: string) => ({
   Admin: 'bg-red-50 text-red-700 border-red-200',
@@ -23,6 +28,23 @@ const roleStyle = (r: string) => ({
 
 const SettingsPage = () => {
   const location = useLocation();
+  const queryClient = useQueryClient();
+  const { user, currentWorkspace, availableWorkspaces } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Determine active company ID
+  const companyId =
+    (currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined) ||
+    user?.companyId ||
+    availableWorkspaces?.find(w => w.type === 'COMPANY')?.id ||
+    user?.companies?.[0]?.companyId ||
+    user?.companies?.[0]?.company?.id ||
+    '';
+
+  // Fallback metadata from current user session while server state loads
+  const userCompanyMembership =
+    user?.companies?.find(c => c.companyId === companyId) || user?.companies?.[0];
+  const fallbackCompany = userCompanyMembership?.company;
 
   const getTabFromPath = (path: string) => {
     if (path.includes('/recruiter/team')) return 'Team Members';
@@ -44,17 +66,195 @@ const SettingsPage = () => {
     moved: true,
     offer: true,
   });
-  const [company, setCompany] = useState({
-    name: 'TalentForge Inc.',
-    website: 'https://talentforge.ai',
-    industry: 'Technology',
-    size: '50-200 employees',
-    email: 'hr@talentforge.ai',
-    phone: '+91 98765 43210',
-    description: 'AI-powered hiring operating system for modern teams.',
+
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Form state for Company Profile (synced with backend data)
+  const [formData, setFormData] = useState({
+    companyName: '',
+    website: '',
+    industry: '',
+    companySize: '',
+    companyEmail: '',
+    phoneNumber: '',
+    description: '',
+    headquarters: '',
+    linkedinUrl: '',
+    twitterUrl: '',
   });
 
+  // Fetch Company Details from backend
+  const {
+    data: companyDetails,
+    isLoading: isLoadingCompany,
+  } = useQuery({
+    queryKey: companyKeys.detail(companyId),
+    queryFn: () => companyApi.getCompanyDetails(companyId),
+    enabled: !!companyId,
+  });
+
+  // Fetch Metadata (Industry & Size dropdown options)
+  const { data: metadata } = useQuery({
+    queryKey: companyKeys.metadata,
+    queryFn: () => companyApi.getCompanyMetadata(),
+    staleTime: 1000 * 60 * 60,
+  });
+
+  const industries: string[] = metadata?.industries?.length
+    ? metadata.industries
+    : ['Technology', 'Finance', 'Healthcare', 'Education', 'Retail', 'Design', 'Marketing', 'Consulting'];
+
+  const companySizes: string[] = metadata?.companySizes?.length
+    ? metadata.companySizes
+    : ['1-10', '11-50', '50-200', '200-500', '500+'];
+
+  // Sync actual database values into form state
+  useEffect(() => {
+    if (companyDetails) {
+      setFormData({
+        companyName: companyDetails.companyName || '',
+        website: companyDetails.website || '',
+        industry: companyDetails.industry || '',
+        companySize: companyDetails.companySize || '',
+        companyEmail: companyDetails.companyEmail || '',
+        phoneNumber: companyDetails.phoneNumber || '',
+        description: companyDetails.description || '',
+        headquarters: companyDetails.headquarters || '',
+        linkedinUrl: companyDetails.linkedinUrl || '',
+        twitterUrl: companyDetails.twitterUrl || '',
+      });
+    } else if (fallbackCompany) {
+      setFormData(prev => ({
+        companyName: prev.companyName || fallbackCompany.companyName || '',
+        website: prev.website || fallbackCompany.website || '',
+        industry: prev.industry || fallbackCompany.industry || '',
+        companySize: prev.companySize || fallbackCompany.companySize || '',
+        companyEmail: prev.companyEmail || fallbackCompany.companyEmail || '',
+        phoneNumber: prev.phoneNumber || fallbackCompany.phoneNumber || '',
+        description: prev.description || fallbackCompany.description || '',
+        headquarters: prev.headquarters || fallbackCompany.headquarters || '',
+        linkedinUrl: prev.linkedinUrl || '',
+        twitterUrl: prev.twitterUrl || '',
+      }));
+    }
+  }, [companyDetails, fallbackCompany]);
+
+  // Update Company Profile Mutation
+  const updateMutation = useMutation({
+    mutationFn: (data: UpdateCompanyDto) => companyApi.updateCompanyProfile(companyId, data),
+    onSuccess: () => {
+      toast.success('Company profile updated successfully');
+      setIsEditing(false);
+      queryClient.invalidateQueries({ queryKey: companyKeys.detail(companyId) });
+      queryClient.invalidateQueries({ queryKey: companyKeys.my });
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to update company profile');
+    },
+  });
+
+  // Logo Upload Mutation
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => companyApi.uploadLogo(companyId, file),
+    onSuccess: () => {
+      toast.success('Logo uploaded successfully');
+      queryClient.invalidateQueries({ queryKey: companyKeys.detail(companyId) });
+      queryClient.invalidateQueries({ queryKey: companyKeys.my });
+      queryClient.invalidateQueries({ queryKey: authKeys.me });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to upload logo');
+    },
+  });
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo image must be smaller than 2MB');
+      return;
+    }
+
+    uploadLogoMutation.mutate(file);
+  };
+
+  // Restore original database values on Cancel
+  const handleCancel = () => {
+    if (companyDetails) {
+      setFormData({
+        companyName: companyDetails.companyName || '',
+        website: companyDetails.website || '',
+        industry: companyDetails.industry || '',
+        companySize: companyDetails.companySize || '',
+        companyEmail: companyDetails.companyEmail || '',
+        phoneNumber: companyDetails.phoneNumber || '',
+        description: companyDetails.description || '',
+        headquarters: companyDetails.headquarters || '',
+        linkedinUrl: companyDetails.linkedinUrl || '',
+        twitterUrl: companyDetails.twitterUrl || '',
+      });
+    } else if (fallbackCompany) {
+      setFormData({
+        companyName: fallbackCompany.companyName || '',
+        website: '',
+        industry: fallbackCompany.industry || '',
+        companySize: fallbackCompany.companySize || '',
+        companyEmail: '',
+        phoneNumber: '',
+        description: '',
+        headquarters: fallbackCompany.headquarters || '',
+        linkedinUrl: '',
+        twitterUrl: '',
+      });
+    }
+    setIsEditing(false);
+  };
+
+  // Submit and save modified values only
+  const handleSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!companyId) {
+      toast.error('No active company selected.');
+      return;
+    }
+
+    if (!formData.companyName.trim()) {
+      toast.error('Company Name is required.');
+      return;
+    }
+
+    const payload: UpdateCompanyDto = {
+      companyName: formData.companyName.trim() || undefined,
+      companyEmail: formData.companyEmail.trim() || undefined,
+      website: formData.website.trim() || undefined,
+      phoneNumber: formData.phoneNumber.trim() || undefined,
+      industry: formData.industry.trim() || undefined,
+      companySize: formData.companySize.trim() || undefined,
+      description: formData.description.trim() || undefined,
+      headquarters: formData.headquarters.trim() || undefined,
+      linkedinUrl: formData.linkedinUrl.trim() || undefined,
+      twitterUrl: formData.twitterUrl.trim() || undefined,
+    };
+
+    updateMutation.mutate(payload);
+  };
+
   const removeStage = (id: number) => setStages(ss => ss.filter(s => s.id !== id));
+
+  // Determine current logo and fallback initials
+  const currentLogo = companyDetails?.logo || fallbackCompany?.logo || null;
+  const companyInitials = (
+    formData.companyName ||
+    companyDetails?.companyName ||
+    fallbackCompany?.companyName ||
+    currentWorkspace?.name ||
+    'TF'
+  )
+    .substring(0, 2)
+    .toUpperCase();
 
   return (
     <div className="space-y-5">
@@ -84,66 +284,259 @@ const SettingsPage = () => {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          {/* Company Profile */}
+          {/* Company Profile Tab */}
           {activeTab === 'Company Profile' && (
             <div className="card p-6 space-y-6">
-              <div>
-                <h2 className="text-base font-display font-bold text-[#0F172A] mb-4">Company Profile</h2>
-                <div className="flex items-center gap-5 mb-6">
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-2xl font-bold border-4 border-white shadow-lg">
-                    TF
-                  </div>
-                  <div>
-                    <button className="btn-secondary text-sm flex items-center gap-2">
-                      <Upload className="w-4 h-4" />
-                      Upload Logo
+              {/* Header with Title & Edit Toggle Button */}
+              <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
+                <div>
+                  <h2 className="text-base font-display font-bold text-[#0F172A]">Company Profile</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {isEditing
+                      ? 'Update your company details and branding.'
+                      : 'View and manage your public company profile.'}
+                  </p>
+                </div>
+                <div>
+                  {!isEditing ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="btn-secondary text-sm flex items-center gap-2 border-primary-200 text-primary-700 bg-primary-50/50 hover:bg-primary-100 hover:border-primary-300"
+                    >
+                      <Edit2 className="w-4 h-4 text-primary-600" />
+                      Edit Profile
                     </button>
-                    <p className="text-xs text-slate-400 mt-1.5">PNG, JPG up to 2MB. Recommended 200×200px.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-5">
-                  {[
-                    { label: 'Company Name', key: 'name', type: 'text', full: false },
-                    { label: 'Website', key: 'website', type: 'url', full: false },
-                    { label: 'Industry', key: 'industry', type: 'select', full: false, opts: ['Technology', 'Finance', 'Healthcare', 'Education', 'Retail'] },
-                    { label: 'Company Size', key: 'size', type: 'select', full: false, opts: ['1-10', '11-50', '50-200', '200-500', '500+'] },
-                    { label: 'Email', key: 'email', type: 'email', full: false },
-                    { label: 'Phone', key: 'phone', type: 'tel', full: false },
-                    { label: 'Description', key: 'description', type: 'textarea', full: true },
-                  ].map(f => (
-                    <div key={f.key} className={f.full ? 'col-span-2' : ''}>
-                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">{f.label}</label>
-                      {f.type === 'textarea' ? (
-                        <textarea
-                          className="input-field resize-none h-24 text-sm"
-                          value={company[f.key as keyof typeof company]}
-                          onChange={e => setCompany(c => ({ ...c, [f.key]: e.target.value }))}
-                        />
-                      ) : f.type === 'select' ? (
-                        <select className="input-field text-sm" value={company[f.key as keyof typeof company]} onChange={e => setCompany(c => ({ ...c, [f.key]: e.target.value }))}>
-                          {(f.opts || []).map(o => <option key={o}>{o}</option>)}
-                        </select>
-                      ) : (
-                        <input
-                          type={f.type}
-                          className="input-field text-sm"
-                          value={company[f.key as keyof typeof company]}
-                          onChange={e => setCompany(c => ({ ...c, [f.key]: e.target.value }))}
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex justify-end gap-3 mt-6 pt-5 border-t border-[#E5E7EB]">
-                  <button className="btn-secondary text-sm">Cancel</button>
-                  <button className="btn-primary text-sm flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4" />
-                    Save Changes
-                  </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                      Editing Active
+                    </span>
+                  )}
                 </div>
               </div>
+
+              {isLoadingCompany ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+                  <p className="text-sm">Loading company profile...</p>
+                </div>
+              ) : (
+                <form onSubmit={handleSave} className="space-y-6">
+                  {/* Logo / Avatar Section */}
+                  <div className="flex items-center gap-5">
+                    <div className="relative group">
+                      {currentLogo ? (
+                        <img
+                          src={currentLogo}
+                          alt={formData.companyName || 'Company Logo'}
+                          className="w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-lg"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-2xl font-bold border-4 border-white shadow-lg">
+                          {companyInitials}
+                        </div>
+                      )}
+
+                      {uploadLogoMutation.isPending && (
+                        <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
+                          <Loader2 className="w-6 h-6 text-white animate-spin" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleLogoFileChange}
+                        accept="image/png,image/jpeg,image/jpg,image/webp"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploadLogoMutation.isPending}
+                        className="btn-secondary text-sm flex items-center gap-2 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {uploadLogoMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-slate-600" />
+                        )}
+                        Upload Logo
+                      </button>
+                      <p className="text-xs text-slate-400 mt-1.5">PNG, JPG up to 2MB. Recommended 200×200px.</p>
+                    </div>
+                  </div>
+
+                  {/* Form Grid */}
+                  <div className="grid grid-cols-2 gap-5">
+                    {/* Company Name */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Company Name</label>
+                      <input
+                        type="text"
+                        disabled={!isEditing}
+                        className={`input-field text-sm transition-colors ${
+                          !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                        }`}
+                        placeholder="Enter company name"
+                        value={formData.companyName}
+                        onChange={e => setFormData(c => ({ ...c, companyName: e.target.value }))}
+                        required
+                      />
+                    </div>
+
+                    {/* Website */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Website</label>
+                      <input
+                        type="url"
+                        disabled={!isEditing}
+                        className={`input-field text-sm transition-colors ${
+                          !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                        }`}
+                        placeholder="https://example.com"
+                        value={formData.website}
+                        onChange={e => setFormData(c => ({ ...c, website: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Industry */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Industry</label>
+                      <div className="relative">
+                        <select
+                          disabled={!isEditing}
+                          className={`input-field text-sm appearance-none transition-colors ${
+                            !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                          }`}
+                          value={formData.industry}
+                          onChange={e => setFormData(c => ({ ...c, industry: e.target.value }))}
+                        >
+                          <option value="">Select an industry</option>
+                          {industries.map(ind => (
+                            <option key={ind} value={ind}>
+                              {ind}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Company Size */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Company Size</label>
+                      <div className="relative">
+                        <select
+                          disabled={!isEditing}
+                          className={`input-field text-sm appearance-none transition-colors ${
+                            !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                          }`}
+                          value={formData.companySize}
+                          onChange={e => setFormData(c => ({ ...c, companySize: e.target.value }))}
+                        >
+                          <option value="">Select company size</option>
+                          {companySizes.map(sz => (
+                            <option key={sz} value={sz}>
+                              {sz}
+                            </option>
+                          ))}
+                        </select>
+                        <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      </div>
+                    </div>
+
+                    {/* Email */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
+                      <input
+                        type="email"
+                        disabled={!isEditing}
+                        className={`input-field text-sm transition-colors ${
+                          !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                        }`}
+                        placeholder="contact@company.com"
+                        value={formData.companyEmail}
+                        onChange={e => setFormData(c => ({ ...c, companyEmail: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone</label>
+                      <input
+                        type="tel"
+                        disabled={!isEditing}
+                        className={`input-field text-sm transition-colors ${
+                          !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                        }`}
+                        placeholder="+1 (555) 000-0000"
+                        value={formData.phoneNumber}
+                        onChange={e => setFormData(c => ({ ...c, phoneNumber: e.target.value }))}
+                      />
+                    </div>
+
+                    {/* Description */}
+                    <div className="col-span-2">
+                      <label className="block text-sm font-semibold text-slate-700 mb-1.5">Description</label>
+                      <textarea
+                        disabled={!isEditing}
+                        className={`input-field resize-none h-24 text-sm transition-colors ${
+                          !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                        }`}
+                        placeholder="Enter company description..."
+                        value={formData.description}
+                        onChange={e => setFormData(c => ({ ...c, description: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-3 pt-5 border-t border-[#E5E7EB]">
+                    {isEditing ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={handleCancel}
+                          disabled={updateMutation.isPending}
+                          className="btn-secondary text-sm"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={updateMutation.isPending}
+                          className="btn-primary text-sm flex items-center gap-2"
+                        >
+                          {updateMutation.isPending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              Saving...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4" />
+                              Save Changes
+                            </>
+                          )}
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setIsEditing(true)}
+                        className="btn-primary text-sm flex items-center gap-2"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        Edit Company Details
+                      </button>
+                    )}
+                  </div>
+                </form>
+              )}
             </div>
           )}
 

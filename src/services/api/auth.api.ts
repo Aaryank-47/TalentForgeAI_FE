@@ -200,6 +200,10 @@ export interface CompanyMemberItem {
     industry: string | null;
     companySize: string | null;
     headquarters: string | null;
+    website?: string | null;
+    description?: string | null;
+    companyEmail?: string | null;
+    phoneNumber?: string | null;
   };
 }
 
