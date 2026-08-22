@@ -114,10 +114,11 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
     e.preventDefault();
     setLocalError(null);
     try {
-      await login({ email, password });
-      navigate('/select-company', { replace: true });
-    } catch {
-      setLocalError(error ?? 'Invalid email or password. Please try again.');
+      const authUser = await login({ email, password });
+      const destination = resolvePortalRoute(authUser);
+      navigate(destination, { replace: true });
+    } catch (err: any) {
+      setLocalError(err?.message || error || 'Invalid email or password. Please try again.');
     }
   };
 
@@ -225,14 +226,25 @@ const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRol
       return;
     }
     try {
+      let authUser;
       if (role === 'recruiter') {
-        await registerEmployer({ fullName: form.name, email: form.email, password: form.password, companyName: form.company || form.name + "'s Company" });
+        authUser = await registerEmployer({
+          fullName: form.name,
+          email: form.email,
+          password: form.password,
+          companyName: form.company || form.name + "'s Organization",
+        });
       } else {
-        await registerCandidate({ fullName: form.name, email: form.email, password: form.password });
+        authUser = await registerCandidate({
+          fullName: form.name,
+          email: form.email,
+          password: form.password,
+        });
       }
-      navigate('/select-company', { replace: true });
-    } catch {
-      setLocalError(error ?? 'Registration failed. Please try again.');
+      const destination = resolvePortalRoute(authUser);
+      navigate(destination, { replace: true });
+    } catch (err: any) {
+      setLocalError(err?.message || error || 'Registration failed. Please try again.');
     }
   };
 

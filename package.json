@@ -12,8 +12,10 @@
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.35",
     "@monaco-editor/react": "^4.7.0",
+    "@reduxjs/toolkit": "^2.12.0",
     "@tailwindcss/postcss": "^4.3.1",
     "@tailwindcss/vite": "^4.3.1",
+    "@tanstack/react-query": "^5.101.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "framer-motion": "^12.42.0",
@@ -25,6 +27,7 @@
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.6.0",
     "react-media-recorder": "^1.7.2",
+    "react-redux": "^9.3.0",
     "react-router-dom": "^7.18.0",
     "react-webcam": "^7.2.0",
     "recharts": "^3.8.1",

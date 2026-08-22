@@ -2,27 +2,10 @@
  * TalentForge — Auth API Service
  *
  * All authentication-related HTTP calls live here.
- * Maps to backend /auth/* endpoints.
- *
- * Backend auth routes (verified from backend auth.routes.ts):
- *  POST /auth/register/candidate
- *  POST /auth/register/employer         (company-owner registration)
- *  POST /auth/register/company-owner
- *  POST /auth/login
- *  POST /auth/new-refresh-token
- *  POST /auth/logout
- *  POST /auth/logout/all-devices
- *  GET  /auth/me
- *  POST /auth/change/password
- *  POST /auth/forgot/password
- *  POST /auth/verify/otp
- *  POST /auth/verify-email
- *  POST /auth/resend-verification
- *  POST /auth/reset/password
+ * Maps directly to backend /auth/* routes.
  */
 
 import { api } from './apiClient';
-import type { AuthUser, UserRole, CompanyMemberRole } from '../../context/AuthContext';
 
 // ─── Request DTOs ──────────────────────────────────────────────────────────────
 
@@ -32,7 +15,29 @@ export interface RegisterCandidateDto {
   password: string;
 }
 
-export interface RegisterEmployerDto {
+export interface RegisterCompanyOwnerDto {
+  fullName: string;
+  email: string;
+  password: string;
+  company: {
+    companyName: string;
+    slug?: string;
+    email: string;
+    phoneNumber: string;
+    website?: string;
+    logo?: string;
+    coverImage?: string;
+    description?: string;
+    industry?: string;
+    companySize?: string;
+    foundedYear?: number;
+    headquarters?: string;
+    linkedinUrl?: string;
+    twitterUrl?: string;
+  };
+}
+
+export interface RegisterEmployerSimpleDto {
   fullName: string;
   email: string;
   password: string;
@@ -59,22 +64,126 @@ export interface ResetPasswordDto {
 }
 
 export interface VerifyEmailDto {
-  token: string;
+  email: string;
+  otp: string;
+}
+
+export interface ResendVerificationDto {
+  email: string;
 }
 
 export interface ChangePasswordDto {
-  currentPassword: string;
+  oldPassword: string;
   newPassword: string;
 }
 
 // ─── Response DTOs ─────────────────────────────────────────────────────────────
 
-export interface AuthResponse {
-  user: AuthUser;
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
 }
 
-export interface MessageResponse {
-  message: string;
+export interface AuthUserResponse {
+  id: string;
+  email: string;
+  role: 'CANDIDATE' | 'EMPLOYER' | 'ADMIN' | 'SUPER_ADMIN' | 'RECRUITER' | 'COMPANY_OWNER' | 'HIRING_MANAGER';
+  status: 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'BLOCKED' | 'DELETED';
+  isEmailVerified: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CandidateProfileData {
+  id: string;
+  userId: string;
+  fullName: string;
+  phoneNumber?: string | null;
+  profilePicture?: string | null;
+  headline?: string | null;
+  bio?: string | null;
+  gender?: string | null;
+  experienceLevel?: string | null;
+  currentLocation?: string | null;
+  preferredLocation?: string | null;
+  currentCompany?: string | null;
+  currentDesignation?: string | null;
+  totalExperience?: number | null;
+  expectedSalary?: number | null;
+  currentSalary?: number | null;
+  noticePeriod?: number | null;
+  linkedinUrl?: string | null;
+  githubUrl?: string | null;
+  portfolioUrl?: string | null;
+  websiteUrl?: string | null;
+  isOpenToWork?: boolean;
+  profileCompletion?: number;
+  skills?: any[];
+  resumes?: any[];
+  educations?: any[];
+  experiences?: any[];
+}
+
+export interface EmployerProfileData {
+  id: string;
+  userId: string;
+  fullName: string;
+  phoneNumber?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  profilePicture?: string | null;
+  linkedinUrl?: string | null;
+  isActive: boolean;
+}
+
+export interface AuthMeResponse {
+  user: AuthUserResponse;
+  profile: CandidateProfileData | EmployerProfileData | null;
+}
+
+export interface LoginApiResponse {
+  user: AuthUserResponse;
+  profile: CandidateProfileData | EmployerProfileData | null;
+  tokens?: AuthTokens;
+}
+
+export interface RegisterCandidateApiResponse {
+  user: AuthUserResponse;
+  candidate: {
+    id: string;
+    userId: string;
+    fullName: string;
+  };
+  tokens: AuthTokens;
+}
+
+export interface RegisterCompanyOwnerApiResponse {
+  user: AuthUserResponse;
+  company: {
+    id: string;
+    companyName: string;
+    slug: string;
+  };
+  employer: EmployerProfileData;
+  tokens: AuthTokens;
+}
+
+export interface CompanyMemberItem {
+  id: string;
+  companyId: string;
+  userId: string;
+  role: 'OWNER' | 'ADMIN' | 'RECRUITER' | 'HIRING_MANAGER';
+  status: 'ACTIVE' | 'INVITED' | 'INACTIVE';
+  company: {
+    id: string;
+    companyName: string;
+    slug: string;
+    logo: string | null;
+    industry: string | null;
+    companySize: string | null;
+    headquarters: string | null;
+  };
 }
 
 // ─── API Calls ─────────────────────────────────────────────────────────────────
@@ -82,52 +191,57 @@ export interface MessageResponse {
 export const authApi = {
   /** Register a new candidate */
   registerCandidate: (dto: RegisterCandidateDto) =>
-    api.post<AuthResponse>('/auth/register/candidate', dto),
+    api.post<RegisterCandidateApiResponse>('/auth/register/candidate', dto),
 
-  /** Register a new employer who will be company owner */
-  registerEmployer: (dto: RegisterEmployerDto) =>
-    api.post<AuthResponse>('/auth/register/company-owner', dto),
+  /** Register a company owner (full company info) */
+  registerCompanyOwner: (dto: RegisterCompanyOwnerDto) =>
+    api.post<RegisterCompanyOwnerApiResponse>('/auth/register/company-owner', dto),
 
   /** Login — works for all roles */
   login: (dto: LoginDto) =>
-    api.post<AuthResponse>('/auth/login', dto),
+    api.post<LoginApiResponse>('/auth/login', dto),
 
-  /** Get current authenticated user */
+  /** Get current authenticated user profile */
   getMe: () =>
-    api.get<AuthResponse>('/auth/me'),
+    api.get<AuthMeResponse>('/auth/me'),
+
+  /** Refresh access token using HttpOnly cookie */
+  refreshToken: () =>
+    api.post<AuthTokens>('/auth/new-refresh-token'),
 
   /** Logout from current device */
   logout: () =>
-    api.post<MessageResponse>('/auth/logout'),
+    api.post<null>('/auth/logout'),
 
   /** Logout from all devices */
   logoutAll: () =>
-    api.post<MessageResponse>('/auth/logout/all-devices'),
+    api.post<null>('/auth/logout/all-devices'),
 
   /** Request password reset email */
   forgotPassword: (dto: ForgotPasswordDto) =>
-    api.post<MessageResponse>('/auth/forgot/password', dto),
+    api.post<null>('/auth/forgot/password', dto),
 
   /** Verify OTP code for password reset */
   verifyOtp: (dto: VerifyOtpDto) =>
-    api.post<MessageResponse>('/auth/verify/otp', dto),
+    api.post<string>('/auth/verify/otp', dto),
 
-  /** Reset password using token from email */
+  /** Reset password using verified token */
   resetPassword: (dto: ResetPasswordDto) =>
-    api.post<MessageResponse>('/auth/reset/password', dto),
+    api.post<null>('/auth/reset/password', dto),
 
-  /** Verify email address using token from verification email */
+  /** Verify email address with OTP */
   verifyEmail: (dto: VerifyEmailDto) =>
-    api.post<MessageResponse>('/auth/verify-email', dto),
+    api.post<null>('/auth/verify-email', dto),
 
   /** Resend email verification */
-  resendVerification: (email: string) =>
-    api.post<MessageResponse>('/auth/resend-verification', { email }),
+  resendVerification: (dto: ResendVerificationDto) =>
+    api.post<null>('/auth/resend-verification', dto),
 
   /** Change password (must be authenticated) */
   changePassword: (dto: ChangePasswordDto) =>
-    api.post<MessageResponse>('/auth/change/password', dto),
-};
+    api.post<null>('/auth/change/password', dto),
 
-// Re-export types needed by AuthContext without circular imports
-export type { AuthUser, UserRole, CompanyMemberRole };
+  /** Get companies belonging to the current employer */
+  getMyCompanies: () =>
+    api.get<CompanyMemberItem[]>('/company/my'),
+};

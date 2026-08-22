@@ -1,33 +1,29 @@
 /**
- * TalentForge — Centralized Authentication Context
+ * TalentForge — Centralized Authentication Context & State Orchestration
  *
- * Single source of truth for:
- *  - Current authenticated user
- *  - Platform role (CANDIDATE | EMPLOYER | ADMIN | SUPER_ADMIN)
- *  - Company membership role (OWNER | ADMIN | RECRUITER | HIRING_MANAGER)
- *  - Auth loading / error state
- *  - Login / Logout / session persistence
+ * Bridge between:
+ *  - Redux Toolkit (client-side in-memory auth state: accessToken, status, isInitialized)
+ *  - TanStack Query (server-side authoritative state: ['auth', 'me'], ['companies', 'my'])
  *
- * RBAC Note:
- *   Platform Role   → comes from User.role (JWT claim)
- *   Company Role    → comes from CompanyMember.role (separate concept)
- *   Do NOT collapse these two into one.
- *
- * DO NOT scatter auth checks across components.
- * Use `useAuth()` hook and `usePermissions()` from lib/permissions.ts.
+ * Security Guarantee:
+ *  - Access token lives ONLY in Redux memory (never in localStorage/sessionStorage/cookies).
+ *  - Refresh token lives in backend-controlled HttpOnly cookie.
+ *  - On F5 / initial boot: calls /auth/new-refresh-token silently before rendering protected routes.
  */
 
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer } from 'react';
-import { tokenStorage } from '../services/api/apiClient';
-import { authApi } from '../services/api/auth.api';
-import type { LoginDto, RegisterCandidateDto, RegisterEmployerDto } from '../services/api/auth.api';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAppDispatch, useAppSelector } from '../store';
+import { setAccessToken, clearAccessToken, setAuthInitialized, resetAuth } from '../store/slices/authSlice';
+import { authApi, type LoginDto, type RegisterCandidateDto, type RegisterCompanyOwnerDto, type RegisterEmployerSimpleDto, type AuthMeResponse, type CandidateProfileData, type EmployerProfileData } from '../services/api/auth.api';
+import { executeRefreshToken } from '../services/api/apiClient';
+import { authKeys, companyKeys } from '../constants/queryKeys';
 
-// ─── Role Enums (mirrors backend exactly) ─────────────────────────────────────
+// ─── Role Enums ───────────────────────────────────────────────────────────────
+
 export type UserRole = 'CANDIDATE' | 'EMPLOYER' | 'ADMIN' | 'SUPER_ADMIN';
-
 export type CompanyMemberRole = 'OWNER' | 'ADMIN' | 'RECRUITER' | 'HIRING_MANAGER';
-
-export type AccountStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'BLOCKED';
+export type AccountStatus = 'PENDING' | 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'BLOCKED' | 'DELETED';
 
 // ─── Domain Types ─────────────────────────────────────────────────────────────
 
@@ -37,206 +33,318 @@ export interface AuthUser {
   role: UserRole;
   status: AccountStatus;
   isEmailVerified: boolean;
-  lastLoginAt?: string;
+  lastLoginAt?: string | null;
+  fullName?: string;
+  profile?: CandidateProfileData | EmployerProfileData | null;
   companyId?: string;
   companyRole?: CompanyMemberRole;
 }
 
-// ─── MOCK USERS FOR FRONTEND DEVELOPMENT ──────────────────────────────────────
-const MOCK_USER_CANDIDATE: AuthUser = {
-  id: 'cand-123',
-  email: 'candidate@example.com',
-  role: 'CANDIDATE',
-  status: 'ACTIVE',
-  isEmailVerified: true,
-};
+// ─── Context Value ────────────────────────────────────────────────────────────
 
-const MOCK_USER_EMPLOYER: AuthUser = {
-  id: 'emp-456',
-  email: 'employer@example.com',
-  role: 'EMPLOYER',
-  status: 'ACTIVE',
-  isEmailVerified: true,
-  companyId: 'comp-789',
-  companyRole: 'RECRUITER'
-};
-
-// ─── State ────────────────────────────────────────────────────────────────────
-
-interface AuthState {
+interface AuthContextValue {
   user: AuthUser | null;
-  isLoading: boolean;
-  isInitialized: boolean; // true after first /auth/me attempt (success or fail)
-  error: string | null;
-}
-
-type AuthAction =
-  | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_USER'; payload: AuthUser | null }
-  | { type: 'SET_ERROR'; payload: string | null }
-  | { type: 'INITIALIZE' }
-  | { type: 'CLEAR' }
-  | { type: 'SET_COMPANY'; payload: { companyId: string; companyRole: CompanyMemberRole } }
-  | { type: 'SET_ROLE'; payload: UserRole };
-
-function authReducer(state: AuthState, action: AuthAction): AuthState {
-  switch (action.type) {
-    case 'SET_LOADING':
-      return { ...state, isLoading: action.payload };
-    case 'SET_USER':
-      return { ...state, user: action.payload, error: null, isLoading: false };
-    case 'SET_ERROR':
-      return { ...state, error: action.payload, isLoading: false };
-    case 'INITIALIZE':
-      return { ...state, isInitialized: true, isLoading: false };
-    case 'CLEAR':
-      return { user: null, isLoading: false, isInitialized: true, error: null };
-    case 'SET_COMPANY':
-      if (!state.user) return state;
-      return {
-        ...state,
-        user: {
-          ...state.user,
-          companyId: action.payload.companyId,
-          companyRole: action.payload.companyRole,
-        },
-      };
-    case 'SET_ROLE':
-      if (!state.user) return state;
-      return {
-        ...state,
-        user: {
-          ...state.user,
-          role: action.payload,
-        },
-      };
-    default:
-      return state;
-  }
-}
-
-// ─── Context ──────────────────────────────────────────────────────────────────
-
-interface AuthContextValue extends AuthState {
-  /** Log in and store the access token */
-  login: (dto: LoginDto) => Promise<AuthUser>;
-  /** Register a new candidate account */
-  registerCandidate: (dto: RegisterCandidateDto) => Promise<AuthUser>;
-  /** Register a new employer / company owner */
-  registerEmployer: (dto: RegisterEmployerDto) => Promise<AuthUser>;
-  /** Log out from current device */
-  logout: () => Promise<void>;
-  /** Log out from all devices */
-  logoutAll: () => Promise<void>;
-  /** Set selected company */
-  setSelectedCompany: (companyId: string, companyRole: CompanyMemberRole) => void;
-  /** Set active user role */
-  setUserRole: (role: UserRole) => void;
-  /** Whether the user is fully authenticated */
   isAuthenticated: boolean;
+  isLoading: boolean;
+  isInitialized: boolean;
+  error: string | null;
+  login: (dto: LoginDto) => Promise<AuthUser>;
+  registerCandidate: (dto: RegisterCandidateDto) => Promise<AuthUser>;
+  registerEmployer: (dto: RegisterEmployerSimpleDto) => Promise<AuthUser>;
+  logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
+  setSelectedCompany: (companyId: string, companyRole: CompanyMemberRole) => void;
+  setUserRole: (role: UserRole) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+// ─── Helper function to map backend roles to platform roles ──────────────────
+
+function mapBackendRole(rawRole: string): UserRole {
+  if (rawRole === 'CANDIDATE') return 'CANDIDATE';
+  if (rawRole === 'EMPLOYER' || rawRole === 'RECRUITER' || rawRole === 'COMPANY_OWNER' || rawRole === 'HIRING_MANAGER') {
+    return 'EMPLOYER';
+  }
+  if (rawRole === 'SUPER_ADMIN') return 'SUPER_ADMIN';
+  if (rawRole === 'ADMIN') return 'ADMIN';
+  return 'CANDIDATE';
+}
+
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(authReducer, {
-    user: null,
-    isLoading: true,
-    isInitialized: false,
-    error: null,
+  const dispatch = useAppDispatch();
+  const queryClient = useQueryClient();
+
+  const { accessToken, isInitialized } = useAppSelector((state) => state.auth);
+  const [selectedCompany, setSelectedCompanyState] = useState<{ companyId: string; companyRole: CompanyMemberRole } | null>(null);
+  const [localAuthError, setLocalAuthError] = useState<string | null>(null);
+
+  // ── 1. Current User Server State Query (['auth', 'me']) ─────────────────────
+  const {
+    data: authMeData,
+    isLoading: isUserLoading,
+    error: userError,
+  } = useQuery<AuthMeResponse>({
+    queryKey: authKeys.me,
+    queryFn: () => authApi.getMe(),
+    enabled: !!accessToken,
+    staleTime: 1000 * 60 * 5,
+    retry: false,
   });
 
-  // ── On mount: restore session from stored token ──────────────────────────
+  // ── 2. Active Recruiter Companies Query (['companies', 'my']) ────────────────
+  const isEmployer = authMeData?.user && mapBackendRole(authMeData.user.role) === 'EMPLOYER';
+  const { data: myCompanies } = useQuery({
+    queryKey: companyKeys.my,
+    queryFn: () => authApi.getMyCompanies(),
+    enabled: !!accessToken && !!isEmployer,
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Auto-select primary company if employer has companies
   useEffect(() => {
-    const restoreSession = async () => {
-      // MOCK IMPLEMENTATION
-      const role = localStorage.getItem('tf_mock_role');
-      if (role === 'EMPLOYER') {
-        dispatch({ type: 'SET_USER', payload: MOCK_USER_EMPLOYER });
-      } else if (role === 'CANDIDATE') {
-        dispatch({ type: 'SET_USER', payload: MOCK_USER_CANDIDATE });
-      } else {
-        dispatch({ type: 'SET_USER', payload: null });
+    if (myCompanies && myCompanies.length > 0 && !selectedCompany) {
+      const primary = myCompanies[0];
+      setSelectedCompanyState({
+        companyId: primary.companyId,
+        companyRole: primary.role as CompanyMemberRole,
+      });
+    }
+  }, [myCompanies, selectedCompany]);
+
+  // ── 3. Silent Auth Initialization (Runs once on mount) ──────────────────────
+  useEffect(() => {
+    let isMounted = true;
+
+    const initializeAuth = async () => {
+      try {
+        const token = await executeRefreshToken();
+        if (isMounted) {
+          if (token) {
+            dispatch(setAccessToken(token));
+          }
+          dispatch(setAuthInitialized(true));
+        }
+      } catch {
+        if (isMounted) {
+          dispatch(clearAccessToken());
+          dispatch(setAuthInitialized(true));
+        }
       }
-      dispatch({ type: 'INITIALIZE' });
     };
 
-    restoreSession();
-  }, []);
+    initializeAuth();
 
-  // ── Listen for global auth expiry event from apiClient ────────────────────
+    return () => {
+      isMounted = false;
+    };
+  }, [dispatch]);
+
+  // ── 4. Listen for Auth Expiry Event ─────────────────────────────────────────
   useEffect(() => {
-    const handleExpired = () => {
-      dispatch({ type: 'CLEAR' });
+    const handleAuthExpired = () => {
+      dispatch(clearAccessToken());
+      queryClient.removeQueries({ queryKey: authKeys.all });
+      queryClient.removeQueries({ queryKey: companyKeys.all });
+      setSelectedCompanyState(null);
     };
-    window.addEventListener('tf:auth:expired', handleExpired);
-    return () => window.removeEventListener('tf:auth:expired', handleExpired);
-  }, []);
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+    window.addEventListener('tf:auth:expired', handleAuthExpired);
+    return () => window.removeEventListener('tf:auth:expired', handleAuthExpired);
+  }, [dispatch, queryClient]);
+
+  // ── 5. Construct Normalized AuthUser ─────────────────────────────────────────
+  const user = useMemo<AuthUser | null>(() => {
+    if (!authMeData?.user) return null;
+
+    const u = authMeData.user;
+    const p = authMeData.profile;
+    const platformRole = mapBackendRole(u.role);
+
+    let fullName = '';
+    if (p && 'fullName' in p && typeof p.fullName === 'string') {
+      fullName = p.fullName;
+    }
+
+    return {
+      id: u.id,
+      email: u.email,
+      role: platformRole,
+      status: u.status as AccountStatus,
+      isEmailVerified: u.isEmailVerified,
+      lastLoginAt: u.lastLoginAt,
+      fullName,
+      profile: p,
+      companyId: selectedCompany?.companyId,
+      companyRole: selectedCompany?.companyRole,
+    };
+  }, [authMeData, selectedCompany]);
+
+  // ── 6. Mutations ────────────────────────────────────────────────────────────
+
+  // Login Mutation
+  const loginMutation = useMutation({
+    mutationFn: (dto: LoginDto) => authApi.login(dto),
+    onSuccess: async (data) => {
+      const token = data.tokens?.accessToken;
+      if (token) {
+        dispatch(setAccessToken(token));
+      }
+      queryClient.setQueryData(authKeys.me, {
+        user: data.user,
+        profile: data.profile,
+      });
+      setLocalAuthError(null);
+    },
+    onError: (err: any) => {
+      setLocalAuthError(err?.message || 'Login failed');
+    },
+  });
+
+  // Candidate Registration Mutation
+  const registerCandidateMutation = useMutation({
+    mutationFn: (dto: RegisterCandidateDto) => authApi.registerCandidate(dto),
+    onSuccess: async (data) => {
+      if (data.tokens?.accessToken) {
+        dispatch(setAccessToken(data.tokens.accessToken));
+      }
+      await queryClient.invalidateQueries({ queryKey: authKeys.me });
+      setLocalAuthError(null);
+    },
+    onError: (err: any) => {
+      setLocalAuthError(err?.message || 'Registration failed');
+    },
+  });
+
+  // Employer Registration Mutation
+  const registerCompanyOwnerMutation = useMutation({
+    mutationFn: (dto: RegisterCompanyOwnerDto) => authApi.registerCompanyOwner(dto),
+    onSuccess: async (data) => {
+      if (data.tokens?.accessToken) {
+        dispatch(setAccessToken(data.tokens.accessToken));
+      }
+      await queryClient.invalidateQueries({ queryKey: authKeys.me });
+      await queryClient.invalidateQueries({ queryKey: companyKeys.my });
+      setLocalAuthError(null);
+    },
+    onError: (err: any) => {
+      setLocalAuthError(err?.message || 'Registration failed');
+    },
+  });
+
+  // Logout Mutation
+  const logoutMutation = useMutation({
+    mutationFn: () => authApi.logout(),
+    onSettled: () => {
+      dispatch(resetAuth());
+      queryClient.removeQueries({ queryKey: authKeys.all });
+      queryClient.removeQueries({ queryKey: companyKeys.all });
+      setSelectedCompanyState(null);
+    },
+  });
+
+  // Logout All Devices Mutation
+  const logoutAllMutation = useMutation({
+    mutationFn: () => authApi.logoutAll(),
+    onSettled: () => {
+      dispatch(resetAuth());
+      queryClient.removeQueries({ queryKey: authKeys.all });
+      queryClient.removeQueries({ queryKey: companyKeys.all });
+      setSelectedCompanyState(null);
+    },
+  });
+
+  // ── 7. Public API Methods ────────────────────────────────────────────────────
 
   const login = useCallback(async (dto: LoginDto): Promise<AuthUser> => {
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: null });
-    
-    // MOCK IMPLEMENTATION: Simulate network delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // If email contains 'employer' or 'recruiter', log in as Employer. Otherwise Candidate.
-    const user = (dto.email.toLowerCase().includes('employer') || dto.email.toLowerCase().includes('recruiter'))
-      ? MOCK_USER_EMPLOYER 
-      : MOCK_USER_CANDIDATE;
-      
-    localStorage.setItem('tf_mock_role', user.role);
-    dispatch({ type: 'SET_USER', payload: user });
-    return user;
-  }, []);
+    const res = await loginMutation.mutateAsync(dto);
+    const platformRole = mapBackendRole(res.user.role);
+    return {
+      id: res.user.id,
+      email: res.user.email,
+      role: platformRole,
+      status: res.user.status as AccountStatus,
+      isEmailVerified: res.user.isEmailVerified,
+      lastLoginAt: res.user.lastLoginAt,
+      profile: res.profile,
+    };
+  }, [loginMutation]);
 
   const registerCandidate = useCallback(async (dto: RegisterCandidateDto): Promise<AuthUser> => {
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: null });
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    localStorage.setItem('tf_mock_role', MOCK_USER_CANDIDATE.role);
-    dispatch({ type: 'SET_USER', payload: MOCK_USER_CANDIDATE });
-    return MOCK_USER_CANDIDATE;
-  }, []);
+    const res = await registerCandidateMutation.mutateAsync(dto);
+    const platformRole = mapBackendRole(res.user.role);
+    return {
+      id: res.user.id,
+      email: res.user.email,
+      role: platformRole,
+      status: res.user.status as AccountStatus,
+      isEmailVerified: res.user.isEmailVerified,
+      lastLoginAt: res.user.lastLoginAt,
+      fullName: res.candidate.fullName,
+    };
+  }, [registerCandidateMutation]);
 
-  const registerEmployer = useCallback(async (dto: RegisterEmployerDto): Promise<AuthUser> => {
-    dispatch({ type: 'SET_LOADING', payload: true });
-    dispatch({ type: 'SET_ERROR', payload: null });
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    localStorage.setItem('tf_mock_role', MOCK_USER_EMPLOYER.role);
-    dispatch({ type: 'SET_USER', payload: MOCK_USER_EMPLOYER });
-    return MOCK_USER_EMPLOYER;
-  }, []);
+  const registerEmployer = useCallback(async (dto: RegisterEmployerSimpleDto): Promise<AuthUser> => {
+    const fullPayload: RegisterCompanyOwnerDto = {
+      fullName: dto.fullName,
+      email: dto.email,
+      password: dto.password,
+      company: {
+        companyName: dto.companyName || `${dto.fullName}'s Organization`,
+        email: dto.email,
+        phoneNumber: '+919999999999',
+      },
+    };
+    const res = await registerCompanyOwnerMutation.mutateAsync(fullPayload);
+    const platformRole = mapBackendRole(res.user.role);
+    return {
+      id: res.user.id,
+      email: res.user.email,
+      role: platformRole,
+      status: res.user.status as AccountStatus,
+      isEmailVerified: res.user.isEmailVerified,
+      lastLoginAt: res.user.lastLoginAt,
+      fullName: res.employer.fullName,
+      companyId: res.company.id,
+      companyRole: 'OWNER',
+    };
+  }, [registerCompanyOwnerMutation]);
 
   const logout = useCallback(async (): Promise<void> => {
-    localStorage.removeItem('tf_mock_role');
-    dispatch({ type: 'CLEAR' });
-  }, []);
+    await logoutMutation.mutateAsync();
+  }, [logoutMutation]);
 
   const logoutAll = useCallback(async (): Promise<void> => {
-    localStorage.removeItem('tf_mock_role');
-    dispatch({ type: 'CLEAR' });
-  }, []);
+    await logoutAllMutation.mutateAsync();
+  }, [logoutAllMutation]);
 
   const setSelectedCompany = useCallback((companyId: string, companyRole: CompanyMemberRole) => {
-    dispatch({ type: 'SET_COMPANY', payload: { companyId, companyRole } });
+    setSelectedCompanyState({ companyId, companyRole });
   }, []);
 
   const setUserRole = useCallback((role: UserRole) => {
-    localStorage.setItem('tf_mock_role', role);
-    dispatch({ type: 'SET_ROLE', payload: role });
-  }, []);
+    // Role is server-authoritative from authMeData, but allow switching context view if justified
+    if (user) {
+      user.role = role;
+    }
+  }, [user]);
+
+  // Overall loading state
+  const isActionLoading =
+    loginMutation.isPending ||
+    registerCandidateMutation.isPending ||
+    registerCompanyOwnerMutation.isPending ||
+    logoutMutation.isPending;
 
   const value = useMemo<AuthContextValue>(
     () => ({
-      ...state,
-      isAuthenticated: !!state.user && state.isInitialized,
+      user,
+      isAuthenticated: !!user && !!accessToken,
+      isLoading: !isInitialized || isUserLoading || isActionLoading,
+      isInitialized,
+      error: localAuthError || (userError ? (userError as any).message : null),
       login,
       registerCandidate,
       registerEmployer,
@@ -245,7 +353,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSelectedCompany,
       setUserRole,
     }),
-    [state, login, registerCandidate, registerEmployer, logout, logoutAll, setSelectedCompany, setUserRole],
+    [
+      user,
+      accessToken,
+      isInitialized,
+      isUserLoading,
+      isActionLoading,
+      localAuthError,
+      userError,
+      login,
+      registerCandidate,
+      registerEmployer,
+      logout,
+      logoutAll,
+      setSelectedCompany,
+      setUserRole,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

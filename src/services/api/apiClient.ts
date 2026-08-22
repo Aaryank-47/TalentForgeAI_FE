@@ -2,24 +2,21 @@
  * TalentForge — Centralized API Client
  *
  * Single source of truth for all backend HTTP communication.
- * - Injects Authorization headers automatically
- * - Handles 401 → token refresh → retry
- * - Handles 403 / 404 / 429 / 5xx consistently
- *
- * All backend API service files import from this module.
- * DO NOT create ad-hoc fetch() calls in components.
+ * - Injects Authorization headers from in-memory Redux state
+ * - Uses HttpOnly cookies for refresh token rotation (`credentials: 'include'`)
+ * - Implements single-flight concurrent token refresh on 401
+ * - Handles 400, 401, 403, 404, 409, 422, 429, 5xx cleanly
  */
+
+import { store } from '../../store';
+import { setAccessToken, clearAccessToken } from '../../store/slices/authSlice';
+import { queryClient } from '../../lib/queryClient';
+import { authKeys } from '../../constants/queryKeys';
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
 
-// ─── Token Storage Helpers ────────────────────────────────────────────────────
-
-const ACCESS_TOKEN_KEY = 'tf_access_token';
-
 export const tokenStorage = {
-  getAccessToken: (): string | null => localStorage.getItem(ACCESS_TOKEN_KEY),
-  setAccessToken: (token: string): void => localStorage.setItem(ACCESS_TOKEN_KEY, token),
-  clearAccessToken: (): void => localStorage.removeItem(ACCESS_TOKEN_KEY),
+  getAccessToken: (): string | null => store.getState().auth.accessToken,
 };
 
 // ─── API Error ─────────────────────────────────────────────────────────────────
@@ -49,6 +46,8 @@ type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
   /** If true, send as multipart/form-data (skip JSON serialization) */
   isFormData?: boolean;
+  /** Internal flag to prevent refresh recursion */
+  _isRetry?: boolean;
 };
 
 async function handleResponse<T>(response: Response): Promise<T> {
@@ -74,23 +73,51 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return body as T;
 }
 
-let isRefreshing = false;
-let pendingQueue: Array<{ resolve: (token: string) => void; reject: (err: unknown) => void }> = [];
+// ─── Single-Flight Refresh Handler ────────────────────────────────────────────
 
-async function refreshAccessToken(): Promise<string> {
-  // Refresh tokens are sent via HttpOnly cookie by the backend.
-  const response = await fetch(`${BASE_URL}/auth/new-refresh-token`, {
-    method: 'POST',
-    credentials: 'include',
-  });
+let refreshPromise: Promise<string | null> | null = null;
 
-  if (!response.ok) {
-    throw new ApiError(response.status, 'REFRESH_FAILED', 'Session expired. Please log in again.');
+export async function executeRefreshToken(): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
   }
 
-  const data = (await response.json()) as { accessToken: string };
-  tokenStorage.setAccessToken(data.accessToken);
-  return data.accessToken;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/new-refresh-token`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new ApiError(response.status, 'REFRESH_FAILED', 'Session expired. Please log in again.');
+      }
+
+      const raw = await response.json();
+      const tokenData = raw?.data ?? raw;
+      const newToken = tokenData?.accessToken || null;
+
+      if (newToken) {
+        store.dispatch(setAccessToken(newToken));
+      } else {
+        store.dispatch(clearAccessToken());
+      }
+
+      return newToken;
+    } catch (err) {
+      store.dispatch(clearAccessToken());
+      queryClient.removeQueries({ queryKey: authKeys.all });
+      window.dispatchEvent(new CustomEvent('tf:auth:expired'));
+      throw err;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 // ─── Core Request Function ────────────────────────────────────────────────────
@@ -99,11 +126,18 @@ export async function request<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { body, isFormData, ...rest } = options;
+  const { body, isFormData, _isRetry, ...rest } = options;
 
   const buildHeaders = (): HeadersInit => {
     const headers: Record<string, string> = {};
     if (!isFormData) headers['Content-Type'] = 'application/json';
+    
+    // In-memory access token from Redux store
+    const token = store.getState().auth.accessToken;
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
     return headers;
   };
 
@@ -118,37 +152,24 @@ export async function request<T = unknown>(
       body: isFormData ? (body as FormData) : body !== undefined ? JSON.stringify(body) : undefined,
     });
 
-  let response = await makeRequest();
-
-  // ─── 401 → attempt refresh once ──────────────────────────────────────────
-  if (response.status === 401) {
-    if (!isRefreshing) {
-      isRefreshing = true;
-
-      try {
-        await refreshAccessToken();
-        
-        // Resolve all queued requests (token is ignored as it's in a cookie)
-        pendingQueue.forEach(({ resolve }) => resolve(''));
-      } catch (err) {
-        pendingQueue.forEach(({ reject }) => reject(err));
-        // Dispatch a global auth failure event so AuthContext can clear state
-        window.dispatchEvent(new CustomEvent('tf:auth:expired'));
-
-        throw err;
-      } finally {
-        isRefreshing = false;
-        pendingQueue = [];
-      }
-    } else {
-      // Queue this request until refresh completes
-      await new Promise<string>((resolve, reject) => {
-        pendingQueue.push({ resolve, reject });
-      });
-    }
-
-    // Retry the original request (cookies are automatically attached)
+  let response: Response;
+  try {
     response = await makeRequest();
+  } catch (netErr) {
+    throw new ApiError(0, 'NETWORK_ERROR', 'Network error. Please check your connection.', netErr);
+  }
+
+  // ─── 401 Unauthorized Handling (Skip if it's already a refresh request or a retry) ───
+  const isAuthEndpoint = path.includes('/auth/login') || path.includes('/auth/new-refresh-token') || path.includes('/auth/register');
+
+  if (response.status === 401 && !_isRetry && !isAuthEndpoint) {
+    try {
+      await executeRefreshToken();
+      // Retry the original request with new token
+      return request<T>(path, { ...options, _isRetry: true });
+    } catch (refreshErr) {
+      return handleResponse<T>(response);
+    }
   }
 
   return handleResponse<T>(response);

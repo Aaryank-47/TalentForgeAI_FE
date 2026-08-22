@@ -6,18 +6,12 @@
  *   ProtectedRoute — Require authentication; redirect to /login if not authed
  *   RoleRoute      — Require a specific platform role (CANDIDATE | EMPLOYER)
  *   AuthLoadingScreen — Shown while AuthContext initializes
- *
- * Usage in App.tsx:
- *   <Route element={<ProtectedRoute />}>
- *     <Route element={<RoleRoute allowedRoles={['EMPLOYER']} redirectTo="/candidate/home" />}>
- *       <Route path="/recruiter/dashboard" element={<RecruiterDashboard />} />
- *     </Route>
- *   </Route>
  */
 
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { UserRole } from '../../context/AuthContext';
+import { resolvePortalRoute } from '../../lib/permissions';
 
 // ─── Auth Loading Screen ──────────────────────────────────────────────────────
 
@@ -40,7 +34,17 @@ export function AuthLoadingScreen() {
  * Redirects unauthenticated users to /login, preserving the intended destination.
  */
 export function ProtectedRoute() {
-  // BYPASSED FOR DEVELOPMENT
+  const { isAuthenticated, isInitialized } = useAuth();
+  const location = useLocation();
+
+  if (!isInitialized) {
+    return <AuthLoadingScreen />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
   return <Outlet />;
 }
 
@@ -57,8 +61,18 @@ interface RoleRouteProps {
  * Requires the authenticated user to have one of the specified platform roles.
  * Must be nested inside ProtectedRoute (assumes user is authenticated).
  */
-export function RoleRoute(_props: RoleRouteProps) {
-  // BYPASSED FOR DEVELOPMENT
+export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
+  const { user, isInitialized } = useAuth();
+
+  if (!isInitialized) {
+    return <AuthLoadingScreen />;
+  }
+
+  if (!user || !allowedRoles.includes(user.role)) {
+    const fallback = redirectTo || (user ? resolvePortalRoute(user) : '/login');
+    return <Navigate to={fallback} replace />;
+  }
+
   return <Outlet />;
 }
 
@@ -72,10 +86,21 @@ interface PublicRouteProps {
 /**
  * Routes that should redirect already-authenticated users away
  * (e.g. /login, /register — no point showing them if already logged in).
- *
- * Role-based redirect is handled by resolvePortalRoute in permissions.ts.
  */
 export function PublicRoute({ redirectAuthenticatedTo }: PublicRouteProps) {
-  // BYPASSED FOR DEVELOPMENT
+  const { isAuthenticated, isInitialized, user } = useAuth();
+  const location = useLocation();
+
+  if (!isInitialized) {
+    return <AuthLoadingScreen />;
+  }
+
+  if (isAuthenticated && user) {
+    // If redirected here from a protected route, go back there; otherwise resolve portal route
+    const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
+    const destination = redirectAuthenticatedTo || from || resolvePortalRoute(user);
+    return <Navigate to={destination} replace />;
+  }
+
   return <Outlet />;
 }

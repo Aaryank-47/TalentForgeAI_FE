@@ -1,36 +1,28 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth, type CompanyMemberRole } from '../../context/AuthContext';
-import { Building, User, ArrowRight, Sparkles, LogOut, Bot, GraduationCap, Shield } from 'lucide-react';
+import { authApi } from '../../services/api/auth.api';
+import { companyKeys } from '../../constants/queryKeys';
+import { Building, User, ArrowRight, Sparkles, LogOut, Bot, GraduationCap, Shield, Loader2, Plus } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
 
-interface CompanyOption {
-  id: string;
-  name: string;
-  role: CompanyMemberRole;
-  logo: string;
-  employees: string;
-  location: string;
-}
-
-const MOCK_COMPANIES: CompanyOption[] = [
-  { id: 'comp-1', name: 'Google', role: 'OWNER', logo: 'https://images.unsplash.com/photo-1573804633927-bfcbcd909acd?auto=format&fit=crop&w=100&h=100&q=80', employees: '10,000+ employees', location: 'Mountain View, CA' },
-  { id: 'comp-2', name: 'Meta', role: 'RECRUITER', logo: 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?auto=format&fit=crop&w=100&h=100&q=80', employees: '5,000+ employees', location: 'Menlo Park, CA' },
-  { id: 'comp-3', name: 'TalentForge AI', role: 'HIRING_MANAGER', logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&h=100&q=80', employees: '50-100 employees', location: 'San Francisco, CA' },
-];
-
 const SelectCompanyPage: React.FC = () => {
-  const { user, setSelectedCompany, setUserRole, logout } = useAuth();
+  const { user, setSelectedCompany, logout } = useAuth();
   const navigate = useNavigate();
+
+  const { data: companies, isLoading } = useQuery({
+    queryKey: companyKeys.my,
+    queryFn: () => authApi.getMyCompanies(),
+    enabled: user?.role === 'EMPLOYER',
+  });
 
   const handleSelectCompany = (companyId: string, role: CompanyMemberRole) => {
     setSelectedCompany(companyId, role);
-    setUserRole('EMPLOYER');
     navigate('/recruiter/dashboard', { replace: true });
   };
 
   const handleSelectCandidate = () => {
-    setUserRole('CANDIDATE');
     navigate('/candidate/home', { replace: true });
   };
 
@@ -67,7 +59,7 @@ const SelectCompanyPage: React.FC = () => {
 
         <div className="mb-6 text-center sm:text-left">
           <h2 className="text-[24px] font-display font-extrabold text-[#0F172A] mb-1">
-            Welcome back! Choose how to proceed
+            Welcome back{user?.fullName ? `, ${user.fullName}` : ''}! Choose how to proceed
           </h2>
           <p className="text-[14px] text-slate-500">
             Select a company you represent or switch to candidate mode.
@@ -80,36 +72,61 @@ const SelectCompanyPage: React.FC = () => {
           <div className="flex flex-col h-full bg-slate-50/50 rounded-2xl p-5 border border-slate-100">
             <h3 className="text-[14px] font-semibold text-slate-700 mb-4 flex items-center gap-2">
               <Building className="w-4 h-4 text-blue-600" />
-              Recruiter Accounts
+              Recruiter Organizations
             </h3>
             
-            <div className="space-y-3 flex-1">
-              {MOCK_COMPANIES.map((company) => (
-                <button
-                  key={company.id}
-                  onClick={() => handleSelectCompany(company.id, company.role)}
-                  className="w-full text-left bg-white border border-slate-200/70 hover:border-blue-500 rounded-xl p-3.5 transition-all hover:shadow-md group relative overflow-hidden"
-                >
-                  <div className="flex items-center gap-3">
-                    <img src={company.logo} className="w-10 h-10 rounded-lg object-cover border border-slate-100" alt={company.name} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-[14px] font-bold text-[#0F172A] truncate group-hover:text-blue-600 transition-colors">
-                          {company.name}
-                        </h4>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 capitalize">
-                          {company.role.replace('_', ' ').toLowerCase()}
-                        </span>
+            {isLoading ? (
+              <div className="flex-1 flex items-center justify-center py-8 text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600 mr-2" />
+                <span className="text-sm">Loading your organizations…</span>
+              </div>
+            ) : companies && companies.length > 0 ? (
+              <div className="space-y-3 flex-1">
+                {companies.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleSelectCompany(item.companyId, item.role)}
+                    className="w-full text-left bg-white border border-slate-200/70 hover:border-blue-500 rounded-xl p-3.5 transition-all hover:shadow-md group relative overflow-hidden"
+                  >
+                    <div className="flex items-center gap-3">
+                      {item.company.logo ? (
+                        <img src={item.company.logo} className="w-10 h-10 rounded-lg object-cover border border-slate-100" alt={item.company.companyName} />
+                      ) : (
+                        <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-sm border border-blue-100">
+                          {item.company.companyName.charAt(0).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-[14px] font-bold text-[#0F172A] truncate group-hover:text-blue-600 transition-colors">
+                            {item.company.companyName}
+                          </h4>
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 capitalize">
+                            {item.role.replace('_', ' ').toLowerCase()}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                          {item.company.headquarters || 'Remote'} {item.company.companySize ? `• ${item.company.companySize}` : ''}
+                        </p>
                       </div>
-                      <p className="text-[11px] text-slate-500 truncate mt-0.5">{company.location} • {company.employees}</p>
                     </div>
-                  </div>
-                  <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <ArrowRight className="w-3.5 h-3.5 text-blue-600" />
-                  </div>
+                    <div className="absolute right-3 bottom-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <ArrowRight className="w-3.5 h-3.5 text-blue-600" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex-1 flex flex-col items-center justify-center py-6 text-center">
+                <p className="text-sm text-slate-500 mb-3">No organizations linked to this account yet.</p>
+                <button
+                  onClick={() => navigate('/recruiter/dashboard', { replace: true })}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-lg"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Continue to Recruiter Dashboard
                 </button>
-              ))}
-            </div>
+              </div>
+            )}
           </div>
 
           {/* Candidate choice */}
@@ -147,7 +164,7 @@ const SelectCompanyPage: React.FC = () => {
               onClick={handleSelectCandidate}
               className="relative z-10 w-full bg-white hover:bg-blue-50 text-[#2563EB] hover:text-blue-700 font-bold text-[14px] py-3 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 group"
             >
-              <span>as a candidate</span>
+              <span>Continue as a Candidate</span>
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
