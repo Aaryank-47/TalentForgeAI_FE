@@ -2,16 +2,18 @@
  * TalentForge — Route Guard Components
  *
  * Provides layered route protection:
- *   PublicRoute    — Redirect authenticated users away from /login, /register
- *   ProtectedRoute — Require authentication; redirect to /login if not authed
- *   RoleRoute      — Require a specific platform role (CANDIDATE | EMPLOYER)
- *   AuthLoadingScreen — Shown while AuthContext initializes
+ *   PublicRoute              — Redirect authenticated users away from /login, /register
+ *   ProtectedRoute           — Require authentication; redirect to /login if not authed
+ *   RequireCandidateWorkspace — Require authenticated candidate workspace context
+ *   RequireCompanyWorkspace   — Require authenticated company workspace context
+ *   RoleRoute                — Require specific platform roles (backward compatibility)
+ *   AuthLoadingScreen        — Shown while AuthContext initializes
  */
 
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import type { UserRole } from '../../context/AuthContext';
-import { resolvePortalRoute } from '../../lib/permissions';
+import { resolvePortalRoute, resolveWorkspaceRoute } from '../../lib/permissions';
 
 // ─── Auth Loading Screen ──────────────────────────────────────────────────────
 
@@ -48,28 +50,89 @@ export function ProtectedRoute() {
   return <Outlet />;
 }
 
-// ─── RoleRoute ────────────────────────────────────────────────────────────────
-
-interface RoleRouteProps {
-  /** Which platform roles are allowed to access this route group */
-  allowedRoles: UserRole[];
-  /** Where to redirect if user lacks the required role */
-  redirectTo?: string;
-}
+// ─── RequireCandidateWorkspace ────────────────────────────────────────────────
 
 /**
- * Requires the authenticated user to have one of the specified platform roles.
- * Must be nested inside ProtectedRoute (assumes user is authenticated).
+ * Ensures user is in the 'CANDIDATE' workspace context.
+ * If user has no workspace selected, directs to /select-workspace.
+ * If user is in a company workspace, redirects to /recruiter/dashboard.
  */
-export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
-  const { user, isInitialized } = useAuth();
+export function RequireCandidateWorkspace() {
+  const { user, currentWorkspace, availableWorkspaces, isInitialized } = useAuth();
 
   if (!isInitialized) {
     return <AuthLoadingScreen />;
   }
 
-  if (!user || !allowedRoles.includes(user.role)) {
-    const fallback = redirectTo || (user ? resolvePortalRoute(user) : '/login');
+  if (!currentWorkspace) {
+    // If only 1 candidate workspace exists, let AuthContext reconcile or route to selector
+    if (availableWorkspaces.length === 1 && availableWorkspaces[0].type === 'CANDIDATE') {
+      return <Outlet />;
+    }
+    return <Navigate to="/select-workspace" replace />;
+  }
+
+  if (currentWorkspace.type !== 'CANDIDATE') {
+    return <Navigate to="/recruiter/dashboard" replace />;
+  }
+
+  return <Outlet />;
+}
+
+// ─── RequireCompanyWorkspace ──────────────────────────────────────────────────
+
+/**
+ * Ensures user is in a 'COMPANY' workspace context.
+ * If user has no workspace selected, directs to /select-workspace.
+ * If user is in candidate workspace, redirects to /candidate/home.
+ */
+export function RequireCompanyWorkspace() {
+  const { currentWorkspace, availableWorkspaces, isInitialized } = useAuth();
+
+  if (!isInitialized) {
+    return <AuthLoadingScreen />;
+  }
+
+  if (!currentWorkspace) {
+    if (availableWorkspaces.length === 1 && availableWorkspaces[0].type === 'COMPANY') {
+      return <Outlet />;
+    }
+    return <Navigate to="/select-workspace" replace />;
+  }
+
+  if (currentWorkspace.type !== 'COMPANY') {
+    return <Navigate to="/candidate/home" replace />;
+  }
+
+  return <Outlet />;
+}
+
+// ─── RoleRoute (Backward Compatibility) ───────────────────────────────────────
+
+interface RoleRouteProps {
+  allowedRoles: UserRole[];
+  redirectTo?: string;
+}
+
+export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
+  const { user, isInitialized, currentWorkspace } = useAuth();
+
+  if (!isInitialized) {
+    return <AuthLoadingScreen />;
+  }
+
+  // If in a candidate workspace, allowed if 'CANDIDATE' is allowed
+  if (currentWorkspace?.type === 'CANDIDATE' && allowedRoles.includes('CANDIDATE')) {
+    return <Outlet />;
+  }
+
+  // If in a company workspace, allowed if 'EMPLOYER' is allowed
+  if (currentWorkspace?.type === 'COMPANY' && allowedRoles.includes('EMPLOYER')) {
+    return <Outlet />;
+  }
+
+  if (!user || (!allowedRoles.includes(user.role) && !currentWorkspace)) {
+    const fallback = redirectTo || resolveWorkspaceRoute(currentWorkspace, user);
     return <Navigate to={fallback} replace />;
   }
 
@@ -79,16 +142,11 @@ export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
 // ─── PublicRoute ──────────────────────────────────────────────────────────────
 
 interface PublicRouteProps {
-  /** If user is already authenticated, redirect them here instead */
   redirectAuthenticatedTo?: string;
 }
 
-/**
- * Routes that should redirect already-authenticated users away
- * (e.g. /login, /register — no point showing them if already logged in).
- */
 export function PublicRoute({ redirectAuthenticatedTo }: PublicRouteProps) {
-  const { isAuthenticated, isInitialized, user } = useAuth();
+  const { isAuthenticated, isInitialized, user, currentWorkspace } = useAuth();
   const location = useLocation();
 
   if (!isInitialized) {
@@ -96,9 +154,8 @@ export function PublicRoute({ redirectAuthenticatedTo }: PublicRouteProps) {
   }
 
   if (isAuthenticated && user) {
-    // If redirected here from a protected route, go back there; otherwise resolve portal route
     const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
-    const destination = redirectAuthenticatedTo || from || resolvePortalRoute(user);
+    const destination = redirectAuthenticatedTo || from || resolveWorkspaceRoute(currentWorkspace, user);
     return <Navigate to={destination} replace />;
   }
 

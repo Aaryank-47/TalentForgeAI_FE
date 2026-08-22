@@ -37,6 +37,17 @@ export interface RegisterCompanyOwnerDto {
   };
 }
 
+export interface RegisterUserDto {
+  fullName?: string;
+  email: string;
+  password: string;
+}
+
+export interface RegisterUserApiResponse {
+  user: AuthUserResponse;
+  tokens: AuthTokens;
+}
+
 export interface RegisterEmployerSimpleDto {
   fullName: string;
   email: string;
@@ -140,6 +151,12 @@ export interface EmployerProfileData {
 export interface AuthMeResponse {
   user: AuthUserResponse;
   profile: CandidateProfileData | EmployerProfileData | null;
+  candidate?: {
+    enabled: boolean;
+    id: string;
+    fullName: string;
+  } | null;
+  companies?: CompanyMemberItem[];
 }
 
 export interface LoginApiResponse {
@@ -189,6 +206,10 @@ export interface CompanyMemberItem {
 // ─── API Calls ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
+  /** Register a base user (unified signup) */
+  registerUser: (dto: RegisterUserDto) =>
+    api.post<RegisterUserApiResponse>('/auth/register', dto),
+
   /** Register a new candidate */
   registerCandidate: (dto: RegisterCandidateDto) =>
     api.post<RegisterCandidateApiResponse>('/auth/register/candidate', dto),
@@ -241,7 +262,19 @@ export const authApi = {
   changePassword: (dto: ChangePasswordDto) =>
     api.post<null>('/auth/change/password', dto),
 
+  /** Get company metadata options (industries, company sizes) */
+  getCompanyMetadata: () =>
+    api.get<{ industries: string[]; companySizes: string[] }>('/companies/metadata'),
+
   /** Get companies belonging to the current employer */
   getMyCompanies: () =>
-    api.get<CompanyMemberItem[]>('/company/my'),
+    api.get<CompanyMemberItem[]>('/companies/my'),
+
+  /** Create a new company for the existing user (become employer/create company) */
+  createCompany: (dto: { companyName: string; website?: string; industry?: string; companySize?: string; headquarters?: string; description?: string; logo?: string }) =>
+    api.post<any>('/companies/register', dto),
+
+  /** Create candidate profile for existing user (become candidate) */
+  createCandidateProfile: (dto: { fullName: string; phoneNumber?: string; headline?: string }) =>
+    api.post<any>('/candidate/me', dto),
 };

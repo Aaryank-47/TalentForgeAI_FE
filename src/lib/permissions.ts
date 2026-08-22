@@ -21,8 +21,27 @@ export function getCompanyRole(user: AuthUser | null): CompanyMemberRole | null 
   return user?.companyRole ?? null;
 }
 
+/** Resolve portal route based on current workspace or user role */
+export function resolveWorkspaceRoute(workspace: { type: 'CANDIDATE' | 'COMPANY' } | null, user: AuthUser | null): string {
+  if (workspace) {
+    if (workspace.type === 'CANDIDATE') return '/candidate/home';
+    if (workspace.type === 'COMPANY') return '/recruiter/dashboard';
+  }
+  if (user) {
+    // If user has no candidate profile and no company memberships yet, send to onboarding
+    if (!user.hasCandidateProfile && (!user.companies || user.companies.length === 0)) {
+      return '/onboarding';
+    }
+    return resolvePortalRoute(user);
+  }
+  return '/login';
+}
+
 /** Resolve which portal the user should be routed to after login */
 export function resolvePortalRoute(user: AuthUser): string {
+  if (!user.hasCandidateProfile && (!user.companies || user.companies.length === 0)) {
+    return '/onboarding';
+  }
   switch (user.role) {
     case 'CANDIDATE':
       return '/candidate/home';
@@ -30,7 +49,6 @@ export function resolvePortalRoute(user: AuthUser): string {
       return '/recruiter/dashboard';
     case 'ADMIN':
     case 'SUPER_ADMIN':
-      // Admin portal not yet implemented — route to a placeholder
       return '/admin/dashboard';
     default:
       return '/';

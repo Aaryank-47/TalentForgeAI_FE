@@ -5,6 +5,7 @@ export const authKeys = {
 
 export const companyKeys = {
   all: ['companies'] as const,
+  metadata: ['companies', 'metadata'] as const,
   my: ['companies', 'my'] as const,
   detail: (id: string) => ['companies', 'detail', id] as const,
 };

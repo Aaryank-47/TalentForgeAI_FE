@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useOnClickOutside } from '../../hooks/useOnClickOutside';
+import { WorkspaceSwitcher } from '../workspace/WorkspaceSwitcher';
 import {
   LayoutDashboard,
   Briefcase,
@@ -188,7 +189,7 @@ const RecruiterLayout = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const { logout } = useAuth();
+  const { user, currentWorkspace, logout } = useAuth();
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -388,31 +389,39 @@ const RecruiterLayout = () => {
                 className="flex items-center gap-3 hover:bg-slate-50 p-1 pr-2 rounded-xl transition-colors border border-transparent hover:border-slate-200"
               >
                 <div className="h-9 w-9 rounded-full bg-[#2563EB] flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                  LY
+                  {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'TF'}
                 </div>
                 <div className="hidden md:block text-left">
-                  <p className="text-sm font-bold text-slate-900 leading-none">Lamine Yamal</p>
-                  <p className="text-[11px] text-slate-500 mt-1 font-medium">HR Manager</p>
+                  <p className="text-sm font-bold text-slate-900 leading-none">{user?.fullName || user?.email || 'Recruiter'}</p>
+                  <p className="text-[11px] text-slate-500 mt-1 font-medium truncate max-w-[140px]">
+                    {user?.companyRole ? `${user.companyRole.replace('_', ' ').toLowerCase()} · ` : ''}{currentWorkspace?.name || 'Recruiter'}
+                  </p>
                 </div>
                 <ChevronDown className="w-4 h-4 text-slate-400 hidden md:block" />
               </button>
 
               {profileOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50">
-                  <div className="px-4 py-3 border-b border-slate-100 mb-2 md:hidden">
-                    <p className="text-sm font-bold text-slate-900">Lamine Yamal</p>
-                    <p className="text-xs text-slate-500">HR Manager</p>
+                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-slate-100 py-2 z-50">
+                  <div className="px-4 py-2.5 border-b border-slate-100 mb-1">
+                    <p className="text-sm font-bold text-slate-900 truncate">{user?.fullName || 'User'}</p>
+                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
                   </div>
-                  <Link to="/recruiter/profile" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+
+                  {/* Workspace Switcher */}
+                  <WorkspaceSwitcher onClose={() => setProfileOpen(false)} />
+
+                  <div className="h-px bg-slate-100 my-1" />
+
+                  <Link to="/recruiter/profile" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-medium">
                     <User className="w-4 h-4 text-slate-400" /> My Profile
                   </Link>
-                  <Link to="/recruiter/settings" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                  <Link to="/recruiter/settings" onClick={() => setProfileOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 font-medium">
                     <Settings className="w-4 h-4 text-slate-400" /> Account Settings
                   </Link>
-                  <div className="h-px bg-slate-100 my-2" />
+                  <div className="h-px bg-slate-100 my-1" />
                   <button 
                     onClick={() => logout()}
-                    className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
+                    className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 font-medium"
                   >
                     <LogOut className="w-4 h-4" /> Sign Out
                   </button>

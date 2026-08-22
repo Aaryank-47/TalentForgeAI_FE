@@ -114,7 +114,32 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
     e.preventDefault();
     setLocalError(null);
     try {
-      const authUser = await login({ email, password });
+      const { user: authUser, availableWorkspaces } = await login({ email, password });
+      
+      // If user has multiple workspaces, show Workspace Selection screen
+      if (availableWorkspaces.length > 1) {
+        navigate('/select-workspace', { replace: true });
+        return;
+      }
+
+      // If user has exactly 1 workspace, navigate directly into it
+      if (availableWorkspaces.length === 1) {
+        const ws = availableWorkspaces[0];
+        if (ws.type === 'CANDIDATE') {
+          navigate('/candidate/home', { replace: true });
+        } else {
+          navigate('/recruiter/dashboard', { replace: true });
+        }
+        return;
+      }
+
+      // If user has no workspaces/profiles yet (new signup), direct to onboarding
+      if (!authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
+        navigate('/onboarding', { replace: true });
+        return;
+      }
+
+      // Fallback based on user role
       const destination = resolvePortalRoute(authUser);
       navigate(destination, { replace: true });
     } catch (err: any) {
@@ -210,12 +235,12 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
 
 // ─── Register Form ────────────────────────────────────────────────────────────
 
-const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRole: (r: UIRole) => void; onSwitchToLogin: () => void }) => {
+const RegisterForm = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
   const navigate = useNavigate();
-  const { registerCandidate, registerEmployer, isLoading, error } = useAuth();
+  const { registerUser, isLoading, error } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', company: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [localError, setLocalError] = useState<string | null>(null);
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -226,23 +251,13 @@ const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRol
       return;
     }
     try {
-      let authUser;
-      if (role === 'recruiter') {
-        authUser = await registerEmployer({
-          fullName: form.name,
-          email: form.email,
-          password: form.password,
-          companyName: form.company || form.name + "'s Organization",
-        });
-      } else {
-        authUser = await registerCandidate({
-          fullName: form.name,
-          email: form.email,
-          password: form.password,
-        });
-      }
-      const destination = resolvePortalRoute(authUser);
-      navigate(destination, { replace: true });
+      await registerUser({
+        fullName: form.name,
+        email: form.email,
+        password: form.password,
+      });
+      // Redirect user to email verification with their email address pre-filled
+      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
     } catch (err: any) {
       setLocalError(err?.message || error || 'Registration failed. Please try again.');
     }
@@ -262,21 +277,6 @@ const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRol
         </p>
       </div>
 
-      {/* Role selector */}
-      <div className="grid grid-cols-2 gap-2 mb-6 p-1 bg-slate-100 rounded-[12px]">
-        {(['recruiter', 'candidate'] as UIRole[]).map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => setRole(r)}
-            className={`py-2.5 rounded-[10px] text-[13px] font-semibold transition-all capitalize flex items-center justify-center gap-1.5 ${role === r ? 'bg-white text-[#0F172A] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-          >
-            {r === 'recruiter' ? <Building className="w-3.5 h-3.5" /> : <User className="w-3.5 h-3.5" />}
-            {r === 'recruiter' ? 'Recruiter' : 'Job Seeker'}
-          </button>
-        ))}
-      </div>
-
       <form onSubmit={handleRegister} className="space-y-3.5">
         {/* Full Name */}
         <div>
@@ -290,12 +290,10 @@ const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRol
 
         {/* Email */}
         <div>
-          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">
-            {role === 'recruiter' ? 'Work Email' : 'Email'}
-          </label>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input type="email" required value={form.email} onChange={set('email')} placeholder={role === 'recruiter' ? 'you@company.com' : 'you@email.com'}
+            <input type="email" required value={form.email} onChange={set('email')} placeholder="you@company.com"
               className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all" />
           </div>
         </div>
@@ -338,16 +336,10 @@ const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRol
 
       {/* Trust indicators */}
       <div className="flex items-center justify-center gap-4 mt-5">
-        {(role === 'recruiter'
-          ? [
-              { icon: <Check className="w-3 h-3" />, text: 'Free 14-day trial' },
-              { icon: <Check className="w-3 h-3" />, text: 'No credit card' },
-            ]
-          : [
-              { icon: <Check className="w-3 h-3" />, text: 'Free forever for basic use' },
-              { icon: <Check className="w-3 h-3" />, text: 'Instant profile creation' },
-            ]
-        ).map((item, i) => (
+        {[
+          { icon: <Check className="w-3 h-3" />, text: 'Instant access' },
+          { icon: <Check className="w-3 h-3" />, text: 'Unified multi-role account' },
+        ].map((item, i) => (
           <div key={i} className="flex items-center gap-1 text-[11px] text-slate-400">
             <span className="text-emerald-500">{item.icon}</span>
             {item.text}
@@ -367,13 +359,10 @@ const RegisterForm = ({ role, setRole, onSwitchToLogin }: { role: UIRole; setRol
 // ─── Main AuthPage ────────────────────────────────────────────────────────────
 
 const AuthPage = () => {
-  const [searchParams] = useSearchParams();
-  const initialRole = (searchParams.get('role') as UIRole) ?? 'recruiter';
   const isRegisterUrl = window.location.pathname === '/register';
 
   const [mode, setMode] = useState<AuthMode>(isRegisterUrl ? 'register' : 'login');
   const [animating, setAnimating] = useState(false);
-  const [registerRole, setRegisterRole] = useState<UIRole>(initialRole);
 
   useEffect(() => {
     if (isRegisterUrl && mode === 'login') setMode('register');
@@ -415,7 +404,7 @@ const AuthPage = () => {
             <IllustrationPanel mode={mode} />
           ) : (
             <div className="h-full bg-white flex items-center justify-center">
-              <RegisterForm role={registerRole} setRole={setRegisterRole} onSwitchToLogin={() => switchMode('login')} />
+              <RegisterForm onSwitchToLogin={() => switchMode('login')} />
             </div>
           )}
         </div>
@@ -433,7 +422,7 @@ const AuthPage = () => {
               <LoginForm onSwitchToRegister={() => switchMode('register')} />
             </div>
           ) : (
-            <IllustrationPanel mode={mode} role={registerRole} />
+            <IllustrationPanel mode={mode} />
           )}
         </div>
 
@@ -458,7 +447,7 @@ const AuthPage = () => {
                 </div>
                 <span className="font-display font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#2563EB]"> AI</span></span>
               </Link>
-              <RegisterForm role={registerRole} setRole={setRegisterRole} onSwitchToLogin={() => switchMode('login')} />
+              <RegisterForm onSwitchToLogin={() => switchMode('login')} />
             </div>
           )}
         </div>

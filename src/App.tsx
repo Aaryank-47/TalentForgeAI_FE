@@ -5,6 +5,7 @@ import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/auth/AuthPage';
 import SignupRolePage from './pages/SignupRolePage';
 import SelectCompanyPage from './pages/auth/SelectCompanyPage';
+import OnboardingPage from './pages/auth/OnboardingPage';
 
 // ─── Candidate Layout ─────────────────────────────────────────
 import CandidateLayout from './components/layout/CandidateLayout';
@@ -90,18 +91,20 @@ function App() {
         {/* ─── Fully Public Routes (no auth required) ─── */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup-role" element={<SignupRolePage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         {/* ─── Auth Routes (redirect authenticated users to their portal) ─── */}
         <Route element={<PublicRoute />}>
           <Route path="/login" element={<AuthPage />} />
           <Route path="/register" element={<AuthPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/verify-email" element={<VerifyEmailPage />} />
         </Route>
 
         {/* ─── All Authenticated Routes ─── */}
         <Route element={<ProtectedRoute />}>
+          <Route path="/onboarding" element={<OnboardingPage />} />
           <Route path="/select-company" element={<SelectCompanyPage />} />
+          <Route path="/select-workspace" element={<SelectCompanyPage />} />
 
           {/* ─── AI Interview & Assessment Flows (Requires MediaProvider) ─── */}
           <Route element={<MediaProvider><Outlet /></MediaProvider>}>

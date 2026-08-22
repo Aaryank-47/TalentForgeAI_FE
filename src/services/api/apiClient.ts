@@ -138,6 +138,12 @@ export async function request<T = unknown>(
       headers['Authorization'] = `Bearer ${token}`;
     }
 
+    // Active company workspace context
+    const currentWorkspace = store.getState().workspace.currentWorkspace;
+    if (currentWorkspace && currentWorkspace.type === 'COMPANY' && currentWorkspace.id) {
+      headers['x-company-id'] = currentWorkspace.id;
+    }
+
     return headers;
   };
 
