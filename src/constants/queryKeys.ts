@@ -8,6 +8,7 @@ export const companyKeys = {
   metadata: ['companies', 'metadata'] as const,
   my: ['companies', 'my'] as const,
   detail: (id: string) => ['companies', 'detail', id] as const,
+  search: (params?: Record<string, any>) => ['companies', 'search', params] as const,
 };
 
 export const candidateKeys = {

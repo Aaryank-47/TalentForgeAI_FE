@@ -22,6 +22,15 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
   const [time, setTime] = useState('');
   const [reason, setReason] = useState('');
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   if (!isOpen || !interview) return null;
 
   const handleConfirm = () => {
@@ -146,6 +155,15 @@ export const CancelInterviewModal: React.FC<CancelInterviewModalProps> = ({
   onConfirm,
 }) => {
   const [reason, setReason] = useState('');
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !interview) return null;
 

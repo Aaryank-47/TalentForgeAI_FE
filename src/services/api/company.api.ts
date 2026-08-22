@@ -28,28 +28,56 @@ export interface CompanyDetails {
   updatedAt?: string;
 }
 
-export interface UpdateCompanyDto {
-  companyName?: string;
+export interface CreateCompanyDto {
+  companyName: string;
   companyEmail?: string;
   website?: string;
   phoneNumber?: string;
-  logo?: string;
-  coverImage?: string;
-  description?: string;
   industry?: string;
   companySize?: string;
-  foundedYear?: number;
   headquarters?: string;
+  description?: string;
+  logo?: string;
+  foundedYear?: number;
   linkedinUrl?: string;
   twitterUrl?: string;
 }
+
+export type UpdateCompanyDto = Partial<CreateCompanyDto>;
 
 export interface CompanyMetadataResponse {
   industries: string[];
   companySizes: string[];
 }
 
+export interface SearchCompanyParams {
+  keyword?: string;
+  industry?: string;
+  location?: string;
+  companySize?: string;
+  page?: number;
+  limit?: number;
+  sortBy?: 'companyName' | 'createdAt' | 'profileCompletion' | 'foundedYear';
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface SearchCompanyResponse {
+  companies: CompanyDetails[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 export const companyApi = {
+  /** Register / Create a new company */
+  createCompany: (data: CreateCompanyDto) =>
+    api.post<CompanyDetails>('/companies/register', data),
+
+  /** Register alias for createCompany */
+  registerCompany: (data: CreateCompanyDto) =>
+    api.post<CompanyDetails>('/companies/register', data),
+
   /** Fetch detailed profile of a company by its ID */
   getCompanyDetails: (companyId: string) =>
     api.get<CompanyDetails>(`/companies/${companyId}`),
@@ -57,6 +85,24 @@ export const companyApi = {
   /** Update company profile information */
   updateCompanyProfile: (companyId: string, data: UpdateCompanyDto) =>
     api.patch<CompanyDetails>(`/companies/update/${companyId}`, data),
+
+  /** Delete company profile */
+  deleteCompanyProfile: (companyId: string) =>
+    api.delete<{ message: string }>(`/companies/delete/${companyId}`),
+
+  /** Search companies with filters and pagination */
+  searchCompanies: (params?: SearchCompanyParams) => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') {
+          searchParams.append(k, String(v));
+        }
+      });
+    }
+    const queryString = searchParams.toString();
+    return api.get<SearchCompanyResponse>(`/companies/search${queryString ? `?${queryString}` : ''}`);
+  },
 
   /** Upload company logo */
   uploadLogo: (companyId: string, file: File) => {
@@ -80,3 +126,4 @@ export const companyApi = {
   getMyCompanies: () =>
     api.get<any[]>('/companies/my'),
 };
+

@@ -15,6 +15,7 @@ import {
 } from '../../services/api/candidate.api';
 import { candidateKeys, authKeys } from '../../constants/queryKeys';
 import { useAuth } from '../../context/AuthContext';
+import { Modal } from '../../components/ui/Modal';
 import toast from 'react-hot-toast';
 
 const ProfileRing = ({ pct }: { pct: number }) => {
@@ -806,516 +807,482 @@ const CandidateProfilePage = () => {
         </div>
       </div>
 
-      {/* Modal: Edit Candidate Profile (PATCH /candidates/me) */}
-      {showEditProfileModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="w-full max-w-[540px] bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Edit Candidate Profile</h3>
-              <button onClick={() => setShowEditProfileModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleEditSubmit} className="space-y-4 pt-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={editForm.fullName}
-                  onChange={e => setEditForm({ ...editForm, fullName: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Headline</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Senior Frontend Developer | React & Node.js"
-                  value={editForm.headline}
-                  onChange={e => setEditForm({ ...editForm, headline: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    value={editForm.phoneNumber}
-                    onChange={e => setEditForm({ ...editForm, phoneNumber: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Bangalore, India"
-                    value={editForm.currentLocation}
-                    onChange={e => setEditForm({ ...editForm, currentLocation: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Current Company</label>
-                  <input
-                    type="text"
-                    value={editForm.currentCompany}
-                    onChange={e => setEditForm({ ...editForm, currentCompany: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Current Designation</label>
-                  <input
-                    type="text"
-                    value={editForm.currentDesignation}
-                    onChange={e => setEditForm({ ...editForm, currentDesignation: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Bio</label>
-                <textarea
-                  rows={3}
-                  value={editForm.bio}
-                  onChange={e => setEditForm({ ...editForm, bio: e.target.value })}
-                  placeholder="Tell recruiters about yourself and your expertise..."
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">LinkedIn URL</label>
-                  <input
-                    type="url"
-                    value={editForm.linkedinUrl}
-                    onChange={e => setEditForm({ ...editForm, linkedinUrl: e.target.value })}
-                    placeholder="https://linkedin.com/in/..."
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub URL</label>
-                  <input
-                    type="url"
-                    value={editForm.githubUrl}
-                    onChange={e => setEditForm({ ...editForm, githubUrl: e.target.value })}
-                    placeholder="https://github.com/..."
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowEditProfileModal(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={updateProfileMutation.isPending}
-                  className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
-                >
-                  {updateProfileMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Save Profile
-                </button>
-              </div>
-            </form>
+      {/* Modal: Edit Candidate Profile (PATCH /candidate/me) */}
+      <Modal
+        isOpen={showEditProfileModal}
+        onClose={() => setShowEditProfileModal(false)}
+        title="Edit Candidate Profile"
+        maxWidth="max-w-[540px]"
+      >
+        <form onSubmit={handleEditSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
+            <input
+              type="text"
+              required
+              value={editForm.fullName}
+              onChange={e => setEditForm({ ...editForm, fullName: e.target.value })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
           </div>
-        </div>
-      )}
 
-      {/* Modal: Add Skill (POST /skills) */}
-      {showAddSkillModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="w-full max-w-[400px] bg-white rounded-2xl shadow-2xl border border-slate-100 p-6">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-sm font-bold text-slate-900">Add Skill</h3>
-              <button onClick={() => setShowAddSkillModal(false)} className="text-slate-400 hover:text-slate-600 p-1">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddSkillSubmit} className="space-y-4 pt-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Skill Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. React, Python, AWS, Figma"
-                  value={newSkillName}
-                  onChange={e => setNewSkillName(e.target.value)}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Years of Experience</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="40"
-                  value={newSkillYears}
-                  onChange={e => setNewSkillYears(Number(e.target.value))}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddSkillModal(false)}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addSkillMutation.isPending}
-                  className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
-                >
-                  {addSkillMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  Add Skill
-                </button>
-              </div>
-            </form>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Headline</label>
+            <input
+              type="text"
+              placeholder="e.g. Senior Frontend Developer | React & Node.js"
+              value={editForm.headline}
+              onChange={e => setEditForm({ ...editForm, headline: e.target.value })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number</label>
+              <input
+                type="tel"
+                value={editForm.phoneNumber}
+                onChange={e => setEditForm({ ...editForm, phoneNumber: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+              <input
+                type="text"
+                placeholder="e.g. Bangalore, India"
+                value={editForm.currentLocation}
+                onChange={e => setEditForm({ ...editForm, currentLocation: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Current Company</label>
+              <input
+                type="text"
+                value={editForm.currentCompany}
+                onChange={e => setEditForm({ ...editForm, currentCompany: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Current Designation</label>
+              <input
+                type="text"
+                value={editForm.currentDesignation}
+                onChange={e => setEditForm({ ...editForm, currentDesignation: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Bio</label>
+            <textarea
+              rows={3}
+              value={editForm.bio}
+              onChange={e => setEditForm({ ...editForm, bio: e.target.value })}
+              placeholder="Tell recruiters about yourself and your expertise..."
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">LinkedIn URL</label>
+              <input
+                type="url"
+                value={editForm.linkedinUrl}
+                onChange={e => setEditForm({ ...editForm, linkedinUrl: e.target.value })}
+                placeholder="https://linkedin.com/in/..."
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">GitHub URL</label>
+              <input
+                type="url"
+                value={editForm.githubUrl}
+                onChange={e => setEditForm({ ...editForm, githubUrl: e.target.value })}
+                placeholder="https://github.com/..."
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowEditProfileModal(false)}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={updateProfileMutation.isPending}
+              className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
+            >
+              {updateProfileMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Save Profile
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal: Add Skill (POST /candidate/skills) */}
+      <Modal
+        isOpen={showAddSkillModal}
+        onClose={() => setShowAddSkillModal(false)}
+        title="Add Skill"
+        maxWidth="max-w-[400px]"
+      >
+        <form onSubmit={handleAddSkillSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Skill Name *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. React, Python, AWS, Figma"
+              value={newSkillName}
+              onChange={e => setNewSkillName(e.target.value)}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Years of Experience</label>
+            <input
+              type="number"
+              min="0"
+              max="40"
+              value={newSkillYears}
+              onChange={e => setNewSkillYears(Number(e.target.value))}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowAddSkillModal(false)}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={addSkillMutation.isPending}
+              className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
+            >
+              {addSkillMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Add Skill
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal: Add/Edit Education (POST/PATCH /candidate/educations) */}
-      {showAddEducationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="w-full max-w-[480px] bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">
-                {editingEducationId ? 'Edit Education' : 'Add Education'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAddEducationModal(false);
-                  setEditingEducationId(null);
-                }}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                if (editingEducationId) {
-                  updateEducationMutation.mutate({ id: editingEducationId, data: educationForm });
-                } else {
-                  addEducationMutation.mutate(educationForm);
-                }
-              }}
-              className="space-y-4 pt-4"
-            >
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">College / University *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Stanford University"
-                  value={educationForm.collegeName}
-                  onChange={e => setEducationForm({ ...educationForm, collegeName: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Degree *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. B.Tech, Master's"
-                    value={educationForm.degree}
-                    onChange={e => setEducationForm({ ...educationForm, degree: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Field of Study *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Computer Science"
-                    value={educationForm.fieldOfStudy}
-                    onChange={e => setEducationForm({ ...educationForm, fieldOfStudy: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={educationForm.startDate}
-                    onChange={e => setEducationForm({ ...educationForm, startDate: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {educationForm.currentlyStudying ? 'End Date (Expected)' : 'End Date *'}
-                  </label>
-                  <input
-                    type="date"
-                    required={!educationForm.currentlyStudying}
-                    value={educationForm.endDate || ''}
-                    onChange={e => setEducationForm({ ...educationForm, endDate: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="currentlyStudying"
-                  checked={educationForm.currentlyStudying}
-                  onChange={e => setEducationForm({ ...educationForm, currentlyStudying: e.target.checked })}
-                  className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                />
-                <label htmlFor="currentlyStudying" className="text-xs text-slate-700 font-medium cursor-pointer">
-                  I am currently studying here
-                </label>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Grading System</label>
-                  <select
-                    value={educationForm.gradingSystem}
-                    onChange={e => setEducationForm({ ...educationForm, gradingSystem: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white"
-                  >
-                    <option value="CGPA">CGPA</option>
-                    <option value="PERCENTAGE">Percentage</option>
-                    <option value="GPA_4">GPA (Scale 4.0)</option>
-                    <option value="GPA_10">GPA (Scale 10.0)</option>
-                    <option value="LETTER_GRADE">Letter Grade</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Grade / Score</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. 8.8 / 10 or 85%"
-                    value={educationForm.gradeText || ''}
-                    onChange={e => setEducationForm({ ...educationForm, gradeText: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddEducationModal(false);
-                    setEditingEducationId(null);
-                  }}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addEducationMutation.isPending || updateEducationMutation.isPending}
-                  className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
-                >
-                  {(addEducationMutation.isPending || updateEducationMutation.isPending) && (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  )}
-                  {editingEducationId ? 'Update Education' : 'Add Education'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showAddEducationModal}
+        onClose={() => {
+          setShowAddEducationModal(false);
+          setEditingEducationId(null);
+        }}
+        title={editingEducationId ? 'Edit Education' : 'Add Education'}
+        maxWidth="max-w-[480px]"
+      >
+        <form
+          onSubmit={e => {
+            e.preventDefault();
+            if (editingEducationId) {
+              updateEducationMutation.mutate({ id: editingEducationId, data: educationForm });
+            } else {
+              addEducationMutation.mutate(educationForm);
+            }
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">College / University *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Stanford University"
+              value={educationForm.collegeName}
+              onChange={e => setEducationForm({ ...educationForm, collegeName: e.target.value })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Degree *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. B.Tech, Master's"
+                value={educationForm.degree}
+                onChange={e => setEducationForm({ ...educationForm, degree: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Field of Study *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Computer Science"
+                value={educationForm.fieldOfStudy}
+                onChange={e => setEducationForm({ ...educationForm, fieldOfStudy: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date *</label>
+              <input
+                type="date"
+                required
+                value={educationForm.startDate}
+                onChange={e => setEducationForm({ ...educationForm, startDate: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                {educationForm.currentlyStudying ? 'End Date (Expected)' : 'End Date *'}
+              </label>
+              <input
+                type="date"
+                required={!educationForm.currentlyStudying}
+                value={educationForm.endDate || ''}
+                onChange={e => setEducationForm({ ...educationForm, endDate: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="currentlyStudying"
+              checked={educationForm.currentlyStudying}
+              onChange={e => setEducationForm({ ...educationForm, currentlyStudying: e.target.checked })}
+              className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+            />
+            <label htmlFor="currentlyStudying" className="text-xs text-slate-700 font-medium cursor-pointer">
+              I am currently studying here
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Grading System</label>
+              <select
+                value={educationForm.gradingSystem}
+                onChange={e => setEducationForm({ ...educationForm, gradingSystem: e.target.value as any })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white"
+              >
+                <option value="CGPA">CGPA</option>
+                <option value="PERCENTAGE">Percentage</option>
+                <option value="GPA_4">GPA (Scale 4.0)</option>
+                <option value="GPA_10">GPA (Scale 10.0)</option>
+                <option value="LETTER_GRADE">Letter Grade</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Grade / Score</label>
+              <input
+                type="text"
+                placeholder="e.g. 8.8 / 10 or 85%"
+                value={educationForm.gradeText || ''}
+                onChange={e => setEducationForm({ ...educationForm, gradeText: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddEducationModal(false);
+                setEditingEducationId(null);
+              }}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={addEducationMutation.isPending || updateEducationMutation.isPending}
+              className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
+            >
+              {(addEducationMutation.isPending || updateEducationMutation.isPending) && (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              )}
+              {editingEducationId ? 'Update Education' : 'Add Education'}
+            </button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Modal: Add/Edit Experience (POST/PATCH /candidate/experiences) */}
-      {showAddExperienceModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="w-full max-w-[500px] bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">
-                {editingExperienceId ? 'Edit Work Experience' : 'Add Work Experience'}
-              </h3>
-              <button
-                onClick={() => {
-                  setShowAddExperienceModal(false);
-                  setEditingExperienceId(null);
-                }}
-                className="text-slate-400 hover:text-slate-600 p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form
-              onSubmit={e => {
-                e.preventDefault();
-                if (editingExperienceId) {
-                  updateExperienceMutation.mutate({ id: editingExperienceId, data: experienceForm });
-                } else {
-                  addExperienceMutation.mutate(experienceForm);
-                }
-              }}
-              className="space-y-4 pt-4"
-            >
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Designation / Role *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Software Engineer"
-                  value={experienceForm.designation}
-                  onChange={e => setExperienceForm({ ...experienceForm, designation: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Company Name *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Microsoft"
-                    value={experienceForm.companyName}
-                    onChange={e => setExperienceForm({ ...experienceForm, companyName: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Employment Type</label>
-                  <select
-                    value={experienceForm.employmentType}
-                    onChange={e => setExperienceForm({ ...experienceForm, employmentType: e.target.value as any })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white"
-                  >
-                    <option value="FULL_TIME">Full Time</option>
-                    <option value="PART_TIME">Part Time</option>
-                    <option value="CONTRACT">Contract</option>
-                    <option value="INTERNSHIP">Internship</option>
-                    <option value="FREELANCE">Freelance</option>
-                    <option value="REMOTE">Remote</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Seattle, WA / Remote"
-                  value={experienceForm.location || ''}
-                  onChange={e => setExperienceForm({ ...experienceForm, location: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={experienceForm.startDate}
-                    onChange={e => setExperienceForm({ ...experienceForm, startDate: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    {experienceForm.currentlyWorking ? 'End Date (Present)' : 'End Date *'}
-                  </label>
-                  <input
-                    type="date"
-                    required={!experienceForm.currentlyWorking}
-                    disabled={experienceForm.currentlyWorking}
-                    value={experienceForm.endDate || ''}
-                    onChange={e => setExperienceForm({ ...experienceForm, endDate: e.target.value })}
-                    className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="currentlyWorking"
-                  checked={experienceForm.currentlyWorking}
-                  onChange={e => setExperienceForm({ ...experienceForm, currentlyWorking: e.target.checked })}
-                  className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                />
-                <label htmlFor="currentlyWorking" className="text-xs text-slate-700 font-medium cursor-pointer">
-                  I currently work here
-                </label>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Description / Key Responsibilities *</label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Describe your achievements, technical stack, and contributions..."
-                  value={experienceForm.description}
-                  onChange={e => setExperienceForm({ ...experienceForm, description: e.target.value })}
-                  className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddExperienceModal(false);
-                    setEditingExperienceId(null);
-                  }}
-                  className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={addExperienceMutation.isPending || updateExperienceMutation.isPending}
-                  className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
-                >
-                  {(addExperienceMutation.isPending || updateExperienceMutation.isPending) && (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  )}
-                  {editingExperienceId ? 'Update Experience' : 'Add Experience'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showAddExperienceModal}
+        onClose={() => {
+          setShowAddExperienceModal(false);
+          setEditingExperienceId(null);
+        }}
+        title={editingExperienceId ? 'Edit Work Experience' : 'Add Work Experience'}
+        maxWidth="max-w-[500px]"
+      >
+        <form
+          onSubmit={e => {
+            e.preventDefault();
+            if (editingExperienceId) {
+              updateExperienceMutation.mutate({ id: editingExperienceId, data: experienceForm });
+            } else {
+              addExperienceMutation.mutate(experienceForm);
+            }
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Designation / Role *</label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. Software Engineer"
+              value={experienceForm.designation}
+              onChange={e => setExperienceForm({ ...experienceForm, designation: e.target.value })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Company Name *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Microsoft"
+                value={experienceForm.companyName}
+                onChange={e => setExperienceForm({ ...experienceForm, companyName: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Employment Type</label>
+              <select
+                value={experienceForm.employmentType}
+                onChange={e => setExperienceForm({ ...experienceForm, employmentType: e.target.value as any })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white"
+              >
+                <option value="FULL_TIME">Full Time</option>
+                <option value="PART_TIME">Part Time</option>
+                <option value="CONTRACT">Contract</option>
+                <option value="INTERNSHIP">Internship</option>
+                <option value="FREELANCE">Freelance</option>
+                <option value="REMOTE">Remote</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Location</label>
+            <input
+              type="text"
+              placeholder="e.g. Seattle, WA / Remote"
+              value={experienceForm.location || ''}
+              onChange={e => setExperienceForm({ ...experienceForm, location: e.target.value })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date *</label>
+              <input
+                type="date"
+                required
+                value={experienceForm.startDate}
+                onChange={e => setExperienceForm({ ...experienceForm, startDate: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                {experienceForm.currentlyWorking ? 'End Date (Present)' : 'End Date *'}
+              </label>
+              <input
+                type="date"
+                required={!experienceForm.currentlyWorking}
+                disabled={experienceForm.currentlyWorking}
+                value={experienceForm.endDate || ''}
+                onChange={e => setExperienceForm({ ...experienceForm, endDate: e.target.value })}
+                className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="currentlyWorking"
+              checked={experienceForm.currentlyWorking}
+              onChange={e => setExperienceForm({ ...experienceForm, currentlyWorking: e.target.checked })}
+              className="rounded border-slate-300 text-primary-600 focus:ring-primary-500"
+            />
+            <label htmlFor="currentlyWorking" className="text-xs text-slate-700 font-medium cursor-pointer">
+              I currently work here
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Description / Key Responsibilities *</label>
+            <textarea
+              rows={3}
+              required
+              placeholder="Describe your achievements, technical stack, and contributions..."
+              value={experienceForm.description}
+              onChange={e => setExperienceForm({ ...experienceForm, description: e.target.value })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddExperienceModal(false);
+                setEditingExperienceId(null);
+              }}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={addExperienceMutation.isPending || updateExperienceMutation.isPending}
+              className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-2"
+            >
+              {(addExperienceMutation.isPending || updateExperienceMutation.isPending) && (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              )}
+              {editingExperienceId ? 'Update Experience' : 'Add Experience'}
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

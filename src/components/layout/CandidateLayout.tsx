@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useOnClickOutside } from '../../hooks/useOnClickOutside';
 import { WorkspaceSwitcher } from '../workspace/WorkspaceSwitcher';
 import {
   Home, Briefcase, FileText, ClipboardList, Video, MessageSquare,
@@ -72,6 +73,12 @@ const CandidateLayout: React.FC = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const { user, currentWorkspace, logout } = useAuth();
   const location = useLocation();
+
+  const profileRef = useRef<HTMLDivElement>(null);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  useOnClickOutside(profileRef, () => setProfileOpen(false));
+  useOnClickOutside(notifRef, () => setNotifOpen(false));
 
   const isActive = (path: string) =>
     location.pathname === path || location.pathname.startsWith(path + '/');
@@ -205,7 +212,7 @@ const CandidateLayout: React.FC = () => {
 
           <div className="flex items-center gap-2 ml-auto">
             {/* Notifications */}
-            <div className="relative">
+            <div className="relative" ref={notifRef}>
               <button
                 onClick={() => { setNotifOpen(!notifOpen); setProfileOpen(false); }}
                 className="relative p-2 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
@@ -241,7 +248,7 @@ const CandidateLayout: React.FC = () => {
             </div>
 
             {/* Profile */}
-            <div className="relative">
+            <div className="relative" ref={profileRef}>
               <button
                 onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
                 className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"

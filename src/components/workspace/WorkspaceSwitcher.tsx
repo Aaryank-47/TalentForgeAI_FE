@@ -15,6 +15,7 @@ import type { Workspace } from '../../store/slices/workspaceSlice';
 import { authApi } from '../../services/api/auth.api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authKeys, companyKeys } from '../../constants/queryKeys';
+import { Modal } from '../ui/Modal';
 import {
   Building,
   User,
@@ -234,131 +235,124 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
       </div>
 
       {/* Modal: Create Company */}
-      {showCreateCompanyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
-          <div className="w-full max-w-[480px] bg-white rounded-2xl shadow-2xl border border-slate-100 p-6 overflow-hidden">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                  <Building className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 leading-tight">Create Organization</h3>
-                  <p className="text-xs text-slate-500">Set up your company hiring workspace</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowCreateCompanyModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+      <Modal
+        isOpen={showCreateCompanyModal}
+        onClose={() => setShowCreateCompanyModal(false)}
+        maxWidth="max-w-[480px]"
+        title={
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+              <Building className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 leading-tight">Create Organization</h3>
+              <p className="text-xs text-slate-500">Set up your company hiring workspace</p>
+            </div>
+          </div>
+        }
+      >
+        <form onSubmit={handleCreateCompanySubmit} className="space-y-3.5">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Company Name *</label>
+            <input
+              type="text"
+              required
+              value={companyForm.companyName}
+              onChange={(e) => setCompanyForm({ ...companyForm, companyName: e.target.value })}
+              placeholder="e.g. Acme Technologies"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Industry</label>
+              <select
+                value={companyForm.industry}
+                onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
               >
-                <X className="w-5 h-5" />
-              </button>
+                {industries.length > 0 ? (
+                  industries.map((ind) => (
+                    <option key={ind} value={ind}>{ind}</option>
+                  ))
+                ) : (
+                  <option value="Technology & SaaS">Technology & SaaS</option>
+                )}
+              </select>
             </div>
 
-            <form onSubmit={handleCreateCompanySubmit} className="space-y-3.5 pt-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Company Name *</label>
-                <input
-                  type="text"
-                  required
-                  value={companyForm.companyName}
-                  onChange={(e) => setCompanyForm({ ...companyForm, companyName: e.target.value })}
-                  placeholder="e.g. Acme Technologies"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Industry</label>
-                  <select
-                    value={companyForm.industry}
-                    onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    {industries.length > 0 ? (
-                      industries.map((ind) => (
-                        <option key={ind} value={ind}>{ind}</option>
-                      ))
-                    ) : (
-                      <option value="Technology & SaaS">Technology & SaaS</option>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Company Size</label>
-                  <select
-                    value={companyForm.companySize}
-                    onChange={(e) => setCompanyForm({ ...companyForm, companySize: e.target.value })}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    {companySizes.length > 0 ? (
-                      companySizes.map((sz) => (
-                        <option key={sz} value={sz}>{sz}</option>
-                      ))
-                    ) : (
-                      <option value="11-50 employees">11-50 employees</option>
-                    )}
-                  </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Website</label>
-                  <input
-                    type="url"
-                    value={companyForm.website}
-                    onChange={(e) => setCompanyForm({ ...companyForm, website: e.target.value })}
-                    placeholder="https://company.com"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Headquarters</label>
-                  <input
-                    type="text"
-                    value={companyForm.headquarters}
-                    onChange={(e) => setCompanyForm({ ...companyForm, headquarters: e.target.value })}
-                    placeholder="e.g. San Francisco, CA"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Brief Description</label>
-                <textarea
-                  rows={2}
-                  value={companyForm.description}
-                  onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
-                  placeholder="What does your company do?"
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateCompanyModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-60"
-                >
-                  {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Building className="w-3.5 h-3.5" />}
-                  <span>Create Organization</span>
-                </button>
-              </div>
-            </form>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Company Size</label>
+              <select
+                value={companyForm.companySize}
+                onChange={(e) => setCompanyForm({ ...companyForm, companySize: e.target.value })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+              >
+                {companySizes.length > 0 ? (
+                  companySizes.map((sz) => (
+                    <option key={sz} value={sz}>{sz}</option>
+                  ))
+                ) : (
+                  <option value="11-50 employees">11-50 employees</option>
+                )}
+              </select>
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Website</label>
+              <input
+                type="url"
+                value={companyForm.website}
+                onChange={(e) => setCompanyForm({ ...companyForm, website: e.target.value })}
+                placeholder="https://company.com"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">Headquarters</label>
+              <input
+                type="text"
+                value={companyForm.headquarters}
+                onChange={(e) => setCompanyForm({ ...companyForm, headquarters: e.target.value })}
+                placeholder="e.g. San Francisco, CA"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Brief Description</label>
+            <textarea
+              rows={2}
+              value={companyForm.description}
+              onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
+              placeholder="What does your company do?"
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowCreateCompanyModal(false)}
+              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors shadow-sm disabled:opacity-60"
+            >
+              {isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Building className="w-3.5 h-3.5" />}
+              <span>Create Organization</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
     </>
   );
 };
