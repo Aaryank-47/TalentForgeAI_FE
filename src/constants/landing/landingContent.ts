@@ -14,7 +14,7 @@ export const navbarContent = {
   mobileNavItems: ['For Recruiters', 'For Candidates', 'Pricing', 'About'],
   ctaLoginLabel: 'Log in',
   ctaRegisterLabel: 'Get Started Free',
-  ctaRegisterPath: '/signup-role',
+  ctaRegisterPath: '/register',
   ctaLoginPath: '/login',
 };
 

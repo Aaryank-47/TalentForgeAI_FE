@@ -16,6 +16,7 @@ import {
 import { candidateKeys, authKeys } from '../../constants/queryKeys';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../../components/ui/Modal';
+import { ResumeSection } from '../../components/candidate/ResumeSection';
 import toast from 'react-hot-toast';
 
 const ProfileRing = ({ pct }: { pct: number }) => {
@@ -464,6 +465,9 @@ const CandidateProfilePage = () => {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column */}
         <div className="lg:col-span-2 space-y-5">
+          {/* Resume & Auto-Enrichment Flow (POST /resume/upload & BullMQ worker) */}
+          <ResumeSection />
+
           {/* Skills (GET /candidates/skills & POST /skills) */}
           <div className="card p-5">
             <div className="flex items-center justify-between mb-4">

@@ -60,6 +60,15 @@ export interface CandidateExperience {
   currentlyWorking: boolean;
 }
 
+export interface ResumeProcessingState {
+  resumeId: string;
+  status: 'PROCESSING' | 'COMPLETED' | 'FAILED' | 'QUEUED';
+  stage: 'QUEUED' | 'FETCHING_FILE' | 'EXTRACTION' | 'AI_PARSING' | 'NORMALIZATION' | 'PERSISTENCE' | 'COMPLETED' | 'FAILED';
+  progress: number;
+  message: string;
+  updatedAt: string;
+}
+
 export interface CandidateResume {
   id: string;
   resumeName: string;
@@ -67,6 +76,10 @@ export interface CandidateResume {
   fileSize: number;
   uploadedAt: string;
   parsingStatus: string;
+  parsingError?: string | null;
+  parsingStartedAt?: string | null;
+  parsingCompletedAt?: string | null;
+  processing?: ResumeProcessingState | null;
 }
 
 export interface CandidateProfile {
@@ -228,6 +241,36 @@ export const candidateApi = {
   deleteExperience: (experienceId: string) =>
     api.delete<null>(`/candidate/experiences/${experienceId}`),
 
+  // ── Resumes ──────────────────────────────────────────────────
+  /** Upload a resume file (POST /resume/upload) */
+  uploadResume: (file: File) => {
+    const formData = new FormData();
+    formData.append('resume', file);
+    return api.post<{ resumeId: string; jobId: string; status: string }>('/resume/upload', formData, {
+      isFormData: true,
+    });
+  },
+
+  /** Get all resumes belonging to current candidate (GET /resume/my) */
+  getResumes: () =>
+    api.get<CandidateResume[]>('/resume/my'),
+
+  /** Get single resume details by ID (GET /resume/:resumeId) */
+  getResumeById: (resumeId: string) =>
+    api.get<CandidateResume>(`/resume/${resumeId}`),
+
+  /** Retry background parsing for a failed/stuck resume (POST /resume/:resumeId/retry) */
+  retryResumeProcessing: (resumeId: string) =>
+    api.post<{ resumeId: string; jobId: string; status: string }>(`/resume/${resumeId}/retry`),
+
+  /** Delete a single resume by ID (DELETE /resume/:resumeId) */
+  deleteResume: (resumeId: string) =>
+    api.delete<{ message: string }>(`/resume/${resumeId}`),
+
+  /** Delete multiple resumes (DELETE /resume) */
+  deleteResumes: (resumeIds: string[]) =>
+    api.delete<{ message: string }>('/resume', { body: { resumeIds } }),
+
   // ── Preferences ──────────────────────────────────────────────
   /** Toggle Open To Work status */
   toggleOpenToWork: (isOpenToWork: boolean) =>
@@ -241,4 +284,5 @@ export const candidateApi = {
   updateLocationPreferences: (data: { preferredLocation?: string; currentLocation?: string }) =>
     api.patch<CandidateProfile>('/candidate/location-preferences', data),
 };
+
 
