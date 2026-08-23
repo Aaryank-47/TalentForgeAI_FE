@@ -27,8 +27,8 @@ export const heroContent = {
   headline3: 'Sides',
   subheadline:
     'TalentForge unifies your entire recruitment workflow — ATS, AI screening, interviews, assessments, and analytics — so recruiters move faster and candidates get a better experience.',
-  primaryCTA: { label: "I'm a Recruiter", href: '/register?role=recruiter' },
-  secondaryCTA: { label: "I'm a Job Seeker", href: '/register?role=candidate' },
+  primaryCTA: { label: "Get Started", href: '/register' },
+  secondaryCTA: { label: "Login", href: '/login' },
   metrics: [
     { value: '3.5×', label: 'Faster time-to-hire' },
     { value: '92%', label: 'Candidate satisfaction' },
