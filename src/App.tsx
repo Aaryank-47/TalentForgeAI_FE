@@ -83,6 +83,7 @@ import LiveMachineCodingPage from './pages/candidate/LiveMachineCodingPage';
 // ─── Auth Pages (missing auth flows) ─────────────────────────
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
+import AcceptInvitationPage from './pages/auth/AcceptInvitationPage';
 
 function App() {
   return (
@@ -92,6 +93,7 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/signup-role" element={<SignupRolePage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
 
         {/* ─── Auth Routes (redirect authenticated users to their portal) ─── */}
         <Route element={<PublicRoute />}>

@@ -3,14 +3,21 @@ import { useLocation } from 'react-router-dom';
 import {
   Building, Users, GitBranch, Mail, CreditCard, Plus, MoreHorizontal,
   Upload, Trash2, GripVertical, CheckCircle, X, Edit2, Crown,
-  ChevronDown, Loader2,
+  ChevronDown, Loader2, ShieldCheck, AlertCircle, Image as ImageIcon,
+  Ban, RefreshCw,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '../../context/AuthContext';
-import { companyApi, type UpdateCompanyDto } from '../../services/api/company.api';
+import { 
+  companyApi, 
+  type UpdateCompanyDto,
+  type CompanyMemberRole,
+  type CompanyMemberItem 
+} from '../../services/api/company.api';
 import { companyKeys, authKeys } from '../../constants/queryKeys';
+import { Modal } from '../../components/ui/Modal';
 
 import {
   settingsTabs as tabs,
@@ -30,7 +37,6 @@ const SettingsPage = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user, currentWorkspace, availableWorkspaces } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Determine active company ID
   const companyId =
@@ -169,6 +175,120 @@ const SettingsPage = () => {
     },
   });
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  // Invite Member Modal State
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteForm, setInviteForm] = useState<{ inviteeEmail: string; role: CompanyMemberRole }>({
+    inviteeEmail: '',
+    role: 'RECRUITER',
+  });
+
+  // Team Members Query (GET /companies/members/:companyId)
+  const {
+    data: membersData,
+    isLoading: isLoadingMembers,
+  } = useQuery({
+    queryKey: companyKeys.members(companyId),
+    queryFn: () => companyApi.listCompanyMembers(companyId),
+    enabled: !!companyId,
+  });
+
+  // Cover Image Upload Mutation (PATCH /companies/:companyId/cover)
+  const uploadCoverMutation = useMutation({
+    mutationFn: (file: File) => companyApi.uploadCover(companyId, file),
+    onSuccess: () => {
+      toast.success('Cover banner uploaded successfully');
+      queryClient.invalidateQueries({ queryKey: companyKeys.detail(companyId) });
+      queryClient.invalidateQueries({ queryKey: companyKeys.my });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to upload cover banner');
+    },
+  });
+
+  // Send Invitation Mutation (POST /companies/:companyId/invite)
+  const inviteMemberMutation = useMutation({
+    mutationFn: (data: { inviteeEmail: string; role: CompanyMemberRole }) =>
+      companyApi.sendInvitation(companyId, {
+        inviterId: user?.id || '',
+        inviteeEmail: data.inviteeEmail,
+        role: data.role,
+      }),
+    onSuccess: () => {
+      toast.success('Invitation sent successfully!');
+      setShowInviteModal(false);
+      setInviteForm({ inviteeEmail: '', role: 'RECRUITER' });
+      queryClient.invalidateQueries({ queryKey: companyKeys.members(companyId) });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to send invitation');
+    },
+  });
+
+  // Update Member Role Mutation (PATCH /companies/:companyId/members/:userId/role)
+  const updateMemberRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: CompanyMemberRole }) =>
+      companyApi.updateCompanyMemberRole(companyId, userId, role),
+    onSuccess: () => {
+      toast.success('Member role updated successfully');
+      queryClient.invalidateQueries({ queryKey: companyKeys.members(companyId) });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to update member role');
+    },
+  });
+
+  // Remove Member Mutation (DELETE /companies/:companyId/remove/members)
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: string) => companyApi.removeCompanyMembers(companyId, [userId]),
+    onSuccess: () => {
+      toast.success('Member removed successfully');
+      queryClient.invalidateQueries({ queryKey: companyKeys.members(companyId) });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to remove member');
+    },
+  });
+
+  // Cancel Invitation Mutation (DELETE /companies/invitations/:invitationId/cancel)
+  const cancelInvitationMutation = useMutation({
+    mutationFn: (invitationId: string) => companyApi.cancelInvitation(invitationId),
+    onSuccess: () => {
+      toast.success('Invitation cancelled successfully');
+      queryClient.invalidateQueries({ queryKey: companyKeys.members(companyId) });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to cancel invitation');
+    },
+  });
+
+  // Resend Invitation Mutation (POST /companies/invitations/:invitationId/resend)
+  const resendInvitationMutation = useMutation({
+    mutationFn: (invitationId: string) => companyApi.resendInvitation(invitationId),
+    onSuccess: () => {
+      toast.success('Invitation resent successfully');
+      queryClient.invalidateQueries({ queryKey: companyKeys.members(companyId) });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to resend invitation');
+    },
+  });
+
+  // Admin Verify Company Mutation (PATCH /companies/admin/companies/:companyId/verify)
+  const verifyCompanyMutation = useMutation({
+    mutationFn: () => companyApi.verifyCompany(companyId),
+    onSuccess: () => {
+      toast.success('Company verified successfully');
+      queryClient.invalidateQueries({ queryKey: companyKeys.detail(companyId) });
+      queryClient.invalidateQueries({ queryKey: companyKeys.my });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to verify company');
+    },
+  });
+
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -179,6 +299,18 @@ const SettingsPage = () => {
     }
 
     uploadLogoMutation.mutate(file);
+  };
+
+  const handleCoverFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Cover image must be smaller than 5MB');
+      return;
+    }
+
+    uploadCoverMutation.mutate(file);
   };
 
   // Restore original database values on Cancel
@@ -323,50 +455,141 @@ const SettingsPage = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSave} className="space-y-6">
-                  {/* Logo / Avatar Section */}
-                  <div className="flex items-center gap-5">
-                    <div className="relative group">
-                      {currentLogo ? (
-                        <img
-                          src={currentLogo}
-                          alt={formData.companyName || 'Company Logo'}
-                          className="w-20 h-20 rounded-2xl object-cover border-4 border-white shadow-lg"
-                        />
-                      ) : (
-                        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-2xl font-bold border-4 border-white shadow-lg">
-                          {companyInitials}
+                  {/* Verification Status & Admin Verify */}
+                  <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50/80 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                        companyDetails?.isVerified ? 'bg-emerald-100 text-emerald-600' : 'bg-amber-100 text-amber-600'
+                      }`}>
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-bold text-slate-900">
+                            {companyDetails?.isVerified ? 'Verified Company Profile' : 'Unverified Company'}
+                          </p>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                            companyDetails?.isVerified 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }`}>
+                            {companyDetails?.isVerified ? 'VERIFIED' : 'PENDING'}
+                          </span>
                         </div>
-                      )}
-
-                      {uploadLogoMutation.isPending && (
-                        <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
-                          <Loader2 className="w-6 h-6 text-white animate-spin" />
-                        </div>
-                      )}
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {companyDetails?.isVerified 
+                            ? 'Your organization is officially verified on the TalentForge network.' 
+                            : 'Complete your profile details to receive verified employer status.'}
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        onChange={handleLogoFileChange}
-                        accept="image/png,image/jpeg,image/jpg,image/webp"
-                        className="hidden"
-                      />
+                    {user?.role === 'SUPER_ADMIN' && !companyDetails?.isVerified && (
                       <button
                         type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploadLogoMutation.isPending}
-                        className="btn-secondary text-sm flex items-center gap-2 hover:bg-slate-50 disabled:opacity-60"
+                        onClick={() => verifyCompanyMutation.mutate()}
+                        disabled={verifyCompanyMutation.isPending}
+                        className="btn-primary text-xs flex items-center gap-1.5 px-3 py-1.5"
                       >
-                        {uploadLogoMutation.isPending ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
-                        ) : (
-                          <Upload className="w-4 h-4 text-slate-600" />
-                        )}
-                        Upload Logo
+                        {verifyCompanyMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                        <ShieldCheck className="w-3.5 h-3.5" />
+                        Verify as Admin
                       </button>
-                      <p className="text-xs text-slate-400 mt-1.5">PNG, JPG up to 2MB. Recommended 200×200px.</p>
+                    )}
+                  </div>
+
+                  {/* Logo & Cover Banner Upload Section */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {/* Logo Section */}
+                    <div className="p-4 rounded-2xl border border-slate-100 bg-white flex items-center gap-4">
+                      <div className="relative group flex-shrink-0">
+                        {currentLogo ? (
+                          <img
+                            src={currentLogo}
+                            alt={formData.companyName || 'Company Logo'}
+                            className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-sm"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-xl font-bold border border-slate-200 shadow-sm">
+                            {companyInitials}
+                          </div>
+                        )}
+
+                        {uploadLogoMutation.isPending && (
+                          <div className="absolute inset-0 bg-black/40 rounded-2xl flex items-center justify-center">
+                            <Loader2 className="w-5 h-5 text-white animate-spin" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          onChange={handleLogoFileChange}
+                          accept="image/png,image/jpeg,image/jpg,image/webp"
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadLogoMutation.isPending}
+                          className="btn-secondary text-xs flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          {uploadLogoMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-600" />
+                          ) : (
+                            <Upload className="w-3.5 h-3.5 text-slate-600" />
+                          )}
+                          Upload Logo
+                        </button>
+                        <p className="text-[11px] text-slate-400 mt-1">PNG, JPG up to 2MB (200×200px)</p>
+                      </div>
+                    </div>
+
+                    {/* Cover Banner Section */}
+                    <div className="p-4 rounded-2xl border border-slate-100 bg-white flex items-center gap-4">
+                      <div className="relative group w-24 h-16 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 flex items-center justify-center">
+                        {companyDetails?.coverImage ? (
+                          <img
+                            src={companyDetails.coverImage}
+                            alt="Cover Banner"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="w-6 h-6 text-slate-300" />
+                        )}
+
+                        {uploadCoverMutation.isPending && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <Loader2 className="w-5 h-5 text-white animate-spin" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <input
+                          type="file"
+                          ref={coverInputRef}
+                          onChange={handleCoverFileChange}
+                          accept="image/png,image/jpeg,image/jpg,image/webp"
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => coverInputRef.current?.click()}
+                          disabled={uploadCoverMutation.isPending}
+                          className="btn-secondary text-xs flex items-center gap-1.5 px-3 py-1.5 hover:bg-slate-50 disabled:opacity-60"
+                        >
+                          {uploadCoverMutation.isPending ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-600" />
+                          ) : (
+                            <Upload className="w-3.5 h-3.5 text-slate-600" />
+                          )}
+                          Upload Cover Banner
+                        </button>
+                        <p className="text-[11px] text-slate-400 mt-1">PNG, JPG up to 5MB (1200×400px)</p>
+                      </div>
                     </div>
                   </div>
 
@@ -546,68 +769,166 @@ const SettingsPage = () => {
               <div className="px-6 py-4 border-b border-[#E5E7EB] flex items-center justify-between">
                 <div>
                   <h2 className="text-base font-display font-bold text-[#0F172A]">Team Members</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">{teamMembers.length} members in your workspace</p>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {membersData?.length || 0} active members & recruiters in your workspace
+                  </p>
                 </div>
-                <button className="btn-primary text-sm flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(true)}
+                  className="btn-primary text-sm flex items-center gap-2"
+                >
                   <Plus className="w-4 h-4" />
                   Invite Member
                 </button>
               </div>
-              <table className="w-full">
-                <thead className="bg-slate-50">
-                  <tr>
-                    {['Member', 'Role', 'Permissions', 'Status', 'Actions'].map(h => (
-                      <th key={h} className="px-5 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E5E7EB]">
-                  {teamMembers.map(m => (
-                    <tr key={m.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-full bg-gradient-to-br ${m.color} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
-                            {m.initials}
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <p className="text-sm font-semibold text-slate-900">{m.name}</p>
-                              {m.you && <span className="text-[9px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded-full font-medium">You</span>}
-                            </div>
-                            <p className="text-xs text-slate-500">{m.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="relative">
-                          <select className={`appearance-none text-[10px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none ${roleStyle(m.role)}`} defaultValue={m.role}>
-                            {['Admin', 'Recruiter', 'Hiring Manager', 'HR'].map(r => <option key={r}>{r}</option>)}
-                          </select>
-                        </div>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className="text-xs text-slate-500">{m.role === 'Admin' ? 'Full Access' : m.role === 'Recruiter' ? 'Post & Review' : 'View & Comment'}</span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${
-                          m.status === 'Active' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>{m.status}</span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1">
-                          {!m.you && (
-                            <>
-                              <button className="p-1.5 rounded text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"><Edit2 className="w-3.5 h-3.5" /></button>
-                              <button className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
-                            </>
-                          )}
-                          <button className="p-1.5 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"><MoreHorizontal className="w-3.5 h-3.5" /></button>
-                        </div>
-                      </td>
+
+              {isLoadingMembers ? (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400 gap-3">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+                  <p className="text-sm">Loading team members...</p>
+                </div>
+              ) : !membersData?.length ? (
+                <div className="p-12 text-center text-slate-500">
+                  <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm font-semibold text-slate-700">No team members found</p>
+                  <p className="text-xs text-slate-400 mt-1">Invite recruiters and interviewers to collaborate.</p>
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead className="bg-slate-50">
+                    <tr>
+                      {['Member', 'Role', 'Status', 'Joined Date', 'Actions'].map(h => (
+                        <th key={h} className="px-5 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{h}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-[#E5E7EB]">
+                    {membersData.map((m: CompanyMemberItem) => {
+                      const memberName = m.user.employer?.fullName || m.user.candidate?.fullName || m.user.email.split('@')[0];
+                      const isCurrentUser = m.userId === user?.id;
+                      const initials = memberName.substring(0, 2).toUpperCase();
+
+                      return (
+                        <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                {initials}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-semibold text-slate-900">{memberName}</p>
+                                  {isCurrentUser && (
+                                    <span className="text-[9px] bg-primary-100 text-primary-700 px-1.5 py-0.5 rounded-full font-medium">You</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-500">{m.user.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-5 py-4">
+                            <select
+                              value={m.role}
+                              disabled={isCurrentUser || updateMemberRoleMutation.isPending}
+                              onChange={e => updateMemberRoleMutation.mutate({ userId: m.userId, role: e.target.value as CompanyMemberRole })}
+                              className={`text-[11px] font-bold px-2.5 py-1 rounded-full border cursor-pointer focus:outline-none bg-white ${
+                                m.role === 'OWNER' ? 'bg-purple-50 text-purple-700 border-purple-200' :
+                                m.role === 'ADMIN' ? 'bg-red-50 text-red-700 border-red-200' :
+                                m.role === 'RECRUITER' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                'bg-slate-100 text-slate-600 border-slate-200'
+                              } disabled:opacity-75 disabled:cursor-not-allowed`}
+                            >
+                              <option value="OWNER">Owner</option>
+                              <option value="ADMIN">Admin</option>
+                              <option value="RECRUITER">Recruiter</option>
+                              <option value="HIRING_MANAGER">Hiring Manager</option>
+                            </select>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              m.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                              m.status === 'INVITED' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                              m.status === 'CANCELLED' ? 'bg-rose-50 text-rose-700 border-rose-200' :
+                              'bg-slate-100 text-slate-600 border-slate-200'
+                            }`}>
+                              {m.status}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <span className="text-xs text-slate-500">
+                              {m.joinedAt ? new Date(m.joinedAt).toLocaleDateString() : (
+                                m.status === 'CANCELLED' ? 'Cancelled Invitation' : 'Pending Invitation'
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-1">
+                              {/* Cancel / Resend actions for pending invitations */}
+                              {m.status === 'INVITED' && !isCurrentUser && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (window.confirm(`Are you sure you want to cancel the invitation for ${memberName}?`)) {
+                                        cancelInvitationMutation.mutate(m.id);
+                                      }
+                                    }}
+                                    disabled={cancelInvitationMutation.isPending}
+                                    className="p-1.5 rounded text-amber-600 hover:text-amber-700 hover:bg-amber-50 transition-colors"
+                                    title="Cancel invitation"
+                                  >
+                                    <Ban className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => resendInvitationMutation.mutate(m.id)}
+                                    disabled={resendInvitationMutation.isPending}
+                                    className="p-1.5 rounded text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+                                    title="Resend invitation"
+                                  >
+                                    <RefreshCw className={`w-4 h-4 ${resendInvitationMutation.isPending ? 'animate-spin' : ''}`} />
+                                  </button>
+                                </>
+                              )}
+
+                              {/* Resend for cancelled invitations */}
+                              {m.status === 'CANCELLED' && !isCurrentUser && (
+                                <button
+                                  type="button"
+                                  onClick={() => resendInvitationMutation.mutate(m.id)}
+                                  disabled={resendInvitationMutation.isPending}
+                                  className="p-1.5 rounded text-primary-600 hover:text-primary-700 hover:bg-primary-50 transition-colors"
+                                  title="Re-invite (Resend invitation)"
+                                >
+                                  <RefreshCw className={`w-4 h-4 ${resendInvitationMutation.isPending ? 'animate-spin' : ''}`} />
+                                </button>
+                              )}
+
+                              {/* Remove member action */}
+                              {!isCurrentUser && m.role !== 'OWNER' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (window.confirm(`Are you sure you want to remove ${memberName} from the organization?`)) {
+                                      removeMemberMutation.mutate(m.userId);
+                                    }
+                                  }}
+                                  disabled={removeMemberMutation.isPending}
+                                  className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                  title="Remove member"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
 
@@ -798,6 +1119,74 @@ const SettingsPage = () => {
           )}
         </div>
       </div>
+
+      {/* Modal: Invite Team Member (POST /companies/:companyId/invite) */}
+      <Modal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        title="Invite Team Member"
+        subtitle="Send an invitation email to collaborate on your hiring pipeline."
+        maxWidth="max-w-md"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!inviteForm.inviteeEmail.trim()) {
+              toast.error('Email address is required.');
+              return;
+            }
+            inviteMemberMutation.mutate(inviteForm);
+          }}
+          className="space-y-4"
+        >
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Colleague's Email Address *
+            </label>
+            <input
+              type="email"
+              required
+              placeholder="colleague@company.com"
+              value={inviteForm.inviteeEmail}
+              onChange={(e) => setInviteForm({ ...inviteForm, inviteeEmail: e.target.value })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Role & Permissions *
+            </label>
+            <select
+              value={inviteForm.role}
+              onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as CompanyMemberRole })}
+              className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white"
+            >
+              <option value="RECRUITER">Recruiter (Can create jobs, evaluate applicants)</option>
+              <option value="ADMIN">Admin (Full access to company settings & team)</option>
+              <option value="HIRING_MANAGER">Hiring Manager (Review candidates, manage interview stages)</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => setShowInviteModal(false)}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={inviteMemberMutation.isPending}
+              className="px-5 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+            >
+              {inviteMemberMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Send Invitation
+            </button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

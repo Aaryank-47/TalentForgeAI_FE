@@ -9,6 +9,8 @@ export const companyKeys = {
   my: ['companies', 'my'] as const,
   detail: (id: string) => ['companies', 'detail', id] as const,
   search: (params?: Record<string, any>) => ['companies', 'search', params] as const,
+  members: (companyId: string) => ['companies', 'members', companyId] as const,
+  invitation: (token: string) => ['companies', 'invitation', token] as const,
 };
 
 export const candidateKeys = {
