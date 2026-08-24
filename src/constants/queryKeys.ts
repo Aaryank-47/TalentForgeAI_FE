@@ -23,3 +23,16 @@ export const candidateKeys = {
   experiences: ['candidate', 'experiences'] as const,
 };
 
+export const workflowKeys = {
+  all: ['workflows'] as const,
+  list: (companyId: string, status?: string) => ['workflows', companyId, status] as const,
+  detail: (companyId: string, workflowId: string) => ['workflows', companyId, 'detail', workflowId] as const,
+};
+
+export const stageLibraryKeys = {
+  all: ['stage-library'] as const,
+  list: (companyId: string) => ['stage-library', companyId] as const,
+};
+
+
+
