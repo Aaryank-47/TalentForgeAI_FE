@@ -1,6 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, ArrowRight, Save, Send, ClipboardList, Calendar, Info } from 'lucide-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
+import { assessmentApi } from '../../services/api/assessment.api';
+import { assessmentKeys } from '../../constants/queryKeys';
+import { ArrowLeft, ArrowRight, Save, Send, ClipboardList, Calendar, Info, Loader2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 import AssessmentTypeSelector from '../../components/assessment/AssessmentTypeSelector';
 import AssessmentBuilderStepper from '../../components/assessment/AssessmentBuilderStepper';
@@ -60,15 +65,14 @@ const TYPE_LABELS: Record<AssessmentType, string> = {
   mixed: 'MCQ + DSA Assessment',
   live_machine_coding: 'Live Machine Coding',
   project: 'Coding Task / Project',
-  coding: 'Coding Assessment',
-  descriptive: 'Descriptive Exam',
-  logical_reasoning: 'Logical Reasoning',
-  behavioral: 'Behavioral Test',
-  case_study: 'Case Study',
 };
 
 const CreateAssessmentPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
+
   const [currentStep, setCurrentStep] = useState(1);
 
   // Step 1 - Basic Details
@@ -94,6 +98,73 @@ const CreateAssessmentPage: React.FC = () => {
 
   const [published, setPublished] = useState(false);
 
+  // Create Assessment Mutation
+  const createAssessmentMutation = useMutation({
+    mutationFn: async (shouldPublish: boolean) => {
+      if (!companyId) throw new Error('Company ID is missing');
+
+      // Map frontend type to backend SectionType
+      let sectionType: 'MCQ' | 'DSA' | 'MIXED' | 'MACHINE_CODING' | 'PROJECT' = 'MCQ';
+      if (selectedType === 'dsa') sectionType = 'DSA';
+      else if (selectedType === 'mixed') sectionType = 'MIXED';
+      else if (selectedType === 'live_machine_coding') sectionType = 'MACHINE_CODING';
+      else if (selectedType === 'project') sectionType = 'PROJECT';
+
+      // 1. Create Base Assessment
+      const assessment = await assessmentApi.createAssessment({
+        companyId,
+        title: name.trim(),
+        description: description.trim() || undefined,
+        instructions: instructions.trim() || undefined,
+        durationMinutes: duration || 60,
+        passingScore: passingScore || 70,
+        totalMarks: settings.totalMarks || 100,
+        isTemplate: false,
+      });
+
+      // 2. Create Section
+      const section = await assessmentApi.createAssessmentSection(assessment.id, {
+        title: `${name.trim()} - Main Section`,
+        description: description.trim() || undefined,
+        sectionType: sectionType,
+        durationMinutes: duration || 60,
+      });
+
+      // 3. Attach selected question IDs if any
+      const selectedQIds =
+        sectionType === 'MCQ'
+          ? mcqConfig.selectedQuestionIds
+          : sectionType === 'DSA'
+          ? dsaConfig.selectedProblemIds
+          : [];
+
+      if (selectedQIds && selectedQIds.length > 0) {
+        await assessmentApi.addQuestionsToSection(assessment.id, section.id, selectedQIds);
+      }
+
+      // 4. Publish if requested
+      if (shouldPublish) {
+        await assessmentApi.publishAssessment(assessment.id);
+      }
+
+      return assessment;
+    },
+    onSuccess: (data, shouldPublish) => {
+      queryClient.invalidateQueries({ queryKey: assessmentKeys.all });
+      if (shouldPublish) {
+        setPublished(true);
+        toast.success('Assessment created & published successfully!');
+        setTimeout(() => navigate('/recruiter/assessments'), 1800);
+      } else {
+        toast.success('Assessment saved as draft!');
+        navigate('/recruiter/assessments');
+      }
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to create assessment');
+    },
+  });
+
   const canProceed = () => {
     if (currentStep === 1) return name.trim() !== '' && selectedType !== null;
     if (currentStep === 2) return true;
@@ -102,8 +173,11 @@ const CreateAssessmentPage: React.FC = () => {
   };
 
   const handlePublish = () => {
-    setPublished(true);
-    setTimeout(() => navigate('/recruiter/assessments'), 2000);
+    createAssessmentMutation.mutate(true);
+  };
+
+  const handleSaveDraft = () => {
+    createAssessmentMutation.mutate(false);
   };
 
   return (
@@ -323,17 +397,29 @@ const CreateAssessmentPage: React.FC = () => {
 
             <div className="flex gap-3">
               <button
-                onClick={() => { /* save as draft */ navigate('/recruiter/assessments'); }}
-                className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-700 font-medium text-sm rounded-xl hover:bg-slate-50 transition-colors"
+                type="button"
+                onClick={handleSaveDraft}
+                disabled={createAssessmentMutation.isPending}
+                className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-700 font-medium text-sm rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
               >
-                <Save className="w-4 h-4" />
+                {createAssessmentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4" />
+                )}
                 Save as Draft
               </button>
               <button
+                type="button"
                 onClick={handlePublish}
-                className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white font-semibold text-sm rounded-xl hover:bg-primary-700 transition-colors shadow-sm"
+                disabled={createAssessmentMutation.isPending}
+                className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white font-semibold text-sm rounded-xl hover:bg-primary-700 transition-colors shadow-xs cursor-pointer"
               >
-                <Send className="w-4 h-4" />
+                {createAssessmentMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
                 Publish Assessment
               </button>
             </div>

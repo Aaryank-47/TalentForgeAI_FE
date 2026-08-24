@@ -35,4 +35,22 @@ export const stageLibraryKeys = {
 };
 
 
+export const questionKeys = {
+  all: ['questions'] as const,
+  list: (params?: Record<string, any>) => ['questions', 'list', params] as const,
+  detail: (id: string) => ['questions', 'detail', id] as const,
+  categories: ['questions', 'categories'] as const,
+  tags: ['questions', 'tags'] as const,
+  languages: ['questions', 'languages'] as const,
+};
+
+export const assessmentKeys = {
+  all: ['assessments'] as const,
+  list: (params?: Record<string, any>) => ['assessments', 'list', params] as const,
+  detail: (id: string) => ['assessments', 'detail', id] as const,
+};
+
+
+
+
 

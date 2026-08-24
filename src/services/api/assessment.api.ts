@@ -57,36 +57,140 @@ export interface SubmitProjectDto {
   };
 }
 
+export interface AssessmentSection {
+  id: string;
+  assessmentId: string;
+  title: string;
+  description?: string | null;
+  instructions?: string | null;
+  sectionType: string;
+  durationMinutes?: number | null;
+  displayOrder: number;
+  items?: any[];
+}
+
+export interface AssessmentView {
+  id: string;
+  companyId: string;
+  title: string;
+  description?: string | null;
+  instructions?: string | null;
+  durationMinutes: number;
+  passingScore: number;
+  totalMarks: number;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  isTemplate: boolean;
+  createdAt: string;
+  updatedAt: string;
+  sections?: AssessmentSection[];
+  _count?: {
+    attempts: number;
+    invitations: number;
+  };
+}
+
+export interface CreateAssessmentPayload {
+  companyId: string;
+  title: string;
+  description?: string;
+  instructions?: string;
+  durationMinutes: number;
+  passingScore: number;
+  totalMarks: number;
+  isTemplate?: boolean;
+}
+
+export interface CreateAssessmentSectionPayload {
+  title: string;
+  description?: string;
+  instructions?: string;
+  sectionType: 'MCQ' | 'DSA' | 'MIXED' | 'MACHINE_CODING' | 'PROJECT';
+  durationMinutes?: number;
+}
+
 // ─── Assessment API ───────────────────────────────────────────────────────────
 
 export const assessmentApi = {
   // ── Recruiter: Manage Assessments ──────────────────────────────────────────
 
-  /** List all assessments for the company */
-  listAssessments: (params?: { status?: string; type?: string }) => {
-    const query = params ? '?' + new URLSearchParams(params as Record<string, string>).toString() : '';
-    return api.get<{ assessments: Assessment[] }>(`/assessments${query}`);
+  /** List all assessments with filters */
+  listAssessments: async (params?: { search?: string; status?: string; companyId?: string }): Promise<{ assessments: AssessmentView[]; total: number }> => {
+    const searchParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, val]) => {
+        if (val !== undefined && val !== null && val !== '') {
+          searchParams.append(key, String(val));
+        }
+      });
+    }
+    const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+    const res = await api.get<{ success: boolean; data: { assessments: AssessmentView[]; total: number } | AssessmentView[] }>(`/assessments${query}`);
+    if (Array.isArray(res)) {
+      return { assessments: res, total: res.length };
+    }
+    if (res && Array.isArray((res as any).data)) {
+      return { assessments: (res as any).data, total: (res as any).data.length };
+    }
+    if (res && (res as any).data?.assessments) {
+      return (res as any).data;
+    }
+    return { assessments: (res as any)?.assessments || [], total: (res as any)?.total || 0 };
   },
 
   /** Get a single assessment by ID */
-  getAssessment: (id: string) =>
-    api.get<{ assessment: Assessment }>(`/assessments/${id}`),
+  getAssessment: async (assessmentId: string): Promise<AssessmentView> => {
+    const res = await api.get<{ success: boolean; data: AssessmentView }>(`/assessments/${assessmentId}`);
+    return (res as any).data || res;
+  },
 
   /** Create a new assessment */
-  createAssessment: (data: Partial<Assessment>) =>
-    api.post<{ assessment: Assessment }>('/assessments', data),
+  createAssessment: async (data: CreateAssessmentPayload): Promise<AssessmentView> => {
+    const res = await api.post<{ success: boolean; data: AssessmentView }>('/assessments', data);
+    return (res as any).data || res;
+  },
 
   /** Update an assessment */
-  updateAssessment: (id: string, data: Partial<Assessment>) =>
-    api.put<{ assessment: Assessment }>(`/assessments/${id}`, data),
+  updateAssessment: async (assessmentId: string, data: Partial<CreateAssessmentPayload>): Promise<AssessmentView> => {
+    const res = await api.patch<{ success: boolean; data: AssessmentView }>(`/assessments/${assessmentId}`, data);
+    return (res as any).data || res;
+  },
 
-  /** Delete / archive an assessment */
-  deleteAssessment: (id: string) =>
-    api.delete(`/assessments/${id}`),
+  /** Delete an assessment */
+  deleteAssessment: async (assessmentId: string): Promise<void> => {
+    await api.delete(`/assessments/${assessmentId}`);
+  },
 
-  /** Publish an assessment (changes status from draft to active) */
-  publishAssessment: (id: string) =>
-    api.patch(`/assessments/${id}/publish`),
+  /** Publish an assessment (changes status from DRAFT to PUBLISHED) */
+  publishAssessment: async (assessmentId: string): Promise<AssessmentView> => {
+    const res = await api.patch<{ success: boolean; data: AssessmentView }>(`/assessments/${assessmentId}/publish`);
+    return (res as any).data || res;
+  },
+
+  /** Archive an assessment */
+  archiveAssessment: async (assessmentId: string): Promise<AssessmentView> => {
+    const res = await api.patch<{ success: boolean; data: AssessmentView }>(`/assessments/${assessmentId}/archive`);
+    return (res as any).data || res;
+  },
+
+  /** Duplicate an assessment */
+  duplicateAssessment: async (assessmentId: string): Promise<AssessmentView> => {
+    const res = await api.post<{ success: boolean; data: AssessmentView }>(`/assessments/${assessmentId}/duplicate`);
+    return (res as any).data || res;
+  },
+
+  /** Add section to assessment */
+  createAssessmentSection: async (assessmentId: string, data: CreateAssessmentSectionPayload): Promise<AssessmentSection> => {
+    const res = await api.post<{ success: boolean; data: AssessmentSection }>(`/assessments/${assessmentId}/sections`, data);
+    return (res as any).data || res;
+  },
+
+  /** Add questions to an assessment section */
+  addQuestionsToSection: async (assessmentId: string, sectionId: string, questionIds: string[]): Promise<any> => {
+    const res = await api.post<{ success: boolean; data: any }>(`/assessments/${assessmentId}/sections/${sectionId}/items`, {
+      questionIds,
+    });
+    return (res as any).data || res;
+  },
 
   // ── Candidate: Attempt Flow ────────────────────────────────────────────────
 

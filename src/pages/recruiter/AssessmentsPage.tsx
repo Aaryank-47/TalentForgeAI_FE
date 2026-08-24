@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
+import { assessmentApi, type AssessmentView } from '../../services/api/assessment.api';
+import { assessmentKeys } from '../../constants/queryKeys';
 import {
   Plus, Search, Filter, MoreHorizontal, Eye, Copy, Archive, X,
   ChevronDown, BarChart3, ClipboardList, Activity, TrendingUp,
-  Check, ChevronRight, BookOpen,
+  Check, ChevronRight, BookOpen, Loader2, Trash2,
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 
 import {
-  assessmentsList as assessments,
+  assessmentsList as mockAssessments,
   assessmentScoreDistribution as scoreDistribution,
   assessmentPerformanceTrend as performanceTrend,
   topAssessments,
   assessmentRecentResults as recentResults,
 } from '../../constants/recruiter_mockData';
-
 
 const typeColor = (t: string) => ({
   Technical: 'bg-blue-50 text-blue-700 border-blue-200',
@@ -22,21 +26,76 @@ const typeColor = (t: string) => ({
   MCQ: 'bg-purple-50 text-purple-700 border-purple-200',
   Communication: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Coding: 'bg-rose-50 text-rose-700 border-rose-200',
+  DSA: 'bg-rose-50 text-rose-700 border-rose-200',
+  MIXED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
 })[t] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const statusStyle = (s: string) => ({
   Active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  PUBLISHED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   Draft: 'bg-slate-100 text-slate-600 border-slate-200',
+  DRAFT: 'bg-slate-100 text-slate-600 border-slate-200',
   Archived: 'bg-red-50 text-red-600 border-red-200',
+  ARCHIVED: 'bg-red-50 text-red-600 border-red-200',
 })[s] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const AssessmentsPage = () => {
   const navigate = useNavigate();
-  const [selectedAssessment, setSelectedAssessment] = useState(assessments[0]);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
+
+  const [activeTab, setActiveTab] = useState('All Assessments');
+  const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
   const [detailTab, setDetailTab] = useState('Overview');
   const [search, setSearch] = useState('');
 
-  const filtered = assessments.filter(a => a.name.toLowerCase().includes(search.toLowerCase()));
+  // 1. Fetch Assessments Query
+  const {
+    data: assessmentsData = { assessments: [], total: 0 },
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: assessmentKeys.list({ search: search || undefined, companyId }),
+    queryFn: () => assessmentApi.listAssessments({ search: search || undefined, companyId }),
+    enabled: !!companyId,
+  });
+
+  // 2. Duplicate Mutation
+  const duplicateMutation = useMutation({
+    mutationFn: (id: string) => assessmentApi.duplicateAssessment(id),
+    onSuccess: () => {
+      toast.success('Assessment duplicated successfully!');
+      queryClient.invalidateQueries({ queryKey: assessmentKeys.all });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to duplicate assessment');
+    },
+  });
+
+  // 3. Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => assessmentApi.deleteAssessment(id),
+    onSuccess: () => {
+      toast.success('Assessment deleted!');
+      queryClient.invalidateQueries({ queryKey: assessmentKeys.all });
+      setSelectedAssessmentId(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to delete assessment');
+    },
+  });
+
+  const apiAssessments = assessmentsData.assessments || [];
+  const displayList = apiAssessments.length > 0 ? apiAssessments : [];
+
+  const filtered = displayList.filter(a =>
+    a.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedAssessment =
+    filtered.find(a => a.id === selectedAssessmentId) || filtered[0] || null;
 
 
 
@@ -49,11 +108,14 @@ const AssessmentsPage = () => {
           <p className="text-sm text-[#64748B] mt-0.5">Create, manage and analyze assessments to evaluate candidates.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="btn-secondary text-sm flex items-center gap-2">
+          <button
+            onClick={() => navigate('/recruiter/question-library')}
+            className="btn-secondary text-sm flex items-center gap-2 cursor-pointer"
+          >
             <BookOpen className="w-4 h-4" />
             Question Bank
           </button>
-          <button onClick={() => navigate('/recruiter/assessments/create')} className="btn-primary text-sm flex items-center gap-2">
+          <button onClick={() => navigate('/recruiter/assessments/create')} className="btn-primary text-sm flex items-center gap-2 cursor-pointer">
             <Plus className="w-4 h-4" />
             Create Assessment
           </button>
@@ -121,61 +183,111 @@ const AssessmentsPage = () => {
           </div>
 
           <div className="flex-1 overflow-y-auto overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-slate-50 sticky top-0">
-                <tr>
-                  {['Assessment', 'Type', 'Questions', 'Duration', 'Assigned Job', 'Attempts', 'Avg. Score', 'Status', 'Actions'].map(h => (
-                    <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E7EB]">
-                {filtered.map(a => (
-                  <tr
-                    key={a.id}
-                    onClick={() => setSelectedAssessment(a)}
-                    className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedAssessment.id === a.id ? 'bg-primary-50/30' : ''}`}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`w-8 h-8 ${a.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                          <ClipboardList className="w-4 h-4 text-white" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{a.name}</p>
-                          <p className="text-[10px] text-slate-400">{a.tags.slice(0, 30)}{a.tags.length > 30 ? '...' : ''}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${typeColor(a.type)}`}>{a.type}</span>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-slate-700">{a.questions}</td>
-                    <td className="px-4 py-3 text-sm text-slate-600">{a.duration}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600 max-w-32 truncate">{a.job}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-slate-700">{a.attempts}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 bg-slate-200 rounded-full h-1.5">
-                          <div className="h-1.5 rounded-full bg-primary-600" style={{ width: `${a.avgScore}%` }} />
-                        </div>
-                        <span className="text-xs font-bold text-slate-700">{a.avgScore}%</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${statusStyle(a.status)}`}>{a.status}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <button className="p-1 rounded text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"><Eye className="w-3.5 h-3.5" /></button>
-                        <button className="p-1 rounded text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors"><Copy className="w-3.5 h-3.5" /></button>
-                        <button className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"><MoreHorizontal className="w-3.5 h-3.5" /></button>
-                      </div>
-                    </td>
+            {isLoading ? (
+              <div className="p-12 text-center text-slate-500">
+                <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary-600 mb-3" />
+                <p className="text-sm font-medium">Loading assessments...</p>
+              </div>
+            ) : isError ? (
+              <div className="p-8 text-center text-red-500">
+                <p className="text-sm font-semibold">Failed to load assessments</p>
+                <p className="text-xs text-red-400 mt-1">{(error as any)?.message || 'Check connection'}</p>
+              </div>
+            ) : filtered.length === 0 ? (
+              <div className="p-12 text-center text-slate-500">
+                <ClipboardList className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                <p className="font-semibold text-slate-700">No assessments created yet</p>
+                <p className="text-xs text-slate-400 mt-1">Create your first assessment to start testing candidates.</p>
+                <button
+                  onClick={() => navigate('/recruiter/assessments/create')}
+                  className="btn-primary text-xs mt-3 inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Create Assessment
+                </button>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-slate-50 sticky top-0">
+                  <tr>
+                    {['Assessment', 'Type', 'Sections', 'Duration', 'Attempts', 'Passing Score', 'Status', 'Actions'].map(h => (
+                      <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-[#E5E7EB]">
+                  {filtered.map(a => {
+                    const isSelected = selectedAssessment?.id === a.id;
+                    const primarySectionType = a.sections?.[0]?.sectionType || 'MCQ';
+                    return (
+                      <tr
+                        key={a.id}
+                        onClick={() => setSelectedAssessmentId(a.id)}
+                        className={`hover:bg-slate-50 transition-colors cursor-pointer ${isSelected ? 'bg-primary-50/30' : ''}`}
+                      >
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white">
+                              <ClipboardList className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+                              <p className="text-[10px] text-slate-400">Total Marks: {a.totalMarks}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${typeColor(primarySectionType)}`}>{primarySectionType}</span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-slate-700">{a.sections?.length || 1}</td>
+                        <td className="px-4 py-3 text-sm text-slate-600">{a.durationMinutes} mins</td>
+                        <td className="px-4 py-3 text-sm font-medium text-slate-700">{a._count?.attempts || 0}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 bg-slate-200 rounded-full h-1.5">
+                              <div className="h-1.5 rounded-full bg-primary-600" style={{ width: `${a.passingScore}%` }} />
+                            </div>
+                            <span className="text-xs font-bold text-slate-700">{a.passingScore}%</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${statusStyle(a.status)}`}>{a.status}</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Duplicate Assessment"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                duplicateMutation.mutate(a.id);
+                              }}
+                              disabled={duplicateMutation.isPending}
+                              className="p-1 rounded text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors cursor-pointer"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Delete Assessment"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Delete assessment "${a.title}"?`)) {
+                                  deleteMutation.mutate(a.id);
+                                }
+                              }}
+                              disabled={deleteMutation.isPending}
+                              className="p-1 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
 
           {/* Bottom Charts */}
@@ -248,96 +360,55 @@ const AssessmentsPage = () => {
 
         {/* Right: Detail Panel */}
         {selectedAssessment && (
-          <div className="w-80 flex-shrink-0 card overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-[#E5E7EB] flex items-center justify-between">
+          <div className="w-80 flex-shrink-0 card p-4 flex flex-col gap-4 overflow-y-auto">
+            <div className="flex items-start justify-between">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">{selectedAssessment.name}</h3>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border mt-1 inline-block ${statusStyle(selectedAssessment.status)}`}>
+                <h3 className="font-bold text-slate-900 text-sm">{selectedAssessment.title}</h3>
+                <p className="text-[11px] text-slate-500 mt-0.5">{selectedAssessment.description || 'No description provided'}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">Duration</span>
+                <span className="font-semibold text-slate-800">{selectedAssessment.durationMinutes} mins</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">Passing Score</span>
+                <span className="font-semibold text-slate-800">{selectedAssessment.passingScore}%</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">Total Marks</span>
+                <span className="font-semibold text-slate-800">{selectedAssessment.totalMarks}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">Status</span>
+                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${statusStyle(selectedAssessment.status)}`}>
                   {selectedAssessment.status}
                 </span>
               </div>
-              <button onClick={() => {}} className="p-1 text-slate-400 hover:text-slate-600 rounded">
-                <X className="w-4 h-4" />
+            </div>
+
+            <div className="mt-auto pt-3 border-t border-slate-100 space-y-2">
+              <button
+                type="button"
+                onClick={() => duplicateMutation.mutate(selectedAssessment.id)}
+                disabled={duplicateMutation.isPending}
+                className="w-full btn-secondary text-xs flex items-center justify-center gap-1.5 py-2 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" /> Duplicate Assessment
               </button>
-            </div>
-
-            {/* Detail Tabs */}
-            <div className="flex border-b border-[#E5E7EB] overflow-x-auto">
-              {['Overview', 'Questions', 'Assign', 'Results', 'Analytics'].map(t => (
-                <button
-                  key={t}
-                  onClick={() => setDetailTab(t)}
-                  className={`px-3 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 ${detailTab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-4">
-              {detailTab === 'Overview' && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-3 gap-3">
-                    {[
-                      { label: 'Type', val: selectedAssessment.type },
-                      { label: 'Questions', val: selectedAssessment.questions },
-                      { label: 'Duration', val: selectedAssessment.duration },
-                    ].map(({ label, val }) => (
-                      <div key={label} className="bg-slate-50 rounded-xl p-3 border border-[#E5E7EB] text-center">
-                        <p className="text-[9px] text-slate-400 uppercase tracking-wide">{label}</p>
-                        <p className="text-sm font-bold text-slate-900 mt-0.5">{val}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="text-xs text-slate-500 grid grid-cols-2 gap-2">
-                    <div><span className="text-slate-400">Created On</span><p className="font-medium text-slate-700">{selectedAssessment.created}</p></div>
-                    <div><span className="text-slate-400">Created By</span><p className="font-medium text-slate-700">{selectedAssessment.by}</p></div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Description</p>
-                    <p className="text-xs text-slate-700 leading-relaxed">Technical assessment to evaluate knowledge in HTML, CSS, JavaScript, React and front-end best practices.</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-2">Assigned Jobs ({selectedAssessment.attempts > 100 ? 2 : 1})</p>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between bg-slate-50 rounded-lg p-2.5 border border-[#E5E7EB]">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center"><span className="text-blue-600 text-[10px] font-bold">FE</span></div>
-                          <span className="text-xs text-slate-700 font-medium">Senior Frontend Developer</span>
-                        </div>
-                        <span className="text-[10px] text-slate-400">{selectedAssessment.attempts} Attempts</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {detailTab === 'Results' && (
-                <div className="space-y-3">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Recent Results</p>
-                  {recentResults.map((r, i) => (
-                    <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl border border-[#E5E7EB] bg-slate-50">
-                      <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${r.color} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>
-                        {r.initials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-900">{r.name}</p>
-                        <p className="text-[10px] text-slate-400">{r.date}</p>
-                      </div>
-                      <span className={`text-sm font-bold ${r.score >= 80 ? 'text-emerald-600' : r.score >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
-                        {r.score}%
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Actions */}
-            <div className="p-4 border-t border-[#E5E7EB] space-y-2">
-              <button className="w-full btn-primary text-sm py-2.5">View Full Analytics Report</button>
-              <button className="w-full py-2.5 text-sm border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors font-medium">
-                Archive Assessment
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.confirm(`Delete assessment "${selectedAssessment.title}"?`)) {
+                    deleteMutation.mutate(selectedAssessment.id);
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="w-full text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-xl py-2 font-medium cursor-pointer"
+              >
+                Delete Assessment
               </button>
             </div>
           </div>
