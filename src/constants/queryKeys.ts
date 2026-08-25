@@ -54,6 +54,7 @@ export const jobKeys = {
   all: ['jobs'] as const,
   list: (companyId: string) => ['jobs', 'list', companyId] as const,
   detail: (companyId: string, jobId: string) => ['jobs', 'detail', companyId, jobId] as const,
+  assessments: (jobId: string) => ['jobs', 'assessments', jobId] as const,
 };
 
 

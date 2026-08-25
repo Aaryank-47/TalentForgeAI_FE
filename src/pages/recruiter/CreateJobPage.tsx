@@ -6,10 +6,12 @@ import { useAuth } from '../../context/AuthContext';
 import { WorkflowSelector } from '../../components/hiring/WorkflowSelector';
 import { workflowApi } from '../../services/api/workflow.api';
 import { jobApi, type CreateJobPayload, type EmploymentType, type WorkplaceType, type SalaryPeriod } from '../../services/api/job.api';
-import { jobKeys, workflowKeys } from '../../constants/queryKeys';
+import { assessmentApi, type AssessmentView } from '../../services/api/assessment.api';
+import { jobKeys, workflowKeys, assessmentKeys } from '../../constants/queryKeys';
 import {
   ChevronRight, ChevronLeft, Check, Briefcase,
   Plus, X, Save, Send, MapPin, GitBranch, Loader2, AlertCircle, Calendar, DollarSign,
+  ClipboardList, Clock, Trash2, ArrowUpDown, ArrowUp, ArrowDown, GripVertical, Search
 } from 'lucide-react';
 
 const steps = [
@@ -17,7 +19,8 @@ const steps = [
   { id: 2, label: 'Job Description', shortLabel: 'Description' },
   { id: 3, label: 'Skills & Perks', shortLabel: 'Skills & Perks' },
   { id: 4, label: 'Hiring Workflow', shortLabel: 'Workflow' },
-  { id: 5, label: 'Review & Publish', shortLabel: 'Review' },
+  { id: 5, label: 'Job Assessments', shortLabel: 'Assessments' },
+  { id: 6, label: 'Review & Publish', shortLabel: 'Review' },
 ];
 
 const defaultForm = {
@@ -38,6 +41,7 @@ const defaultForm = {
   benefits: '',
   applicationDeadline: '',
   workflowId: '',
+  selectedAssessmentIds: [] as string[],
 };
 
 type JobFormState = typeof defaultForm;
@@ -67,12 +71,28 @@ const CreateJobPage = () => {
   const [step, setStep] = useState<number>(1);
   const [form, setForm] = useState<JobFormState>(defaultForm);
   const [newSkill, setNewSkill] = useState('');
+  const [assessmentSearch, setAssessmentSearch] = useState('');
 
   // 1. Fetch Existing Job if editId is present
   const { data: existingJob, isLoading: isLoadingExistingJob } = useQuery({
     queryKey: jobKeys.detail(companyId || '', editId || ''),
     queryFn: () => (companyId && editId ? jobApi.getJobDetails(companyId, editId) : Promise.resolve(null)),
     enabled: Boolean(companyId && editId),
+  });
+
+  // Fetch Published Assessments for Assessment Step
+  const { data: publishedAssessmentsData } = useQuery({
+    queryKey: assessmentKeys.list({ status: 'PUBLISHED', companyId }),
+    queryFn: () => (companyId ? assessmentApi.listAssessments({ status: 'PUBLISHED', companyId }) : Promise.resolve({ assessments: [], total: 0 })),
+    enabled: Boolean(companyId),
+  });
+  const publishedAssessments = publishedAssessmentsData?.assessments || [];
+
+  // Fetch Attached Assessments for this Job if in edit mode
+  const { data: jobAssessmentsData } = useQuery({
+    queryKey: jobKeys.assessments(editId || ''),
+    queryFn: () => (editId ? assessmentApi.getJobAssessments(editId) : Promise.resolve([])),
+    enabled: Boolean(editId),
   });
 
   // Track changes in editId to re-initialize
@@ -83,14 +103,16 @@ const CreateJobPage = () => {
     }
   }, [editId]);
 
-  // Pre-populate if in edit mode or restore session draft
+  // Pre-populate form when existingJob is loaded
   useEffect(() => {
     if (editId) {
       if (existingJob && !isInitializedRef.current) {
-        const rawWorkplace = existingJob.workplaceType as string;
-        const wpType: WorkplaceType = (rawWorkplace === 'ON_SITE' ? 'ONSITE' : existingJob.workplaceType) || 'ONSITE';
+        let wpType: WorkplaceType = 'ONSITE';
+        if (existingJob.workplaceType === 'REMOTE') wpType = 'REMOTE';
+        else if (existingJob.workplaceType === 'HYBRID') wpType = 'HYBRID';
 
-        // Check if there is an in-memory session draft for this job
+        const attachedAssessmentIds = jobAssessmentsData?.map((ja: any) => ja.assessment?.id || ja.assessmentId) || [];
+
         const savedSession = sessionStorage.getItem(draftStorageKey);
         let sessionData: any = null;
         try {
@@ -98,7 +120,12 @@ const CreateJobPage = () => {
         } catch {}
 
         if (sessionData?.form && sessionData?.form?.title) {
-          setForm(sessionData.form);
+          setForm({
+            ...defaultForm,
+            ...sessionData.form,
+            skills: sessionData.form.skills || [],
+            selectedAssessmentIds: sessionData.form.selectedAssessmentIds || [],
+          });
           if (typeof sessionData.step === 'number') setStep(sessionData.step);
         } else {
           setForm({
@@ -119,6 +146,7 @@ const CreateJobPage = () => {
             benefits: existingJob.benefits?.map((b: any) => b.benefit).join('\n') || '',
             applicationDeadline: existingJob.applicationDeadline ? existingJob.applicationDeadline.split('T')[0] : '',
             workflowId: existingJob.workflowId || defaultWorkflow?.id || '',
+            selectedAssessmentIds: attachedAssessmentIds,
           });
         }
         isInitializedRef.current = true;
@@ -133,7 +161,12 @@ const CreateJobPage = () => {
         } catch {}
 
         if (sessionData?.form) {
-          setForm(sessionData.form);
+          setForm({
+            ...defaultForm,
+            ...sessionData.form,
+            skills: sessionData.form.skills || [],
+            selectedAssessmentIds: sessionData.form.selectedAssessmentIds || [],
+          });
           if (typeof sessionData.step === 'number') setStep(sessionData.step);
         } else if (defaultWorkflow && !form.workflowId) {
           setForm(f => ({ ...f, workflowId: defaultWorkflow.id }));
@@ -141,7 +174,7 @@ const CreateJobPage = () => {
         isInitializedRef.current = true;
       }
     }
-  }, [existingJob, defaultWorkflow, editId, draftStorageKey]);
+  }, [existingJob, jobAssessmentsData, defaultWorkflow, editId, draftStorageKey]);
 
   const isPublishedJob = existingJob?.status === 'PUBLISHED';
 
@@ -189,14 +222,38 @@ const CreateJobPage = () => {
         status: publish ? 'PUBLISHED' : 'DRAFT',
       };
 
+      let createdJobId = editId;
+
       if (editId) {
         await jobApi.updateJobDetails(companyId, editId, payload);
         if (publish) {
           await jobApi.updateJobStatus(companyId, editId, 'PUBLISHED');
         }
-        return;
+      } else {
+        const created = await jobApi.createJob(companyId, payload);
+        createdJobId = created?.id;
       }
-      return jobApi.createJob(companyId, payload);
+
+      // Sync Attached Assessments to this Job if any selected
+      if (createdJobId && form.selectedAssessmentIds) {
+        const formattedAssessments = form.selectedAssessmentIds.map((assessmentId, idx) => ({
+          assessmentId,
+          displayOrder: idx + 1,
+          isMandatory: true,
+        }));
+
+        if (formattedAssessments.length > 0) {
+          await assessmentApi.updateJobAssessments(createdJobId, formattedAssessments);
+        } else if (editId) {
+          // If all deselected, remove any previous assignments
+          const existingAssignments = await assessmentApi.getJobAssessments(createdJobId);
+          for (const item of existingAssignments) {
+            await assessmentApi.removeJobAssessment(item.id);
+          }
+        }
+      }
+
+      return;
     },
     onSuccess: (_, publish) => {
       try {
@@ -557,7 +614,7 @@ const CreateJobPage = () => {
                 <div>
                   <Label>Required Skills *</Label>
                   <div className="flex flex-wrap gap-2 mt-2 mb-3">
-                    {form.skills.map(s => (
+                    {(form.skills || []).map(s => (
                       <span key={s} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-700 rounded-full text-sm font-medium border border-primary-200">
                         {s}
                         <button type="button" onClick={() => removeSkill(s)} className="hover:text-primary-900">
@@ -646,8 +703,251 @@ const CreateJobPage = () => {
               </>
             )}
 
-            {/* Step 5: Review & Publish */}
+            {/* Step 5: Job Assessments */}
             {step === 5 && (
+              <>
+                <SectionTitle
+                  title="Attach & Sequence Job Assessments"
+                  subtitle="Select candidate screening assessments from your repository and sequence the hiring stages"
+                />
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-4">
+                  {/* Left Column (7 cols): Available Assessments with Search & Filters */}
+                  <div className="lg:col-span-7 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label>Available Assessment Repository</Label>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {publishedAssessments.length} published
+                      </span>
+                    </div>
+
+                    {/* Search Bar for Large Assessment Libraries */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Search assessments by title, duration..."
+                        value={assessmentSearch}
+                        onChange={(e) => setAssessmentSearch(e.target.value)}
+                        className="pl-9 pr-4 py-2 text-xs border border-slate-200 rounded-xl bg-slate-50/70 text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent w-full transition-all"
+                      />
+                      {assessmentSearch && (
+                        <button
+                          onClick={() => setAssessmentSearch('')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Scrollable Assessment Cards Grid */}
+                    {publishedAssessments.length === 0 ? (
+                      <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200">
+                        <ClipboardList className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                        <p className="text-sm font-semibold text-slate-700">No Published Assessments Found</p>
+                        <p className="text-xs text-slate-400 mt-1 max-w-xs mx-auto">
+                          Create and publish assessments in the Assessment module to attach them to job openings.
+                        </p>
+                        <Link
+                          to="/recruiter/assessments/create"
+                          className="btn-primary text-xs mt-3 inline-flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Create Assessment
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
+                        {publishedAssessments
+                          .filter(a => !assessmentSearch.trim() || a.title.toLowerCase().includes(assessmentSearch.toLowerCase()))
+                          .map((a) => {
+                            const isSelected = Boolean(form.selectedAssessmentIds?.includes(a.id));
+                            const orderIndex = form.selectedAssessmentIds?.indexOf(a.id);
+                            return (
+                              <div
+                                key={a.id}
+                                onClick={() => {
+                                  if (isPublishedJob) return;
+                                  setForm(f => ({
+                                    ...f,
+                                    selectedAssessmentIds: isSelected
+                                      ? (f.selectedAssessmentIds || []).filter(id => id !== a.id)
+                                      : [...(f.selectedAssessmentIds || []), a.id]
+                                  }));
+                                }}
+                                className={`p-3.5 rounded-xl border transition-all cursor-pointer flex items-center justify-between group ${
+                                  isSelected
+                                    ? 'bg-primary-50/60 border-primary-400 ring-1 ring-primary-300 shadow-2xs'
+                                    : 'bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <div className={`w-5 h-5 rounded-md border flex items-center justify-center transition-colors ${
+                                    isSelected
+                                      ? 'bg-primary-600 border-primary-600 text-white'
+                                      : 'border-slate-300 bg-white group-hover:border-slate-400'
+                                  }`}>
+                                    {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                                  </div>
+
+                                  <div className="min-w-0">
+                                    <h4 className="text-sm font-semibold text-slate-900 truncate group-hover:text-primary-700 transition-colors">
+                                      {a.title}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+                                      <span className="flex items-center gap-1">
+                                        <Clock className="w-3 h-3 text-slate-400" />
+                                        {a.durationMinutes || 60}m
+                                      </span>
+                                      <span>•</span>
+                                      <span>Pass: {a.passingScore}%</span>
+                                      <span>•</span>
+                                      <span>{a.sections?.length || 1} section(s)</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  {isSelected ? (
+                                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-primary-600 text-white shadow-2xs">
+                                      Stage {orderIndex + 1}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[11px] font-medium text-slate-400 group-hover:text-primary-600 transition-colors">
+                                      + Attach
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column (5 cols): Live Interactive Sequence Queue */}
+                  <div className="lg:col-span-5 bg-slate-50/80 rounded-2xl border border-slate-200 p-4 flex flex-col h-full max-h-[540px]">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider font-display">
+                          Candidate Test Sequence
+                        </h4>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Drag or click arrows to reorder
+                        </p>
+                      </div>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary-100 text-primary-700">
+                        {form.selectedAssessmentIds.length} Attached
+                      </span>
+                    </div>
+
+                    {form.selectedAssessmentIds.length === 0 ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center my-auto">
+                        <ArrowUpDown className="w-8 h-8 text-slate-300 mb-2 stroke-[1.5]" />
+                        <p className="text-xs font-semibold text-slate-600">No Assessments Attached</p>
+                        <p className="text-[11px] text-slate-400 mt-1 max-w-[200px]">
+                          Select assessments on the left to configure the candidate test stages.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 mt-3 flex-1 overflow-y-auto pr-1">
+                        {form.selectedAssessmentIds.map((id, index) => {
+                          const assessment = publishedAssessments.find(a => a.id === id);
+                          return (
+                            <div
+                              key={id}
+                              draggable={!isPublishedJob}
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('text/plain', String(index));
+                              }}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                const fromIndex = Number(e.dataTransfer.getData('text/plain'));
+                                if (isNaN(fromIndex) || fromIndex === index) return;
+                                const next = [...form.selectedAssessmentIds];
+                                const [movedItem] = next.splice(fromIndex, 1);
+                                next.splice(index, 0, movedItem);
+                                setForm(f => ({ ...f, selectedAssessmentIds: next }));
+                              }}
+                              className="flex items-center justify-between p-2.5 bg-white border border-slate-200 rounded-xl shadow-2xs hover:border-primary-300 transition-all cursor-grab active:cursor-grabbing group"
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <GripVertical className="w-4 h-4 text-slate-300 group-hover:text-slate-500 flex-shrink-0" />
+                                <span className="w-5 h-5 rounded-full bg-primary-600 text-white font-bold text-[10px] flex items-center justify-center flex-shrink-0">
+                                  {index + 1}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-bold text-slate-900 truncate">
+                                    {assessment?.title || id}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400">
+                                    {assessment?.durationMinutes || 60}m • Pass: {assessment?.passingScore}%
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                <button
+                                  type="button"
+                                  title="Move Up"
+                                  disabled={index === 0 || isPublishedJob}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const next = [...form.selectedAssessmentIds];
+                                    const temp = next[index - 1];
+                                    next[index - 1] = next[index];
+                                    next[index] = temp;
+                                    setForm(f => ({ ...f, selectedAssessmentIds: next }));
+                                  }}
+                                  className="p-1 rounded-md hover:bg-slate-100 text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed"
+                                >
+                                  <ArrowUp className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Move Down"
+                                  disabled={index === form.selectedAssessmentIds.length - 1 || isPublishedJob}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const next = [...form.selectedAssessmentIds];
+                                    const temp = next[index + 1];
+                                    next[index + 1] = next[index];
+                                    next[index] = temp;
+                                    setForm(f => ({ ...f, selectedAssessmentIds: next }));
+                                  }}
+                                  className="p-1 rounded-md hover:bg-slate-100 text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed"
+                                >
+                                  <ArrowDown className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  title="Remove from Job"
+                                  disabled={isPublishedJob}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setForm(f => ({
+                                      ...f,
+                                      selectedAssessmentIds: f.selectedAssessmentIds.filter(item => item !== id)
+                                    }));
+                                  }}
+                                  className="p-1 rounded-md text-red-400 hover:text-red-600 hover:bg-red-50 disabled:opacity-20"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Step 6: Review & Publish */}
+            {step === 6 && (
               <>
                 <SectionTitle title="Review & Publish" subtitle="Review your job details before saving or publishing" />
                 <div className="space-y-4">
@@ -696,6 +996,28 @@ const CreateJobPage = () => {
                     value={form.applicationDeadline ? new Date(form.applicationDeadline).toLocaleDateString() : 'No deadline'}
                   />
                   <ReviewField label="Hiring Workflow" value={selectedWorkflow?.name ?? 'Not selected'} />
+
+                  {form.selectedAssessmentIds.length > 0 && (
+                    <div className="flex gap-4">
+                      <span className="text-sm font-semibold text-slate-500 w-36 flex-shrink-0">Tests Sequence</span>
+                      <div className="flex flex-wrap gap-1.5 items-center">
+                        {form.selectedAssessmentIds.map((id, i) => {
+                          const assessment = publishedAssessments.find(a => a.id === id);
+                          return (
+                            <React.Fragment key={id}>
+                              {i > 0 && <span className="text-slate-300 text-xs">→</span>}
+                              <span className="text-[11px] bg-primary-50 text-primary-700 border border-primary-200 px-2 py-0.5 rounded-md font-semibold flex items-center gap-1">
+                                <span className="w-3.5 h-3.5 rounded-full bg-primary-600 text-white text-[9px] flex items-center justify-center font-bold">
+                                  {i + 1}
+                                </span>
+                                {assessment?.title || id}
+                              </span>
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {selectedWorkflow && (
                     <div className="flex gap-4">
@@ -826,11 +1148,11 @@ const CreateJobPage = () => {
                 )}
               </div>
 
-              {form.skills.length > 0 && (
+              {(form.skills?.length || 0) > 0 && (
                 <div className="border-t border-[#E5E7EB] pt-3">
                   <p className="text-xs text-slate-400 mb-2">Skills</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {form.skills.map(s => (
+                    {form.skills?.map(s => (
                       <span key={s} className="text-[11px] bg-primary-50 text-primary-700 px-2 py-1 rounded-md font-medium border border-primary-100">{s}</span>
                     ))}
                   </div>
@@ -844,6 +1166,15 @@ const CreateJobPage = () => {
                   </p>
                   <p className="text-xs font-semibold text-slate-700">{selectedWorkflow.name}</p>
                   <p className="text-[10px] text-slate-400 mt-1">{workflowStages.length} stages</p>
+                </div>
+              )}
+
+              {(form.selectedAssessmentIds?.length || 0) > 0 && (
+                <div className="border-t border-[#E5E7EB] pt-3">
+                  <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
+                    <ClipboardList className="w-3 h-3" /> Assessments
+                  </p>
+                  <p className="text-xs font-semibold text-slate-700">{form.selectedAssessmentIds?.length} Test(s) Attached</p>
                 </div>
               )}
 

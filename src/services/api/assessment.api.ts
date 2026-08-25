@@ -225,6 +225,57 @@ export const assessmentApi = {
     return (res as any).data || res;
   },
 
+  // ── Job Assessment Assignments ──────────────────────────────────────────────
+
+  /** Attach one or more published assessments to a job */
+  attachAssessmentsToJob: async (
+    jobId: string,
+    assessments: Array<{ assessmentId: string; displayOrder?: number; isMandatory?: boolean }>
+  ): Promise<{ jobId: string; assignedCount: number }> => {
+    const res = await api.post<{ success: boolean; message: string; data: { jobId: string; assignedCount: number } }>(
+      `/assessments/assignments/job/${jobId}/assessments`,
+      { assessments }
+    );
+    return (res as any).data || res;
+  },
+
+  /** Get all assessments assigned to a job */
+  getJobAssessments: async (
+    jobId: string
+  ): Promise<Array<{ id: string; assessment: { id: string; title: string; status: string; durationMinutes: number | null } }>> => {
+    const res = await api.get<{
+      success: boolean;
+      message: string;
+      data: Array<{ id: string; assessment: { id: string; title: string; status: string; durationMinutes: number | null } }>;
+    }>(`/assessments/assignments/job/${jobId}/assessments`);
+    return (res as any).data || res;
+  },
+
+  /** Update/sync assessments assigned to a job */
+  updateJobAssessments: async (
+    jobId: string,
+    assessments: Array<{ assessmentId: string; displayOrder?: number; isMandatory?: boolean }>
+  ): Promise<{ jobId: string; assignedCount: number }> => {
+    const res = await api.patch<{ success: boolean; message: string; data: { jobId: string; assignedCount: number } }>(
+      `/assessments/assignments/job/${jobId}/assessments`,
+      { assessments }
+    );
+    return (res as any).data || res;
+  },
+
+  /** Detach an assessment from a job (pass jobAssessmentId formatted as jobId_assessmentId) */
+  removeJobAssessment: async (jobAssessmentId: string): Promise<void> => {
+    await api.delete(`/assessments/assignments/job/${jobAssessmentId}`);
+  },
+
+  /** Reorder assessments for a job */
+  reorderJobAssessments: async (
+    jobId: string,
+    assessments: Array<{ assessmentId: string; displayOrder: number }>
+  ): Promise<void> => {
+    await api.patch('/assessments/assignments/job/reorder', { jobId, assessments });
+  },
+
   // ── Candidate: Attempt Flow ────────────────────────────────────────────────
 
   /** Get assessments assigned to the current candidate */
