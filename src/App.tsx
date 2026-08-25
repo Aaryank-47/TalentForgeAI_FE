@@ -75,6 +75,7 @@ import AIInterviewDetailPage from './pages/recruiter/AIInterviewDetailPage';
 
 // ─── Assessment Module ─────────────────────────────────────
 import CreateAssessmentPage from './pages/recruiter/CreateAssessmentPage';
+import EditAssessmentPage from './pages/recruiter/EditAssessmentPage';
 import AssessmentPreCheckPage from './pages/candidate/AssessmentPreCheckPage';
 import AssessmentTakePage from './pages/candidate/AssessmentTakePage';
 import ProjectSubmissionPage from './pages/candidate/ProjectSubmissionPage';
@@ -180,6 +181,8 @@ function App() {
               <Route path="/recruiter/question-library" element={<QuestionLibraryPage />} />
               <Route path="/recruiter/assessments" element={<AssessmentsPage />} />
               <Route path="/recruiter/assessments/create" element={<CreateAssessmentPage />} />
+              <Route path="/recruiter/assessments/:id/edit" element={<EditAssessmentPage />} />
+              <Route path="/recruiter/assessments/edit/:id" element={<EditAssessmentPage />} />
               <Route path="/recruiter/interviews" element={<InterviewsPage />} />
               {/* BACKEND DEPENDENCY: Live Interview module not yet implemented */}
               <Route path="/recruiter/live-interviews" element={<RecruiterLiveInterviewsPage />} />

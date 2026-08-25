@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { assessmentApi } from '../../services/api/assessment.api';
 import { assessmentKeys } from '../../constants/queryKeys';
@@ -69,6 +69,9 @@ const TYPE_LABELS: Record<AssessmentType, string> = {
 
 const CreateAssessmentPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('editId');
+
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const companyId = user?.companyId || user?.companies?.[0]?.companyId;
@@ -98,17 +101,92 @@ const CreateAssessmentPage: React.FC = () => {
 
   const [published, setPublished] = useState(false);
 
-  // Create Assessment Mutation
+  // 1. Fetch Existing Assessment Details if editId is provided
+  const { data: existingAssessmentData, isLoading: isLoadingExisting } = useQuery({
+    queryKey: ['assessment', editId],
+    queryFn: () => assessmentApi.getAssessment(editId!),
+    enabled: Boolean(editId),
+  });
+
+  // Populate state on load
+  useEffect(() => {
+    if (existingAssessmentData) {
+      const a = (existingAssessmentData as any).data || existingAssessmentData;
+      setName(a.title || '');
+      setDescription(a.description || '');
+      setInstructions(a.instructions || '');
+      setDuration(a.durationMinutes || 60);
+      setPassingScore(a.passingScore || 70);
+
+      if (a.sections && a.sections.length > 0) {
+        if (a.sections.length > 1) {
+          setSelectedType('mixed');
+          const mcqSec = a.sections.find((s: any) => s.sectionType === 'MCQ');
+          const dsaSec = a.sections.find((s: any) => s.sectionType === 'DSA');
+          if (mcqSec) {
+            setMixedConfig(prev => ({
+              ...prev,
+              mcq: {
+                ...prev.mcq,
+                selectedQuestionIds: mcqSec.items?.map((item: any) => item.questionId) || [],
+              },
+            }));
+          }
+          if (dsaSec) {
+            setMixedConfig(prev => ({
+              ...prev,
+              dsa: {
+                ...prev.dsa,
+                selectedProblemIds: dsaSec.items?.map((item: any) => item.questionId) || [],
+              },
+            }));
+          }
+        } else {
+          const firstSec = a.sections[0];
+          const st = firstSec.sectionType;
+          if (st === 'MCQ') {
+            setSelectedType('mcq');
+            setMcqConfig(prev => ({
+              ...prev,
+              selectedQuestionIds: firstSec.items?.map((item: any) => item.questionId) || [],
+            }));
+          } else if (st === 'DSA') {
+            setSelectedType('dsa');
+            setDsaConfig(prev => ({
+              ...prev,
+              selectedProblemIds: firstSec.items?.map((item: any) => item.questionId) || [],
+            }));
+          } else if (st === 'MACHINE_CODING') {
+            setSelectedType('live_machine_coding');
+          } else if (st === 'PROJECT') {
+            setSelectedType('project');
+          }
+        }
+      }
+    }
+  }, [existingAssessmentData]);
+
+  // Create / Update Assessment Mutation
   const createAssessmentMutation = useMutation({
     mutationFn: async (shouldPublish: boolean) => {
       if (!companyId) throw new Error('Company ID is missing');
 
-      // Map frontend type to backend SectionType
-      let sectionType: 'MCQ' | 'DSA' | 'MIXED' | 'MACHINE_CODING' | 'PROJECT' = 'MCQ';
-      if (selectedType === 'dsa') sectionType = 'DSA';
-      else if (selectedType === 'mixed') sectionType = 'MIXED';
-      else if (selectedType === 'live_machine_coding') sectionType = 'MACHINE_CODING';
-      else if (selectedType === 'project') sectionType = 'PROJECT';
+      if (editId) {
+        // Update existing assessment
+        await assessmentApi.updateAssessment(editId, {
+          title: name.trim(),
+          description: description.trim() || undefined,
+          instructions: instructions.trim() || undefined,
+          durationMinutes: duration || 60,
+          passingScore: passingScore || 70,
+          totalMarks: settings.totalMarks || 100,
+        });
+
+        if (shouldPublish) {
+          await assessmentApi.publishAssessment(editId);
+        }
+        return { id: editId };
+      }
 
       // 1. Create Base Assessment
       const assessment = await assessmentApi.createAssessment({
@@ -122,27 +200,63 @@ const CreateAssessmentPage: React.FC = () => {
         isTemplate: false,
       });
 
-      // 2. Create Section
-      const section = await assessmentApi.createAssessmentSection(assessment.id, {
-        title: `${name.trim()} - Main Section`,
-        description: description.trim() || undefined,
-        sectionType: sectionType,
-        durationMinutes: duration || 60,
-      });
+      // 2. Create Section(s) according to selectedType
+      if (selectedType === 'mixed') {
+        // Create MCQ Section
+        const mcqSection = await assessmentApi.createAssessmentSection(assessment.id, {
+          title: `${name.trim()} - MCQ Section`,
+          description: 'Multiple Choice Questions Section',
+          sectionType: 'MCQ',
+          durationMinutes: mixedConfig.mcq.timeLimit || 30,
+        });
+        if (mixedConfig.mcq.selectedQuestionIds.length > 0) {
+          await assessmentApi.addQuestionsToSection(
+            assessment.id,
+            mcqSection.id,
+            mixedConfig.mcq.selectedQuestionIds
+          );
+        }
 
-      // 3. Attach selected question IDs if any
-      const selectedQIds =
-        sectionType === 'MCQ'
-          ? mcqConfig.selectedQuestionIds
-          : sectionType === 'DSA'
-          ? dsaConfig.selectedProblemIds
-          : [];
+        // Create DSA Section
+        const dsaSection = await assessmentApi.createAssessmentSection(assessment.id, {
+          title: `${name.trim()} - DSA Section`,
+          description: 'Data Structures & Algorithms Section',
+          sectionType: 'DSA',
+          durationMinutes: mixedConfig.dsa.totalDuration || 30,
+        });
+        if (mixedConfig.dsa.selectedProblemIds.length > 0) {
+          await assessmentApi.addQuestionsToSection(
+            assessment.id,
+            dsaSection.id,
+            mixedConfig.dsa.selectedProblemIds
+          );
+        }
+      } else {
+        let sectionType: 'MCQ' | 'DSA' | 'MACHINE_CODING' | 'PROJECT' = 'MCQ';
+        if (selectedType === 'dsa') sectionType = 'DSA';
+        else if (selectedType === 'live_machine_coding') sectionType = 'MACHINE_CODING';
+        else if (selectedType === 'project') sectionType = 'PROJECT';
 
-      if (selectedQIds && selectedQIds.length > 0) {
-        await assessmentApi.addQuestionsToSection(assessment.id, section.id, selectedQIds);
+        const section = await assessmentApi.createAssessmentSection(assessment.id, {
+          title: `${name.trim()} - Main Section`,
+          description: description.trim() || undefined,
+          sectionType: sectionType,
+          durationMinutes: duration || 60,
+        });
+
+        const selectedQIds =
+          sectionType === 'MCQ'
+            ? mcqConfig.selectedQuestionIds
+            : sectionType === 'DSA'
+            ? dsaConfig.selectedProblemIds
+            : [];
+
+        if (selectedQIds && selectedQIds.length > 0) {
+          await assessmentApi.addQuestionsToSection(assessment.id, section.id, selectedQIds);
+        }
       }
 
-      // 4. Publish if requested
+      // 3. Publish if requested
       if (shouldPublish) {
         await assessmentApi.publishAssessment(assessment.id);
       }

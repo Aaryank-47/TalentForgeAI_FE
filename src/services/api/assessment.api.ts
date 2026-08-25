@@ -104,7 +104,7 @@ export interface CreateAssessmentSectionPayload {
   title: string;
   description?: string;
   instructions?: string;
-  sectionType: 'MCQ' | 'DSA' | 'MIXED' | 'MACHINE_CODING' | 'PROJECT';
+  sectionType: 'MCQ' | 'DSA' | 'MACHINE_CODING' | 'PROJECT';
   durationMinutes?: number;
 }
 
@@ -184,11 +184,44 @@ export const assessmentApi = {
     return (res as any).data || res;
   },
 
-  /** Add questions to an assessment section */
-  addQuestionsToSection: async (assessmentId: string, sectionId: string, questionIds: string[]): Promise<any> => {
-    const res = await api.post<{ success: boolean; data: any }>(`/assessments/${assessmentId}/sections/${sectionId}/items`, {
-      questionIds,
+  /** Add questions to an assessment section (supports both (sectionId, questions) and legacy (assessmentId, sectionId, questions)) */
+  addQuestionsToSection: async (
+    arg1: string,
+    arg2: string | Array<string | { questionId: string; marksOverride?: number; timeLimitOverride?: number }>,
+    arg3?: Array<string | { questionId: string; marksOverride?: number; timeLimitOverride?: number }>
+  ): Promise<any> => {
+    let sectionId = arg1;
+    let questionsInput = arg2;
+    if (arg3 !== undefined) {
+      // Legacy call: (assessmentId, sectionId, questions)
+      sectionId = arg2 as string;
+      questionsInput = arg3;
+    }
+
+    const rawList = Array.isArray(questionsInput) ? questionsInput : [];
+    const formattedQuestions = rawList.map((q) => (typeof q === 'string' ? { questionId: q } : q));
+
+    const res = await api.post<{ success: boolean; data: any }>(`/assessments/section/${sectionId}/questions`, {
+      questions: formattedQuestions,
     });
+    return (res as any).data || res;
+  },
+
+  /** Remove a question item from an assessment section */
+  removeQuestionFromSection: async (sectionItemId: string): Promise<any> => {
+    const res = await api.delete(`/assessments/section-items/${sectionItemId}`);
+    return (res as any).data || res;
+  },
+
+  /** Update a section item (e.g. marks override, time limit, isRequired) */
+  updateSectionItem: async (sectionItemId: string, data: { marksOverride?: number | null; timeLimitOverride?: number | null; isRequired?: boolean }): Promise<any> => {
+    const res = await api.patch(`/assessments/section-items/${sectionItemId}`, data);
+    return (res as any).data || res;
+  },
+
+  /** Get questions of a section */
+  getSectionQuestions: async (sectionId: string): Promise<any[]> => {
+    const res = await api.get<{ success: boolean; data: any[] }>(`/assessments/section/${sectionId}/questions`);
     return (res as any).data || res;
   },
 

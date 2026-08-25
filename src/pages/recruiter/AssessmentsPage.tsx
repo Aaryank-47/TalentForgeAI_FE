@@ -7,7 +7,7 @@ import { assessmentKeys } from '../../constants/queryKeys';
 import {
   Plus, Search, Filter, MoreHorizontal, Eye, Copy, Archive, X,
   ChevronDown, BarChart3, ClipboardList, Activity, TrendingUp,
-  Check, ChevronRight, BookOpen, Loader2, Trash2,
+  Check, ChevronRight, BookOpen, Loader2, Trash2, Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
@@ -28,6 +28,9 @@ const typeColor = (t: string) => ({
   Coding: 'bg-rose-50 text-rose-700 border-rose-200',
   DSA: 'bg-rose-50 text-rose-700 border-rose-200',
   MIXED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  'MCQ + DSA': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  MACHINE_CODING: 'bg-violet-50 text-violet-700 border-violet-200',
+  PROJECT: 'bg-amber-50 text-amber-700 border-amber-200',
 })[t] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const statusStyle = (s: string) => ({
@@ -84,6 +87,18 @@ const AssessmentsPage = () => {
     },
     onError: (err: any) => {
       toast.error(err.message || 'Failed to delete assessment');
+    },
+  });
+
+  // 4. Publish Assessment Mutation
+  const publishMutation = useMutation({
+    mutationFn: (id: string) => assessmentApi.publishAssessment(id),
+    onSuccess: () => {
+      toast.success('Assessment published successfully!');
+      queryClient.invalidateQueries({ queryKey: assessmentKeys.all });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Failed to publish assessment');
     },
   });
 
@@ -206,18 +221,29 @@ const AssessmentsPage = () => {
                 </button>
               </div>
             ) : (
-              <table className="w-full">
-                <thead className="bg-slate-50 sticky top-0">
+              <table className="w-full text-left">
+                <thead className="bg-slate-50 sticky top-0 border-b border-[#E5E7EB]">
                   <tr>
-                    {['Assessment', 'Type', 'Sections', 'Duration', 'Attempts', 'Passing Score', 'Status', 'Actions'].map(h => (
-                      <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                    ))}
+                    <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Assessment</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap min-w-[110px]">Type</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Sections</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Duration</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Attempts</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Passing Score</th>
+                    <th className="px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Status</th>
+                    <th className="px-4 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5E7EB]">
                   {filtered.map(a => {
                     const isSelected = selectedAssessment?.id === a.id;
-                    const primarySectionType = a.sections?.[0]?.sectionType || 'MCQ';
+                    const sectionTypes = Array.from(new Set(a.sections?.map(s => s.sectionType) || []));
+                    let displayType = 'MCQ';
+                    if (sectionTypes.length > 1) {
+                      displayType = sectionTypes.includes('MCQ') && sectionTypes.includes('DSA') ? 'MCQ + DSA' : 'Mixed';
+                    } else if (sectionTypes.length === 1) {
+                      displayType = sectionTypes[0];
+                    }
                     return (
                       <tr
                         key={a.id}
@@ -226,17 +252,19 @@ const AssessmentsPage = () => {
                       >
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white">
+                            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0 text-white shadow-2xs">
                               <ClipboardList className="w-4 h-4" />
                             </div>
                             <div>
-                              <p className="text-sm font-semibold text-slate-900">{a.title}</p>
+                              <p className="text-sm font-semibold text-slate-900 line-clamp-1">{a.title}</p>
                               <p className="text-[10px] text-slate-400">Total Marks: {a.totalMarks}</p>
                             </div>
                           </div>
                         </td>
-                        <td className="px-4 py-3">
-                          <span className={`text-[10px] font-semibold px-2 py-1 rounded-full border ${typeColor(primarySectionType)}`}>{primarySectionType}</span>
+                        <td className="px-4 py-3 whitespace-nowrap">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-slate-100 text-slate-700">
+                            {displayType}
+                          </span>
                         </td>
                         <td className="px-4 py-3 text-sm text-slate-700">{a.sections?.length || 1}</td>
                         <td className="px-4 py-3 text-sm text-slate-600">{a.durationMinutes} mins</td>
@@ -254,6 +282,17 @@ const AssessmentsPage = () => {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Edit Assessment"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/recruiter/assessments/${a.id}/edit`);
+                              }}
+                              className="p-1 rounded text-slate-400 hover:text-primary-600 hover:bg-primary-50 transition-colors cursor-pointer"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               type="button"
                               title="Duplicate Assessment"
@@ -390,6 +429,23 @@ const AssessmentsPage = () => {
             </div>
 
             <div className="mt-auto pt-3 border-t border-slate-100 space-y-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/recruiter/assessments/${selectedAssessment.id}/edit`)}
+                className="w-full btn-primary text-xs flex items-center justify-center gap-1.5 py-2 cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit Assessment
+              </button>
+              {selectedAssessment.status === 'DRAFT' && (
+                <button
+                  type="button"
+                  onClick={() => publishMutation.mutate(selectedAssessment.id)}
+                  disabled={publishMutation.isPending}
+                  className="w-full text-xs text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl py-2 font-medium cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  Publish Assessment
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => duplicateMutation.mutate(selectedAssessment.id)}

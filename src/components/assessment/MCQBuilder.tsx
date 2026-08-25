@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Hash, Clock, Minus, Percent } from 'lucide-react';
 import QuestionBank from './QuestionBank';
-import { mockMCQQuestions, MCQ_CATEGORIES } from '../../constants/assessment_mockData';
 import type { MCQConfig } from '../../types/assessment';
 
 interface MCQBuilderProps {
@@ -117,13 +116,11 @@ const MCQBuilder: React.FC<MCQBuilderProps> = ({ config, onChange }) => {
       <div className="card p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-bold text-slate-900">Question Bank</h3>
-          <span className="text-xs text-slate-500">{mockMCQQuestions.length} questions available</span>
+          <span className="text-xs text-slate-500">{config.selectedQuestionIds.length} questions selected</span>
         </div>
         <QuestionBank
-          questions={mockMCQQuestions}
           selectedIds={config.selectedQuestionIds}
           onToggle={toggleQuestion}
-          categories={MCQ_CATEGORIES}
         />
       </div>
     </div>
