@@ -50,6 +50,12 @@ export const assessmentKeys = {
   detail: (id: string) => ['assessments', 'detail', id] as const,
 };
 
+export const jobKeys = {
+  all: ['jobs'] as const,
+  list: (companyId: string) => ['jobs', 'list', companyId] as const,
+  detail: (companyId: string, jobId: string) => ['jobs', 'detail', companyId, jobId] as const,
+};
+
 
 
 

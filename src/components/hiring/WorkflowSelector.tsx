@@ -1,31 +1,38 @@
-import { useHiring } from '../../context/HiringContext';
-import { getStageLabel } from '../../constants/hiring_mockData';
+import type { WorkflowItem } from '../../services/api/workflow.api';
 import { Badge } from '../ui/Badge';
-import { GitBranch, Star, Check } from 'lucide-react';
+import { GitBranch, Star, Check, Loader2 } from 'lucide-react';
 
 interface WorkflowSelectorProps {
   selectedId: string | null;
   onSelect: (workflowId: string) => void;
-  showArchived?: boolean;
+  workflows: WorkflowItem[];
+  isLoading?: boolean;
 }
 
-export function WorkflowSelector({ selectedId, onSelect, showArchived = false }: WorkflowSelectorProps) {
-  const { workflows } = useHiring();
-  const visible = workflows.filter(w => showArchived || !w.isArchived);
-
-  if (visible.length === 0) {
+export function WorkflowSelector({ selectedId, onSelect, workflows, isLoading = false }: WorkflowSelectorProps) {
+  if (isLoading) {
     return (
-      <div className="text-center py-8 text-sm text-slate-500">
-        No workflow templates available. Create one first.
+      <div className="flex items-center justify-center py-10 text-slate-400 gap-2">
+        <Loader2 className="w-5 h-5 animate-spin text-primary-600" />
+        <span className="text-sm font-medium">Loading workflows...</span>
+      </div>
+    );
+  }
+
+  if (!workflows || workflows.length === 0) {
+    return (
+      <div className="text-center py-8 text-sm text-slate-500 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+        No active workflow templates found for this company. Create one first.
       </div>
     );
   }
 
   return (
     <div className="space-y-3">
-      {visible.map(workflow => {
-        const enabledStages = workflow.stages.filter(s => s.enabled);
+      {workflows.map(workflow => {
+        const stages = workflow.stages || [];
         const selected = selectedId === workflow.id;
+        const jobCount = workflow._count?.jobs ?? 0;
 
         return (
           <button
@@ -52,19 +59,19 @@ export function WorkflowSelector({ selectedId, onSelect, showArchived = false }:
                         Default
                       </Badge>
                     )}
-                    {workflow.isArchived && <Badge variant="warning">Archived</Badge>}
+                    {workflow.status === 'INACTIVE' && <Badge variant="warning">Inactive</Badge>}
                   </div>
                   {workflow.description && (
                     <p className="text-xs text-slate-500 mt-1 line-clamp-2">{workflow.description}</p>
                   )}
                   <div className="flex flex-wrap gap-1.5 mt-2">
-                    {enabledStages.slice(0, 6).map(stage => (
+                    {stages.slice(0, 6).map(stage => (
                       <span key={stage.id} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-medium">
-                        {getStageLabel(stage)}
+                        {stage.stageLibrary?.name || 'Stage'}
                       </span>
                     ))}
-                    {enabledStages.length > 6 && (
-                      <span className="text-[10px] text-slate-400">+{enabledStages.length - 6} more</span>
+                    {stages.length > 6 && (
+                      <span className="text-[10px] text-slate-400">+{stages.length - 6} more</span>
                     )}
                   </div>
                 </div>
@@ -76,7 +83,7 @@ export function WorkflowSelector({ selectedId, onSelect, showArchived = false }:
               )}
             </div>
             <p className="text-[10px] text-slate-400 mt-2 ml-11">
-              {enabledStages.length} stages · Used by {workflow.jobCount} job{workflow.jobCount !== 1 ? 's' : ''}
+              {stages.length} stages · Used by {jobCount} job{jobCount !== 1 ? 's' : ''}
             </p>
           </button>
         );
