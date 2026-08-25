@@ -27,6 +27,7 @@ export const workflowKeys = {
   all: ['workflows'] as const,
   list: (companyId: string, status?: string) => ['workflows', companyId, status] as const,
   detail: (companyId: string, workflowId: string) => ['workflows', companyId, 'detail', workflowId] as const,
+  hiringBoard: (jobId: string) => ['workflows', 'hiringBoard', jobId] as const,
 };
 
 export const stageLibraryKeys = {
@@ -56,8 +57,3 @@ export const jobKeys = {
   detail: (companyId: string, jobId: string) => ['jobs', 'detail', companyId, jobId] as const,
   assessments: (jobId: string) => ['jobs', 'assessments', jobId] as const,
 };
-
-
-
-
-

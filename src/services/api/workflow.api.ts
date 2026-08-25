@@ -126,6 +126,80 @@ export const workflowApi = {
   },
 };
 
+export interface HiringBoardApplication {
+  id: string;
+  candidateId: string;
+  status: string;
+  appliedAt: string;
+  candidate: {
+    id: string;
+    fullName: string;
+    user: {
+      email: string;
+    };
+  };
+}
+
+export interface HiringBoardStage {
+  stageId: string;
+  stageName: string;
+  order: number;
+  applications: HiringBoardApplication[];
+}
+
+export interface MoveApplicationPayload {
+  applicationId: string;
+  toWorkflowStageId: string;
+  remarks?: string;
+  assignedTo?: string;
+  nextRoundDate?: string;
+}
+
+export interface BulkMoveApplicationsPayload {
+  applicationIds: string[];
+  toWorkflowStageId: string;
+  remarks?: string;
+  assignedTo?: string;
+  nextRoundDate?: string;
+}
+
+export const applicationWorkflowApi = {
+  /**
+   * Get Kanban Hiring Board for a specific Job
+   * GET /api/v1/hiring-workflow/applications/application-workflow/hiring-board/:jobId
+   */
+  getHiringBoard: async (jobId: string): Promise<HiringBoardStage[]> => {
+    const res = await api.get<{ success: boolean; data: HiringBoardStage[] }>(
+      `/hiring-workflow/applications/application-workflow/hiring-board/${jobId}`
+    );
+    return (res as any).data || res;
+  },
+
+  /**
+   * Move single candidate application to a new stage
+   * PATCH /api/v1/hiring-workflow/applications/company/:companyId/application-workflow/move
+   */
+  moveApplication: async (companyId: string, payload: MoveApplicationPayload): Promise<any> => {
+    const res = await api.patch<{ success: boolean; data: any }>(
+      `/hiring-workflow/applications/company/${companyId}/application-workflow/move`,
+      payload
+    );
+    return (res as any).data || res;
+  },
+
+  /**
+   * Bulk move multiple candidate applications to a new stage
+   * PATCH /api/v1/hiring-workflow/applications/company/:companyId/application-workflow/bulk-move
+   */
+  bulkMoveApplications: async (companyId: string, payload: BulkMoveApplicationsPayload): Promise<any> => {
+    const res = await api.patch<{ success: boolean; data: any }>(
+      `/hiring-workflow/applications/company/${companyId}/application-workflow/bulk-move`,
+      payload
+    );
+    return (res as any).data || res;
+  },
+};
+
 export interface StageLibraryItem {
   id: string;
   name: string;

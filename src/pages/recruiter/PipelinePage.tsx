@@ -1,213 +1,255 @@
 import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, Filter, Plus, MoreHorizontal, Star, X, ChevronRight,
   Video, Send, XCircle, Clock, Activity, Briefcase, MapPin,
-  ChevronDown, GripVertical,
+  ChevronDown, GripVertical, Loader2, AlertCircle, User, Mail, Calendar, CheckCircle2
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-import {
-  PIPELINE_STAGES as STAGES,
-  pipelineInitialData as initialData,
-} from '../../constants/recruiter_mockData';
-import type { StageKey } from '../../constants/recruiter_mockData';
-
-
-const matchColor = (score: number) =>
-  score >= 90 ? 'text-emerald-600' : score >= 80 ? 'text-blue-600' : score >= 70 ? 'text-amber-600' : 'text-red-500';
+import { useAuth } from '../../context/AuthContext';
+import { jobApi, type JobItem } from '../../services/api/job.api';
+import { applicationWorkflowApi, type HiringBoardStage, type HiringBoardApplication } from '../../services/api/workflow.api';
+import { jobKeys, workflowKeys } from '../../constants/queryKeys';
 
 const PipelinePage = () => {
-  const [data] = useState(initialData);
-  const [preview, setPreview] = useState<any | null>(data.Applied[0]);
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
 
-  const totalCandidates = Object.values(data).flat().length;
+  const [selectedJobId, setSelectedJobId] = useState<string>('');
+  const [search, setSearch] = useState('');
+  const [preview, setPreview] = useState<HiringBoardApplication | null>(null);
 
-  const summaryColors = ['text-blue-600', 'text-amber-600', 'text-purple-600', 'text-violet-600', 'text-indigo-600', 'text-pink-600', 'text-emerald-600', 'text-green-600', 'text-red-500'];
+  // 1. Fetch Company Jobs to populate the Job Selector dropdown (only PUBLISHED jobs can have hiring boards)
+  const { data: allJobs = [], isLoading: isLoadingJobs } = useQuery({
+    queryKey: jobKeys.list(companyId || ''),
+    queryFn: () => (companyId ? jobApi.listCompanyJobs(companyId) : Promise.resolve([])),
+    enabled: Boolean(companyId),
+  });
+
+  const publishedJobs = allJobs.filter(j => j.status === 'PUBLISHED');
+
+  // Auto-select first published job
+  const activeJob = publishedJobs.find(j => j.id === selectedJobId) || publishedJobs[0];
+  const currentJobId = activeJob?.id;
+
+  // 2. Fetch Live Hiring Board (Kanban stages and candidate cards) for selected published job
+  const {
+    data: boardStages = [],
+    isLoading: isLoadingBoard,
+    isError: isBoardError,
+    error: boardError
+  } = useQuery({
+    queryKey: workflowKeys.hiringBoard(currentJobId || ''),
+    queryFn: () => (currentJobId ? applicationWorkflowApi.getHiringBoard(currentJobId) : Promise.resolve([])),
+    enabled: Boolean(currentJobId),
+  });
+
+  // 3. Move Application Mutation
+  const moveMutation = useMutation({
+    mutationFn: async ({ applicationId, toWorkflowStageId }: { applicationId: string; toWorkflowStageId: string }) => {
+      if (!companyId) throw new Error('Company ID missing');
+      return applicationWorkflowApi.moveApplication(companyId, {
+        applicationId,
+        toWorkflowStageId,
+      });
+    },
+    onSuccess: () => {
+      toast.success('Candidate moved successfully');
+      queryClient.invalidateQueries({ queryKey: workflowKeys.hiringBoard(currentJobId || '') });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to move candidate');
+    },
+  });
+
+  // Drag & drop handlers
+  const handleDragStart = (e: React.DragEvent, applicationId: string) => {
+    e.dataTransfer.setData('text/plain', applicationId);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStageId: string) => {
+    e.preventDefault();
+    const applicationId = e.dataTransfer.getData('text/plain');
+    if (!applicationId || !targetStageId) return;
+    moveMutation.mutate({ applicationId, toWorkflowStageId: targetStageId });
+  };
+
+  // Calculate totals
+  const totalApplicants = boardStages.reduce((acc, stage) => acc + (stage.applications?.length || 0), 0);
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
+    <div className="space-y-5 max-w-7xl mx-auto">
+      {/* Header with Job Selector */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
-              <Briefcase className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-primary-800 flex items-center justify-center flex-shrink-0 text-white shadow-2xs">
+              <Briefcase className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-display font-bold text-[#0F172A]">Senior Frontend Developer</h1>
-              <p className="text-xs text-slate-500">Engineering • Bangalore, India • <span className="text-emerald-600 font-medium">● Active</span></p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-display font-bold text-[#0F172A]">
+                  {activeJob?.title || (isLoadingJobs ? 'Loading jobs...' : 'No Published Jobs')}
+                </h1>
+                {activeJob && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-emerald-50 text-emerald-700 border-emerald-200">
+                    PUBLISHED
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {activeJob ? `${activeJob.employmentType?.replace('_', ' ')} • ${activeJob.location || activeJob.workplaceType}` : 'Only published jobs receive applications and have active Kanban pipelines'}
+              </p>
             </div>
           </div>
-          <div className="flex items-center gap-5 mt-2 ml-13 text-xs text-slate-600">
-            {[
-              { label: 'Total Applicants', val: 128 },
-              { label: 'In Pipeline', val: 32 },
-              { label: 'Interviews', val: 24 },
-              { label: 'Offered', val: 8 },
-              { label: 'Hired', val: 4 },
-            ].map(s => (
-              <div key={s.label} className="flex flex-col items-center">
-                <span className="font-bold text-slate-900 text-base">{s.val}</span>
-                <span className="text-slate-400">{s.label}</span>
-              </div>
-            ))}
-          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button className="btn-secondary text-sm">Share / Embed</button>
-          <button className="btn-primary text-sm flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add Candidate
-          </button>
+
+        {/* Job Switcher Dropdown */}
+        <div className="flex items-center gap-3">
+          <div className="relative min-w-[220px]">
+            <select
+              value={currentJobId || ''}
+              onChange={(e) => setSelectedJobId(e.target.value)}
+              className="appearance-none w-full pl-3 pr-8 py-2 text-xs font-semibold border border-[#E5E7EB] rounded-xl bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-2xs cursor-pointer"
+            >
+              {isLoadingJobs ? (
+                <option>Loading jobs...</option>
+              ) : publishedJobs.length === 0 ? (
+                <option>No published jobs found</option>
+              ) : (
+                publishedJobs.map(j => (
+                  <option key={j.id} value={j.id}>
+                    {j.title} ({j._count?.applications || 0} applicants)
+                  </option>
+                ))
+              )}
+            </select>
+            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          </div>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search candidates..."
-            className="pl-9 pr-4 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 w-52"
+            placeholder="Search candidate by name or email..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="pl-9 pr-4 py-2 text-xs border border-[#E5E7EB] rounded-xl bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500 w-64 shadow-2xs"
           />
         </div>
-        {['All Stages', 'All Sources'].map(f => (
-          <div key={f} className="relative">
-            <select className="appearance-none pl-3 pr-8 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500">
-              <option>{f}</option>
-            </select>
-            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          </div>
-        ))}
-        <button className="flex items-center gap-2 px-3 py-2 text-sm border border-[#E5E7EB] rounded-lg text-slate-600 hover:bg-slate-50 transition-colors">
-          <Filter className="w-4 h-4" />
-          More Filters
-        </button>
-        <div className="ml-auto flex items-center gap-2">
-          <button className="text-xs text-slate-500 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[#E5E7EB] hover:bg-slate-50 transition-colors">
-            <Activity className="w-3.5 h-3.5" />
-            Automate
-          </button>
+        <div className="text-xs text-slate-500 font-medium">
+          Total Candidates in Pipeline: <span className="font-bold text-slate-900">{totalApplicants}</span>
         </div>
       </div>
 
-      {/* Kanban + Summary */}
-      <div className="flex gap-5" style={{ height: 'calc(100vh - 340px)', minHeight: '520px' }}>
-        {/* Kanban Board */}
-        <div className="flex-1 min-w-0 overflow-x-auto pb-2">
-          <div className="flex gap-4 h-full min-w-max pr-2">
-            {STAGES.map((stage) => {
-              const cards = data[stage.key] || [];
-              return (
-                <div
-                  key={stage.key}
-                  className="w-60 flex-shrink-0 flex flex-col bg-slate-50 rounded-xl border border-[#E5E7EB] overflow-hidden"
-                >
-                  {/* Column Header */}
-                  <div className={`px-3 py-2.5 border-b ${stage.color} flex items-center justify-between`}>
-                    <div className="flex items-center gap-2">
-                      <span className={`w-2 h-2 rounded-full ${stage.dot}`} />
-                      <h3 className={`text-xs font-bold ${stage.textColor}`}>{stage.label}</h3>
-                    </div>
-                    <span className="bg-white text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border border-[#E5E7EB]">
-                      {cards.length}
-                    </span>
-                  </div>
-
-                  {/* Cards */}
-                  <div className="flex-1 overflow-y-auto p-2 space-y-2">
-                    {cards.map((c) => (
-                      <div
-                        key={c.id}
-                        onClick={() => setPreview(c)}
-                        className={`bg-white rounded-lg border border-[#E5E7EB] p-3 cursor-pointer hover:shadow-md hover:border-primary-200 transition-all ${preview?.id === c.id ? 'border-primary-400 shadow-md' : ''}`}
-                      >
-                        <div className="flex items-start gap-2 mb-2">
-                          <div className={`w-7 h-7 rounded-full bg-gradient-to-br ${c.color} flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0`}>
-                            {c.avatar}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-slate-900 leading-tight truncate">{c.name}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{c.exp} • {c.source}</p>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {c.skills?.slice(0, 2).map((s: string) => (
-                            <span key={s} className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">{s}</span>
-                          ))}
-                        </div>
-
-                        {c.testStatus && (
-                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${c.testStatus === 'Completed' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                            {c.testStatus}
-                          </span>
-                        )}
-
-                        {c.badge && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-primary-50 text-primary-700">{c.badge}</span>
-                        )}
-
-                        {c.interview && (
-                          <div className="mt-1.5 text-[9px] bg-primary-50 text-primary-700 px-2 py-1 rounded font-medium">
-                            📅 {c.interview}
-                          </div>
-                        )}
-
-                        {c.match > 0 && (
-                          <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
-                            <span className={`text-[10px] font-bold ${matchColor(c.match)}`}>{c.match}%</span>
-                            <span className="text-[9px] text-slate-400">{c.date}</span>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                    {cards.length > 4 && (
-                      <button className="w-full text-center text-[10px] text-slate-400 hover:text-primary-600 py-1">
-                        +{cards.length - 4} more
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Kanban Board Container */}
+      {!currentJobId ? (
+        <div className="card p-12 text-center text-slate-500">
+          <Briefcase className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+          <p className="text-sm font-semibold text-slate-700">No Published Jobs Found</p>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+            Jobs must be published to have an active candidate pipeline. Publish an existing draft job or create a new job opening.
+          </p>
         </div>
+      ) : isLoadingBoard ? (
+        <div className="card p-16 text-center text-slate-500">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary-600 mb-3" />
+          <p className="text-sm font-medium">Loading candidate pipeline & hiring board...</p>
+        </div>
+      ) : isBoardError ? (
+        <div className="card p-8 text-center text-red-500">
+          <AlertCircle className="w-8 h-8 mx-auto text-red-500 mb-2" />
+          <p className="text-sm font-semibold">Failed to load hiring board</p>
+          <p className="text-xs text-red-400 mt-1">{(boardError as any)?.message || 'Check connection'}</p>
+        </div>
+      ) : boardStages.length === 0 ? (
+        <div className="card p-12 text-center text-slate-500">
+          <p className="text-sm font-semibold text-slate-700">No Workflow Stages Configured</p>
+          <p className="text-xs text-slate-400 mt-1">This job's workflow has no stages assigned.</p>
+        </div>
+      ) : (
+        <div className="flex gap-5" style={{ height: 'calc(100vh - 280px)', minHeight: '520px' }}>
+          {/* Kanban Board Columns */}
+          <div className="flex-1 min-w-0 overflow-x-auto pb-2">
+            <div className="flex gap-4 h-full min-w-max pr-2">
+              {boardStages.map((stage) => {
+                const stageApps = (stage.applications || []).filter(app =>
+                  !search.trim() ||
+                  app.candidate?.fullName?.toLowerCase().includes(search.toLowerCase()) ||
+                  app.candidate?.user?.email?.toLowerCase().includes(search.toLowerCase())
+                );
 
-        {/* Right Summary & Preview */}
-        <div className="w-64 flex-shrink-0 flex flex-col gap-4">
-          {/* Pipeline Summary */}
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-xs font-bold text-slate-900">Pipeline Summary</h3>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-            </div>
-            <div className="relative w-24 h-24 mx-auto mb-3">
-              <svg viewBox="0 0 36 36" className="w-24 h-24 -rotate-90">
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#E5E7EB" strokeWidth="2.5" />
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#2563EB" strokeWidth="2.5"
-                  strokeDasharray="57.1 42.9" strokeLinecap="round" />
-                <circle cx="18" cy="18" r="15.9155" fill="none" stroke="#3B82F6" strokeWidth="2.5"
-                  strokeDasharray="16.3 83.7" strokeDashoffset="-57.1" strokeLinecap="round" />
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <p className="text-lg font-display font-bold text-slate-900">{totalCandidates}</p>
-                <p className="text-[9px] text-slate-400">Total</p>
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              {STAGES.slice(0, 8).map((s, i) => {
-                const cnt = data[s.key]?.length || 0;
-                const pct = Math.round((cnt / totalCandidates) * 100);
                 return (
-                  <div key={s.key} className="flex items-center justify-between text-[10px]">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${s.dot}`} />
-                      <span className="text-slate-600">{s.label}</span>
+                  <div
+                    key={stage.stageId}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, stage.stageId)}
+                    className="w-72 flex-shrink-0 flex flex-col bg-slate-50/80 rounded-2xl border border-[#E5E7EB] overflow-hidden shadow-2xs"
+                  >
+                    {/* Column Header */}
+                    <div className="px-4 py-3 bg-white border-b border-[#E5E7EB] flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-primary-600" />
+                        <h3 className="text-xs font-bold text-slate-800 truncate font-display">{stage.stageName}</h3>
+                      </div>
+                      <span className="bg-slate-100 text-slate-700 text-[11px] font-bold px-2 py-0.5 rounded-full border border-slate-200">
+                        {stageApps.length}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-slate-900 font-semibold">{cnt}</span>
-                      <span className="text-slate-400">({pct}%)</span>
+
+                    {/* Candidate Cards List */}
+                    <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5">
+                      {stageApps.length === 0 ? (
+                        <div className="py-8 text-center text-slate-400 text-xs border-2 border-dashed border-slate-200 rounded-xl m-1">
+                          Drop candidate here
+                        </div>
+                      ) : (
+                        stageApps.map((app) => (
+                          <div
+                            key={app.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(e, app.id)}
+                            onClick={() => setPreview(app)}
+                            className={`bg-white rounded-xl border border-slate-200 p-3.5 cursor-grab active:cursor-grabbing hover:shadow-md hover:border-primary-300 transition-all ${
+                              preview?.id === app.id ? 'border-primary-500 ring-2 ring-primary-100 shadow-sm' : ''
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5 mb-2">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary-500 to-indigo-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                                {app.candidate?.fullName?.charAt(0) || 'C'}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-slate-900 leading-tight truncate">
+                                  {app.candidate?.fullName || 'Candidate'}
+                                </p>
+                                <p className="text-[10px] text-slate-400 truncate mt-0.5">
+                                  {app.candidate?.user?.email || 'No email'}
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-slate-400" />
+                                {app.appliedAt ? new Date(app.appliedAt).toLocaleDateString() : 'Recent'}
+                              </span>
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-slate-100 text-slate-600">
+                                {app.status || 'Active'}
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 );
@@ -215,62 +257,59 @@ const PipelinePage = () => {
             </div>
           </div>
 
-          {/* Candidate Preview */}
+          {/* Right Candidate Detail Preview */}
           {preview && (
-            <div className="card p-4 flex-1 overflow-y-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-bold text-slate-900">Candidate Preview</h3>
+            <div className="w-72 flex-shrink-0 card p-4 flex flex-col h-full overflow-y-auto">
+              <div className="flex items-center justify-between mb-4 pb-2 border-b border-slate-100">
+                <h3 className="text-xs font-bold text-slate-900 font-display">Candidate Overview</h3>
                 <button onClick={() => setPreview(null)} className="p-1 text-slate-400 hover:text-slate-600">
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
-              <div className="flex items-center gap-2.5 mb-3">
-                <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${preview.color} flex items-center justify-center text-white text-xs font-bold`}>
-                  {preview.avatar}
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-11 h-11 rounded-full bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white text-sm font-bold shadow-2xs">
+                  {preview.candidate?.fullName?.charAt(0) || 'C'}
                 </div>
-                <div>
-                  <p className="text-sm font-bold text-slate-900">{preview.name}</p>
-                  <p className="text-[10px] text-slate-500">{preview.date}</p>
-                  <p className="text-[10px] text-slate-400">{preview.source}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold text-slate-900 truncate">{preview.candidate?.fullName}</p>
+                  <p className="text-xs text-slate-400 truncate">{preview.candidate?.user?.email}</p>
                 </div>
               </div>
-              {preview.match > 0 && (
-                <div className="mb-3">
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-slate-500">Match Score</span>
-                    <span className={`font-bold ${matchColor(preview.match)}`}>{preview.match}%</span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-1.5">
-                    <div className="h-1.5 rounded-full bg-primary-600" style={{ width: `${preview.match}%` }} />
-                  </div>
+
+              <div className="space-y-3 text-xs border-t border-slate-100 pt-3">
+                <div>
+                  <span className="text-slate-400 text-[11px]">Applied Date</span>
+                  <p className="font-semibold text-slate-700 mt-0.5">
+                    {preview.appliedAt ? new Date(preview.appliedAt).toLocaleString() : 'N/A'}
+                  </p>
                 </div>
-              )}
-              {preview.skills && (
-                <div className="mb-3">
-                  <p className="text-[9px] text-slate-400 uppercase tracking-wide mb-1.5">Skills</p>
-                  <div className="flex flex-wrap gap-1">
-                    {preview.skills.map((s: string) => (
-                      <span key={s} className="text-[10px] bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full border border-primary-100 font-medium">{s}</span>
-                    ))}
-                  </div>
+                <div>
+                  <span className="text-slate-400 text-[11px]">Application Status</span>
+                  <p className="font-semibold text-slate-700 mt-0.5">{preview.status || 'Active'}</p>
                 </div>
-              )}
-              <button className="w-full btn-primary text-xs py-2">View Full Profile</button>
+                <div>
+                  <span className="text-slate-400 text-[11px]">Application ID</span>
+                  <p className="font-mono text-[10px] text-slate-500 mt-0.5 break-all">{preview.id}</p>
+                </div>
+              </div>
+
+              <div className="mt-auto pt-4 border-t border-slate-100 space-y-2">
+                <p className="text-[11px] text-slate-400 text-center">
+                  Tip: Drag card to another stage on the board to advance
+                </p>
+              </div>
             </div>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Footer note */}
-      <div className="flex items-center justify-between text-xs text-slate-400 pt-2">
+      {/* Footer Instructions */}
+      <div className="flex items-center justify-between text-xs text-slate-400 pt-1">
         <div className="flex items-center gap-1.5">
           <GripVertical className="w-3.5 h-3.5" />
-          Drag & drop candidates between stages
+          Drag & drop candidate cards across columns to advance or change their workflow stage
         </div>
-        <button className="text-primary-600 hover:text-primary-700 font-medium flex items-center gap-1">
-          <Activity className="w-3 h-3" />
-          Automate stage movement · Set Rules
-        </button>
       </div>
     </div>
   );
