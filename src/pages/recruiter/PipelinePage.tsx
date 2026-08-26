@@ -9,6 +9,7 @@ import toast from 'react-hot-toast';
 
 import { useAuth } from '../../context/AuthContext';
 import { jobApi, type JobItem } from '../../services/api/job.api';
+import { assessmentApi } from '../../services/api/assessment.api';
 import { applicationWorkflowApi, type HiringBoardStage, type HiringBoardApplication } from '../../services/api/workflow.api';
 import { jobKeys, workflowKeys } from '../../constants/queryKeys';
 
@@ -43,6 +44,13 @@ const PipelinePage = () => {
   } = useQuery({
     queryKey: workflowKeys.hiringBoard(currentJobId || ''),
     queryFn: () => (currentJobId ? applicationWorkflowApi.getHiringBoard(currentJobId) : Promise.resolve([])),
+    enabled: Boolean(currentJobId),
+  });
+
+  // 2b. Fetch Assessments attached directly to the Job as fallback
+  const { data: jobAssessments = [] } = useQuery({
+    queryKey: jobKeys.assessments(currentJobId || ''),
+    queryFn: () => (currentJobId ? assessmentApi.getJobAssessments(currentJobId) : Promise.resolve([])),
     enabled: Boolean(currentJobId),
   });
 
@@ -293,6 +301,69 @@ const PipelinePage = () => {
                   <p className="font-mono text-[10px] text-slate-500 mt-0.5 break-all">{preview.id}</p>
                 </div>
               </div>
+
+              {/* Assessment Section in Drawer */}
+              {(() => {
+                const currentStage = boardStages.find(s => s.applications.some(a => a.id === preview.id));
+                const isAssessmentStage = currentStage?.stageName?.toLowerCase().includes('assessment') ||
+                                         Boolean(currentStage?.assessmentId);
+                const stageAssessment = currentStage?.assessment || 
+                                       (currentStage?.assessmentId ? { id: currentStage.assessmentId, title: 'Stage Assessment' } : null) ||
+                                       (isAssessmentStage && jobAssessments[0]?.assessment ? jobAssessments[0].assessment : null);
+
+                return (
+                  <div className="mt-4 pt-3 border-t border-slate-100 space-y-2">
+                    <h4 className="text-[11px] font-bold text-slate-900 uppercase tracking-wide">Technical Assessment</h4>
+                    {stageAssessment ? (
+                      <div className="p-3 bg-primary-50/50 rounded-xl border border-primary-100 space-y-2">
+                        <p className="text-xs font-bold text-slate-800">{stageAssessment.title || 'Technical Assessment'}</p>
+                        
+                        <div className="flex flex-col gap-1.5 pt-1">
+                          <button
+                            onClick={async () => {
+                              try {
+                                const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+                                await assessmentApi.createAssessmentInvitation(preview.id, {
+                                  assessmentId: stageAssessment.id,
+                                  expiresAt: expiryDate,
+                                  sendEmail: true
+                                });
+                                toast.success('Assessment invitation sent successfully!');
+                                queryClient.invalidateQueries({ queryKey: workflowKeys.hiringBoard(currentJobId || '') });
+                              } catch (err: any) {
+                                toast.error(err?.response?.data?.message || err?.message || 'Failed to send assessment invitation');
+                              }
+                            }}
+                            className="w-full py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-2xs"
+                          >
+                            <Send className="w-3.5 h-3.5" />
+                            Send Test Invitation
+                          </button>
+
+                          <button
+                            onClick={async () => {
+                              try {
+                                const scorecard = await assessmentApi.getApplicationAssessmentResult(preview.id);
+                                if (scorecard) {
+                                  toast.success(`Scorecard: ${scorecard.assessmentTitle || 'Assessment'} - Score: ${scorecard.score ?? scorecard.percentage ?? 0}%`);
+                                }
+                              } catch (err: any) {
+                                toast.error(err?.response?.data?.message || 'No scorecard available yet for this candidate.');
+                              }
+                            }}
+                            className="w-full py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                          >
+                            <Activity className="w-3.5 h-3.5 text-primary-600" />
+                            View Scorecard
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="text-[11px] text-slate-400 italic">No assessment attached to this stage.</p>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="mt-auto pt-4 border-t border-slate-100 space-y-2">
                 <p className="text-[11px] text-slate-400 text-center">

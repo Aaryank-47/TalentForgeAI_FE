@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -20,11 +20,14 @@ import {
   RefreshCw,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { useMedia } from '../../context/MediaProvider';
 import AssessmentMonitoringPanel from '../../components/assessment/AssessmentMonitoringPanel';
 import MonacoEditorWrapper from '../../components/assessment/MonacoEditorWrapper';
+import { assessmentApi } from '../../services/api/assessment.api';
 import { mockMCQQuestions } from '../../constants/assessment_mockData';
 import { mockDsaProblems, runMockCode, submitMockCode } from '../../constants/assessment_candidate_mock';
 import type { MCQQuestion, MockExecutionResult } from '../../types/assessment';
@@ -41,6 +44,12 @@ interface AlertBanner {
 const AssessmentTakePage: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const invitationToken = searchParams.get('token') || '';
+
+  // Attempt backend tracking state
+  const [attemptId, setAttemptId] = useState<string>('');
+  const [isInitializingAttempt, setIsInitializingAttempt] = useState<boolean>(Boolean(invitationToken));
 
   // Media context
   const {
@@ -53,6 +62,30 @@ const AssessmentTakePage: React.FC = () => {
     isFullscreen,
     requestFullscreen,
   } = useMedia();
+
+  // Initialize attempt with token if present
+  useEffect(() => {
+    if (!invitationToken) return;
+
+    const initAttempt = async () => {
+      try {
+        const attempt = await assessmentApi.startAssessmentAttempt(invitationToken);
+        if (attempt?.attemptId) {
+          setAttemptId(attempt.attemptId);
+          if (attempt.remainingSeconds) {
+            setSecondsLeft(attempt.remainingSeconds);
+          }
+        }
+      } catch (err: any) {
+        // If already started, that's okay
+        console.warn('Start attempt response:', err);
+      } finally {
+        setIsInitializingAttempt(false);
+      }
+    };
+
+    initAttempt();
+  }, [invitationToken]);
 
   // Active section: 'mcq' | 'dsa'
   const [activeSection, setActiveSection] = useState<'mcq' | 'dsa'>('mcq');
@@ -217,13 +250,40 @@ const AssessmentTakePage: React.FC = () => {
     }, 5000);
   };
 
-  const handleAutoSubmit = () => {
+  const handleAutoSubmit = async () => {
+    if (attemptId) {
+      try {
+        await assessmentApi.submitAssessmentAttempt(attemptId);
+      } catch (err) {
+        console.error('Auto-submit attempt error:', err);
+      }
+    }
+    setSubmitted(true);
+  };
+
+  const handleManualSubmit = async () => {
+    if (attemptId) {
+      try {
+        await assessmentApi.submitAssessmentAttempt(attemptId);
+        toast.success('Assessment submitted successfully!');
+      } catch (err: any) {
+        toast.error(err?.response?.data?.message || 'Assessment submission recorded.');
+      }
+    }
     setSubmitted(true);
   };
 
   const selectMcqAnswer = (qId: string, optionIdx: number) => {
     setMcqAnswers((prev) => ({ ...prev, [qId]: optionIdx }));
     setMcqStatuses((prev) => ({ ...prev, [qId]: 'answered' }));
+
+    // Send answer to backend if attempt is active
+    if (attemptId) {
+      assessmentApi.saveAssessmentAnswer(attemptId, qId, {
+        type: 'MCQ',
+        selectedOptionIndex: optionIdx
+      }).catch(err => console.warn('Failed to save MCQ answer:', err));
+    }
   };
 
   const handleMcqMark = (qId: string) => {
@@ -407,7 +467,7 @@ const AssessmentTakePage: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setSubmitted(true)}
+            onClick={handleManualSubmit}
             className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded-lg transition-colors shadow-md"
           >
             End Assessment

@@ -494,7 +494,8 @@ const CreateJobPage = () => {
                       <option value="FULL_TIME">Full-time</option>
                       <option value="PART_TIME">Part-time</option>
                       <option value="CONTRACT">Contract</option>
-                      <option value="INTERNSHIP">Internship</option>
+                      <option value="INTERN">Internship</option>
+                      <option value="FREELANCE">Freelance</option>
                       <option value="TEMPORARY">Temporary</option>
                       <option value="APPRENTICESHIP">Apprenticeship</option>
                     </select>
@@ -1001,7 +1002,8 @@ const CreateJobPage = () => {
                       form.employmentType === 'FULL_TIME' ? 'Full-time'
                       : form.employmentType === 'PART_TIME' ? 'Part-time'
                       : form.employmentType === 'CONTRACT' ? 'Contract'
-                      : form.employmentType === 'INTERNSHIP' ? 'Internship'
+                      : form.employmentType === 'INTERN' ? 'Internship'
+                      : form.employmentType === 'FREELANCE' ? 'Freelance'
                       : form.employmentType === 'TEMPORARY' ? 'Temporary'
                       : 'Apprenticeship'
                     }

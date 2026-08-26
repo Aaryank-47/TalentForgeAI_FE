@@ -29,9 +29,21 @@ export type EmploymentType =
   | 'FULL_TIME'
   | 'PART_TIME'
   | 'CONTRACT'
-  | 'INTERNSHIP'
+  | 'INTERN'
   | 'FREELANCE'
-  | 'REMOTE';
+  | 'TEMPORARY'
+  | 'APPRENTICESHIP';
+
+export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'PREFER_NOT_TO_SAY';
+
+export type ExperienceLevel =
+  | 'FRESHER'
+  | 'INTERN'
+  | 'JUNIOR'
+  | 'MID_LEVEL'
+  | 'SENIOR'
+  | 'LEAD'
+  | 'ARCHITECT';
 
 export interface CandidateEducation {
   id: string;
@@ -121,8 +133,8 @@ export interface UpdateCandidateProfileDto {
   headline?: string;
   bio?: string;
   dateOfBirth?: string;
-  gender?: 'MALE' | 'FEMALE' | 'OTHER';
-  experienceLevel?: string;
+  gender?: Gender;
+  experienceLevel?: ExperienceLevel;
   currentLocation?: string;
   preferredLocation?: string;
   currentCompany?: string;

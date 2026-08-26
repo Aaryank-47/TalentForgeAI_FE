@@ -276,27 +276,88 @@ export const assessmentApi = {
     await api.patch('/assessments/assignments/job/reorder', { jobId, assessments });
   },
 
-  // ── Candidate: Attempt Flow ────────────────────────────────────────────────
+  // ── Candidate: Attempt Flow & Invitations ─────────────────────────────────
 
-  /** Get assessments assigned to the current candidate */
-  getCandidateAssessments: () =>
-    api.get<{ assessments: Array<Assessment & { attempt?: AssessmentAttempt }> }>('/candidate/assessments'),
+  /** Recruiter: Invite candidate to assessment (POST /assessments/assignments/applications/:applicationId/assessment-invitation) */
+  createAssessmentInvitation: async (
+    applicationId: string,
+    data: { assessmentId: string; expiresAt: string; sendEmail?: boolean }
+  ): Promise<{ invitationId: string; assessmentId: string; token: string; expiresAt: string }> => {
+    const res = await api.post<{ success: boolean; message: string; data: any }>(
+      `/assessments/assignments/applications/${applicationId}/assessment-invitation`,
+      data
+    );
+    return (res as any).data || res;
+  },
 
-  /** Start an assessment attempt */
-  startAttempt: (assessmentId: string) =>
-    api.post<StartAttemptResponse>(`/assessments/${assessmentId}/start`),
+  /** Fetch assessment invitation by application (GET /assessments/assignments/applications/:applicationId/assessment-invitation) */
+  getAssessmentInvitation: async (applicationId: string): Promise<any> => {
+    const res = await api.get<{ success: boolean; message: string; data: any }>(
+      `/assessments/assignments/applications/${applicationId}/assessment-invitation`
+    );
+    return (res as any).data || res;
+  },
 
-  /** Submit a completed attempt */
-  submitAttempt: (attemptId: string, data: SubmitAttemptDto) =>
-    api.post<{ attempt: AssessmentAttempt }>(`/assessments/attempts/${attemptId}/submit`, data),
+  /** Validate invitation by token (GET /assessments/assignments/invitation/:token) */
+  validateInvitation: async (token: string): Promise<any> => {
+    const res = await api.get<{ success: boolean; message: string; data: any }>(
+      `/assessments/assignments/invitation/${token}`
+    );
+    return (res as any).data || res;
+  },
 
-  /** Get attempt result/details */
-  getAttemptResult: (attemptId: string) =>
-    api.get<{ attempt: AssessmentAttempt; answers: AssessmentAnswer[] }>(`/assessments/attempts/${attemptId}`),
+  /** Get candidate assessment scorecard/result by application (GET /assessment/applications/:applicationId/assessment-result) */
+  getApplicationAssessmentResult: async (applicationId: string): Promise<any> => {
+    const res = await api.get<{ success: boolean; message: string; data: any }>(
+      `/assessment/applications/${applicationId}/assessment-result`
+    );
+    return (res as any).data || res;
+  },
 
-  /** Save progress during an ongoing attempt */
-  saveProgress: (attemptId: string, data: { answers: Record<string, string | number>; timeSpentSeconds: number }) =>
-    api.patch(`/assessments/attempts/${attemptId}/progress`, data),
+  /** Candidate: Start assessment attempt (POST /assessment-attempts/start) */
+  startAssessmentAttempt: async (invitationToken: string): Promise<{ attemptId: string; assessmentId: string; status: string; startedAt: string; endsAt: string; remainingSeconds: number }> => {
+    const res = await api.post<{ success: boolean; message: string; data: any }>(
+      '/assessment-attempts/start',
+      { invitationToken }
+    );
+    return (res as any).data || res;
+  },
+
+  /** Candidate: Get attempt details (GET /assessment-attempts/:attemptId) */
+  getAttemptDetails: async (attemptId: string): Promise<any> => {
+    const res = await api.get<{ success: boolean; message: string; data: any }>(
+      `/assessment-attempts/${attemptId}`
+    );
+    return (res as any).data || res;
+  },
+
+  /** Candidate: Save question answer (PUT /assessment-attempts/:attemptId/answers/:questionId) */
+  saveAssessmentAnswer: async (
+    attemptId: string,
+    questionId: string,
+    data: {
+      type: 'MCQ' | 'DSA' | 'PROJECT';
+      selectedOptionIndex?: number;
+      code?: string;
+      language?: string;
+      submissionUrl?: string;
+      timeSpentSeconds?: number;
+    }
+  ): Promise<any> => {
+    const res = await api.put<{ success: boolean; message: string; data: any }>(
+      `/assessment-attempts/${attemptId}/answers/${questionId}`,
+      data
+    );
+    return (res as any).data || res;
+  },
+
+  /** Candidate: Submit completed assessment (POST /assessment-attempts/:attemptId/submit) */
+  submitAssessmentAttempt: async (attemptId: string): Promise<any> => {
+    const res = await api.post<{ success: boolean; message: string; data: any }>(
+      `/assessment-attempts/${attemptId}/submit`
+    );
+    return (res as any).data || res;
+  },
 
   // ── Code Execution (BACKEND DEPENDENCY: requires sandboxed execution) ──────
   /**

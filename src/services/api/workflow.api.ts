@@ -138,12 +138,20 @@ export interface HiringBoardApplication {
       email: string;
     };
   };
+  assessmentInvitations?: any[];
+  assessmentAttempts?: any[];
 }
 
 export interface HiringBoardStage {
   stageId: string;
   stageName: string;
   order: number;
+  assessmentId?: string | null;
+  assessment?: {
+    id: string;
+    title: string;
+    status: string;
+  } | null;
   applications: HiringBoardApplication[];
 }
 

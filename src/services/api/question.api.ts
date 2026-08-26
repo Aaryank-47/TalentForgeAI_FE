@@ -20,7 +20,7 @@ import { api } from './apiClient';
 export type QuestionType = 'MCQ' | 'DSA' | 'MACHINE_CODING' | 'PROJECT';
 export type QuestionDifficulty = 'EASY' | 'MEDIUM' | 'HARD';
 export type QuestionStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
-export type QuestionOwnership = 'SYSTEM' | 'COMPANY';
+export type QuestionOwnership = 'GLOBAL' | 'COMPANY';
 
 export interface QuestionOption {
   id?: string;

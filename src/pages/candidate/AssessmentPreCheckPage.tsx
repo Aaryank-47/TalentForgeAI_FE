@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, ArrowLeft, Check, ShieldAlert } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronRight, ArrowLeft, Check, ShieldAlert, AlertCircle, Loader2 } from 'lucide-react';
 import { InterviewStepper } from '../../components/interview/InterviewComponents';
 import { SystemCheck } from '../../modules/shared/system-check/SystemCheck';
+import { assessmentApi } from '../../services/api/assessment.api';
+import { useAuth } from '../../context/AuthContext';
 
 const STEPS = [
   { label: 'Details' },
@@ -13,10 +16,49 @@ const STEPS = [
 
 export default function AssessmentPreCheckPage() {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token') || '';
   const navigate = useNavigate();
+  const { user } = useAuth();
+
   const [currentStep, setCurrentStep] = useState(1);
   const [overallReady, setOverallReady] = useState(false);
   const [agreed, setAgreed] = useState(false);
+
+  // Validate invitation token on entry
+  const { data: invitationData, isLoading: isValidatingToken, isError: isTokenError, error: tokenError } = useQuery({
+    queryKey: ['assessment', 'invitation-validate', token],
+    queryFn: () => assessmentApi.validateInvitation(token),
+    enabled: Boolean(token),
+    retry: false,
+  });
+
+  if (token && isValidatingToken) {
+    return (
+      <div className="card p-16 max-w-xl mx-auto my-12 text-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-3" />
+        <h3 className="font-bold text-slate-800 text-sm">Validating Assessment Invitation...</h3>
+        <p className="text-xs text-slate-500 mt-1">Please wait while we verify your access token.</p>
+      </div>
+    );
+  }
+
+  if (token && isTokenError) {
+    return (
+      <div className="card p-12 max-w-xl mx-auto my-12 text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center text-red-600 mx-auto">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <h2 className="text-lg font-bold text-slate-900">Invalid or Expired Assessment Link</h2>
+        <p className="text-xs text-slate-600">
+          {(tokenError as any)?.response?.data?.message || 'This assessment invitation is either invalid, cancelled, or has already expired.'}
+        </p>
+        <button onClick={() => navigate('/candidate/assessments')} className="btn-primary text-xs mx-auto">
+          Go to My Assessments
+        </button>
+      </div>
+    );
+  }
 
   // Preparation Step
   const renderPreparation = () => (
@@ -89,7 +131,10 @@ export default function AssessmentPreCheckPage() {
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
         <button 
-          onClick={() => navigate(`/candidate/assessments/${id}/take`)} 
+          onClick={() => {
+            const search = window.location.search;
+            navigate(`/candidate/assessments/${id}/take${search}`);
+          }} 
           disabled={!agreed} 
           className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50"
         >

@@ -52,6 +52,8 @@ export const assessmentKeys = {
   all: ['assessments'] as const,
   list: (params?: Record<string, any>) => ['assessments', 'list', params] as const,
   detail: (id: string) => ['assessments', 'detail', id] as const,
+  invitation: (applicationId: string) => ['assessments', 'invitation', applicationId] as const,
+  applicationResult: (applicationId: string) => ['assessments', 'applicationResult', applicationId] as const,
 };
 
 export const jobKeys = {

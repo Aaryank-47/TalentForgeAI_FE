@@ -1003,10 +1003,21 @@ const CandidateProfilePage = () => {
         <form
           onSubmit={e => {
             e.preventDefault();
+            const payload: AddEducationDto = {
+              collegeName: educationForm.collegeName.trim(),
+              degree: educationForm.degree.trim(),
+              fieldOfStudy: educationForm.fieldOfStudy.trim(),
+              currentlyStudying: Boolean(educationForm.currentlyStudying),
+              startDate: educationForm.startDate,
+              endDate: educationForm.currentlyStudying ? undefined : (educationForm.endDate || undefined),
+              gradingSystem: educationForm.gradingSystem,
+              gradeText: educationForm.gradeText?.trim() || undefined,
+              grade: educationForm.grade || undefined,
+            };
             if (editingEducationId) {
-              updateEducationMutation.mutate({ id: editingEducationId, data: educationForm });
+              updateEducationMutation.mutate({ id: editingEducationId, data: payload });
             } else {
-              addEducationMutation.mutate(educationForm);
+              addEducationMutation.mutate(payload);
             }
           }}
           className="space-y-4"
@@ -1097,8 +1108,10 @@ const CandidateProfilePage = () => {
                 <option value="CGPA">CGPA</option>
                 <option value="PERCENTAGE">Percentage</option>
                 <option value="GPA_4">GPA (Scale 4.0)</option>
+                <option value="GPA_5">GPA (Scale 5.0)</option>
                 <option value="GPA_10">GPA (Scale 10.0)</option>
                 <option value="LETTER_GRADE">Letter Grade</option>
+                <option value="PASS_FAIL">Pass / Fail</option>
                 <option value="OTHER">Other</option>
               </select>
             </div>
@@ -1152,10 +1165,20 @@ const CandidateProfilePage = () => {
         <form
           onSubmit={e => {
             e.preventDefault();
+            const payload: AddExperienceDto = {
+              companyName: experienceForm.companyName.trim(),
+              designation: experienceForm.designation.trim(),
+              employmentType: experienceForm.employmentType,
+              description: experienceForm.description.trim(),
+              location: experienceForm.location?.trim() || undefined,
+              startDate: experienceForm.startDate,
+              endDate: experienceForm.currentlyWorking ? undefined : (experienceForm.endDate || undefined),
+              currentlyWorking: Boolean(experienceForm.currentlyWorking),
+            };
             if (editingExperienceId) {
-              updateExperienceMutation.mutate({ id: editingExperienceId, data: experienceForm });
+              updateExperienceMutation.mutate({ id: editingExperienceId, data: payload });
             } else {
-              addExperienceMutation.mutate(experienceForm);
+              addExperienceMutation.mutate(payload);
             }
           }}
           className="space-y-4"
@@ -1194,9 +1217,10 @@ const CandidateProfilePage = () => {
                 <option value="FULL_TIME">Full Time</option>
                 <option value="PART_TIME">Part Time</option>
                 <option value="CONTRACT">Contract</option>
-                <option value="INTERNSHIP">Internship</option>
+                <option value="INTERN">Internship</option>
                 <option value="FREELANCE">Freelance</option>
-                <option value="REMOTE">Remote</option>
+                <option value="TEMPORARY">Temporary</option>
+                <option value="APPRENTICESHIP">Apprenticeship</option>
               </select>
             </div>
           </div>

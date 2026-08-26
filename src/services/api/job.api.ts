@@ -1,9 +1,23 @@
 import { api } from './apiClient';
 
-export type EmploymentType = 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERNSHIP' | 'TEMPORARY';
+export type EmploymentType =
+  | 'FULL_TIME'
+  | 'PART_TIME'
+  | 'CONTRACT'
+  | 'INTERN'
+  | 'FREELANCE'
+  | 'TEMPORARY'
+  | 'APPRENTICESHIP';
 export type WorkplaceType = 'ONSITE' | 'HYBRID' | 'REMOTE';
 export type SalaryPeriod = 'HOURLY' | 'MONTHLY' | 'YEARLY';
-export type JobStatus = 'DRAFT' | 'PUBLISHED' | 'CLOSED' | 'ARCHIVED';
+export type JobStatus =
+  | 'DRAFT'
+  | 'PUBLISHED'
+  | 'PAUSED'
+  | 'CLOSED'
+  | 'FILLED'
+  | 'EXPIRED'
+  | 'ARCHIVED';
 
 export interface JobSkillItem {
   id?: string;
