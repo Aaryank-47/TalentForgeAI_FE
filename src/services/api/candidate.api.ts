@@ -271,6 +271,31 @@ export const candidateApi = {
   deleteResumes: (resumeIds: string[]) =>
     api.delete<{ message: string }>('/resume', { body: { resumeIds } }),
 
+  // ── Candidate Applications ───────────────────────────────────
+  /** Apply to a published job with selected resume (POST /candidate/applications/:jobId/apply/:resumeId) */
+  applyJob: (jobId: string, resumeId: string) =>
+    api.post<any>(`/candidate/applications/${jobId}/apply/${resumeId}`),
+
+  /** Fetch all candidate applications with pagination and filters (GET /candidate/applications/candidate/my/applications) */
+  getMyApplications: (params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.status) query.append('status', params.status);
+    if (params?.search) query.append('search', params.search);
+
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return api.get<any>(`/candidate/applications/candidate/my/applications${queryString}`);
+  },
+
+  /** Fetch details of a single application (GET /candidate/applications/candidate/my/application/:applicationId) */
+  getMyApplicationDetails: (applicationId: string) =>
+    api.get<any>(`/candidate/applications/candidate/my/application/${applicationId}`),
+
+  /** Withdraw an application (PATCH /candidate/applications/candidate/withdraw/:applicationId) */
+  withdrawApplication: (applicationId: string, remarks?: string) =>
+    api.patch<any>(`/candidate/applications/candidate/withdraw/${applicationId}`, { remarks }),
+
   // ── Preferences ──────────────────────────────────────────────
   /** Toggle Open To Work status */
   toggleOpenToWork: (isOpenToWork: boolean) =>

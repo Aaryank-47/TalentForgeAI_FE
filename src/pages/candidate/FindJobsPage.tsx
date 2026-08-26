@@ -1,37 +1,53 @@
 import { useState } from 'react';
-import { Search, MapPin, Filter, X, Bookmark, ChevronDown, Star, ExternalLink, CheckCircle, Briefcase, Building, Globe, Users, ThumbsUp, ThumbsDown, ChevronRight, ArrowUpRight } from 'lucide-react';
-import { jobsData, companiesData } from '../../constants/candidate_mockData';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  Search, MapPin, Filter, X, Bookmark, ChevronDown, Star, ExternalLink, CheckCircle,
+  Briefcase, Building, Globe, Users, ChevronRight, Loader2, FileText, CheckCircle2, AlertCircle
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
-// ─── Types ───────────────────────────────────────────────
-type Job = typeof jobsData[0];
+import { jobApi, type JobItem } from '../../services/api/job.api';
+import { candidateApi, type CandidateResume } from '../../services/api/candidate.api';
+import { jobKeys, candidateKeys } from '../../constants/queryKeys';
+import { companiesData } from '../../constants/candidate_mockData';
+
 type Company = typeof companiesData[0];
 
 // ─── Job Card ─────────────────────────────────────────────
 const JobCard = ({
-  job, selected, onSelect, saved, onSave,
+  job, selected, onSelect, saved, onSave, isApplied,
 }: {
-  job: Job; selected: boolean; onSelect: () => void; saved: boolean; onSave: () => void;
+  job: JobItem;
+  selected: boolean;
+  onSelect: () => void;
+  saved: boolean;
+  onSave: () => void;
+  isApplied?: boolean;
 }) => {
-  const matchColor = job.match >= 90 ? 'bg-emerald-500' : job.match >= 80 ? 'bg-blue-500' : 'bg-amber-500';
   return (
     <div
       onClick={onSelect}
       className={`p-4 border-b border-[#E5E7EB] hover:bg-slate-50 cursor-pointer transition-colors ${selected ? 'bg-primary-50/40 border-l-2 border-l-primary-500' : ''}`}
     >
       <div className="flex items-start gap-3">
-        <div className={`w-10 h-10 rounded-xl ${job.companyColor} flex items-center justify-center text-white font-bold flex-shrink-0`}>
-          {job.companyLogo}
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
+          {(job as any).company?.companyName?.charAt(0) || '🏢'}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 leading-tight">{job.title}</h3>
-              <p className="text-xs text-slate-500 mt-0.5">{job.company}</p>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="text-sm font-bold text-slate-900 leading-tight">{job.title}</h3>
+                {isApplied && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle className="w-3 h-3 text-emerald-600" />
+                    Applied
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">{(job as any).company?.companyName || 'TalentForge Employer'}</p>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className={`${matchColor} text-white text-[10px] font-bold px-2 py-1 rounded-lg whitespace-nowrap`}>
-                {job.match}%<br /><span className="text-[8px]">Match</span>
-              </span>
               <button
                 onClick={(e) => { e.stopPropagation(); onSave(); }}
                 className="p-1 text-slate-300 hover:text-primary-500 transition-colors"
@@ -41,18 +57,28 @@ const JobCard = ({
             </div>
           </div>
           <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1.5">
-            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.location}</span>
+            <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.location || job.workplaceType}</span>
             <span>·</span>
-            <span>🌐 {job.type}</span>
+            <span>🌐 {job.employmentType?.replace('_', ' ')}</span>
             <span>·</span>
-            <span className="font-semibold text-slate-700">{job.salary}</span>
+            <span className="font-semibold text-slate-700">
+              {job.hideSalary
+                ? 'Competitive'
+                : job.minimumSalary && job.maximumSalary
+                  ? `$${job.minimumSalary.toLocaleString()} - $${job.maximumSalary.toLocaleString()}`
+                  : 'Undisclosed'}
+            </span>
           </div>
           <div className="flex flex-wrap gap-1 mt-2">
-            {job.skills.slice(0, 3).map(s => (
-              <span key={s} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">{s}</span>
+            {(job.skills || []).slice(0, 3).map(s => (
+              <span key={s.name || (s as any)} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                {s.name || (s as any)}
+              </span>
             ))}
           </div>
-          <p className="text-[10px] text-slate-400 mt-2">{job.posted}</p>
+          <p className="text-[10px] text-slate-400 mt-2">
+            {job.publishedAt ? `Posted ${new Date(job.publishedAt).toLocaleDateString()}` : 'Recently posted'}
+          </p>
         </div>
       </div>
     </div>
@@ -86,26 +112,139 @@ const CompanyCard = ({
   </div>
 );
 
-// ─── Job Detail Panel ─────────────────────────────────────
-const JobDetailPanel = ({ job, onClose }: { job: Job; onClose: () => void }) => {
-  const [tab, setTab] = useState<'Overview' | 'Responsibilities' | 'Requirements' | 'Benefits' | 'Company'>('Overview');
+// ─── Apply Modal ──────────────────────────────────────────
+const ApplyModal = ({
+  job,
+  resumes,
+  onClose,
+  onApply,
+  isApplying
+}: {
+  job: JobItem;
+  resumes: CandidateResume[];
+  onClose: () => void;
+  onApply: (resumeId: string) => void;
+  isApplying: boolean;
+}) => {
+  const [selectedResumeId, setSelectedResumeId] = useState<string>(resumes[0]?.id || '');
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl border border-slate-100 max-w-md w-full p-6 shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 font-display">Apply for Job</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{job.title}</p>
+          </div>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-600 rounded-lg">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-slate-700 mb-2">Select Resume to Submit</label>
+          {resumes.length === 0 ? (
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 space-y-1">
+              <p className="font-semibold flex items-center gap-1.5"><AlertCircle className="w-4 h-4" /> No resumes uploaded yet</p>
+              <p className="text-amber-700">Please upload a resume in your profile before applying.</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-52 overflow-y-auto">
+              {resumes.map(r => (
+                <label
+                  key={r.id}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${selectedResumeId === r.id
+                      ? 'border-primary-500 bg-primary-50/50 ring-2 ring-primary-100'
+                      : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                >
+                  <input
+                    type="radio"
+                    name="resume"
+                    value={r.id}
+                    checked={selectedResumeId === r.id}
+                    onChange={() => setSelectedResumeId(r.id)}
+                    className="w-4 h-4 text-primary-600 focus:ring-primary-500"
+                  />
+                  <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-slate-800 truncate">{r.resumeName}</p>
+                    <p className="text-[10px] text-slate-400">Uploaded {new Date(r.uploadedAt).toLocaleDateString()}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 btn-secondary text-xs py-2.5"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!selectedResumeId || isApplying || resumes.length === 0}
+            onClick={() => onApply(selectedResumeId)}
+            className="flex-1 btn-primary text-xs py-2.5 flex items-center justify-center gap-2"
+          >
+            {isApplying ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Submit Application'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Job Detail Panel ─────────────────────────────────────
+const JobDetailPanel = ({
+  job,
+  onClose,
+  onOpenApplyModal,
+  isApplied,
+}: {
+  job: JobItem;
+  onClose: () => void;
+  onOpenApplyModal: () => void;
+  isApplied?: boolean;
+}) => {
+  const [tab, setTab] = useState<'Overview' | 'Skills' | 'Benefits' | 'Company'>('Overview');
+  const company = (job as any).company;
+
+  return (
+    <div className="flex flex-col h-full bg-white">
       <div className="p-5 border-b border-[#E5E7EB]">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 rounded-2xl ${job.companyColor} flex items-center justify-center text-white font-bold text-lg`}>
-              {job.companyLogo}
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+              {company?.companyName?.charAt(0) || '🏢'}
             </div>
             <div>
-              <h2 className="font-display font-bold text-[#0F172A] text-base">{job.title}</h2>
-              <p className="text-sm text-slate-500">{job.company}</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="font-display font-bold text-[#0F172A] text-base">{job.title}</h2>
+                {isApplied && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    Already Applied
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-slate-500">{company?.companyName || 'TalentForge Employer'}</p>
               <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-1">
-                <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{job.location}</span>
+                <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{job.location || job.workplaceType}</span>
                 <span>·</span>
-                <span>{job.type}</span>
+                <span>{job.employmentType?.replace('_', ' ')}</span>
                 <span>·</span>
-                <span className="font-semibold text-slate-700">{job.salary}</span>
+                <span className="font-semibold text-slate-700">
+                  {job.hideSalary
+                    ? 'Competitive'
+                    : job.minimumSalary && job.maximumSalary
+                      ? `$${job.minimumSalary.toLocaleString()} - $${job.maximumSalary.toLocaleString()}`
+                      : 'Undisclosed'}
+                </span>
               </div>
             </div>
           </div>
@@ -114,52 +253,61 @@ const JobDetailPanel = ({ job, onClose }: { job: Job; onClose: () => void }) => 
           </button>
         </div>
 
-        {/* Match + skills */}
+        {/* Skills preview */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex flex-wrap gap-1">
-            {job.skills.map(s => <span key={s} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">{s}</span>)}
+            {(job.skills || []).map(s => (
+              <span key={s.name || (s as any)} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">
+                {s.name || (s as any)}
+              </span>
+            ))}
           </div>
-          <span className={`text-white text-xs font-bold px-3 py-1 rounded-lg whitespace-nowrap ${job.match >= 90 ? 'bg-emerald-500' : job.match >= 80 ? 'bg-blue-500' : 'bg-amber-500'}`}>
-            {job.match}% Match
-          </span>
         </div>
 
         {/* CTAs */}
         <div className="flex gap-2">
-          <button className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
-            Apply Now
-          </button>
-          <button className="px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-slate-600 hover:bg-slate-50 text-sm font-medium transition-colors flex items-center gap-1.5">
-            <Bookmark className="w-4 h-4" />
-            Save
-          </button>
+          {isApplied ? (
+            <button
+              disabled
+              className="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-sm py-2.5 rounded-xl cursor-default flex items-center justify-center gap-2"
+            >
+              <CheckCircle className="w-4 h-4 text-emerald-600" />
+              Already Applied
+            </button>
+          ) : (
+            <button
+              onClick={onOpenApplyModal}
+              className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-2xs"
+            >
+              Apply Now
+            </button>
+          )}
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-[#E5E7EB] overflow-x-auto">
-        {(['Overview', 'Responsibilities', 'Requirements', 'Benefits', 'Company'] as const).map(t => (
+        {(['Overview', 'Skills', 'Benefits', 'Company'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
-              tab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
+            className={`px-4 py-3 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${tab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
           >
             {t}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 text-sm text-slate-700 leading-relaxed space-y-3">
+      <div className="flex-1 overflow-y-auto p-5 text-sm text-slate-700 leading-relaxed space-y-4">
         {tab === 'Overview' && (
           <>
             <div className="grid grid-cols-2 gap-3 mb-4">
               {[
-                { label: 'Department', value: job.department },
-                { label: 'Job Type', value: job.type },
-                { label: 'Experience', value: job.experience },
-                { label: 'Apply By', value: job.deadline },
+                { label: 'Workplace Type', value: job.workplaceType },
+                { label: 'Job Type', value: job.employmentType?.replace('_', ' ') },
+                { label: 'Experience', value: `${job.minExperience} - ${job.maxExperience} yrs` },
+                { label: 'Apply Deadline', value: job.applicationDeadline ? new Date(job.applicationDeadline).toLocaleDateString() : 'Rolling' },
               ].map(f => (
                 <div key={f.label} className="bg-slate-50 rounded-xl p-3 border border-[#E5E7EB]">
                   <p className="text-[10px] text-slate-400 mb-0.5">{f.label}</p>
@@ -167,46 +315,48 @@ const JobDetailPanel = ({ job, onClose }: { job: Job; onClose: () => void }) => 
                 </div>
               ))}
             </div>
-            <p className="text-sm text-slate-600 leading-relaxed">{job.description}</p>
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-1.5">Job Description</h4>
+              <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed">{job.description}</p>
+            </div>
           </>
         )}
-        {tab === 'Responsibilities' && (
-          <ul className="space-y-2">
-            {job.responsibilities.map((r, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <ChevronRight className="w-4 h-4 text-primary-500 flex-shrink-0 mt-0.5" />
-                <span>{r}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {tab === 'Requirements' && (
-          <ul className="space-y-2">
-            {job.requirements.map((r, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                <span>{r}</span>
-              </li>
-            ))}
-          </ul>
+        {tab === 'Skills' && (
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Required & Recommended Skills</h4>
+            <div className="flex flex-wrap gap-2">
+              {(job.skills || []).map((s, i) => (
+                <span key={i} className="bg-primary-50 text-primary-700 border border-primary-100 text-xs font-semibold px-3 py-1 rounded-full">
+                  {s.name || (s as any)}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
         {tab === 'Benefits' && (
-          <div className="flex flex-wrap gap-2">
-            {job.benefits.map((b, i) => (
-              <span key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium px-3 py-1.5 rounded-full">✓ {b}</span>
-            ))}
+          <div className="space-y-3">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Perks & Benefits</h4>
+            <div className="flex flex-wrap gap-2">
+              {(job.benefits || []).map((b, i) => (
+                <span key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium px-3 py-1.5 rounded-full">
+                  ✓ {b.benefit || (b as any)}
+                </span>
+              ))}
+            </div>
           </div>
         )}
         {tab === 'Company' && (
           <div>
             <div className="flex items-center gap-2 mb-3">
-              <div className={`w-10 h-10 rounded-xl ${job.companyColor} flex items-center justify-center text-white font-bold`}>{job.companyLogo}</div>
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold">
+                {company?.companyName?.charAt(0) || '🏢'}
+              </div>
               <div>
-                <p className="font-bold text-slate-900">{job.company}</p>
-                <p className="text-xs text-slate-500">{job.department}</p>
+                <p className="font-bold text-slate-900">{company?.companyName || 'TalentForge Employer'}</p>
+                <p className="text-xs text-slate-500">{company?.industry || 'Technology'} • {company?.location || 'Remote'}</p>
               </div>
             </div>
-            <p className="text-slate-600 text-xs leading-relaxed">View company profile for detailed information about culture, benefits, and reviews.</p>
+            <p className="text-slate-600 text-xs leading-relaxed">{company?.about || 'No company overview provided.'}</p>
           </div>
         )}
       </div>
@@ -216,10 +366,9 @@ const JobDetailPanel = ({ job, onClose }: { job: Job; onClose: () => void }) => 
 
 // ─── Company Detail Panel ─────────────────────────────────
 const CompanyDetailPanel = ({ company, onClose }: { company: Company; onClose: () => void }) => {
-  const [tab, setTab] = useState<'Overview' | 'Jobs' | 'Reviews' | 'About' | 'Benefits' | 'Photos'>('Overview');
+  const [tab, setTab] = useState<'Overview' | 'About'>('Overview');
   return (
     <div className="flex flex-col h-full">
-      {/* Banner */}
       <div className={`h-28 bg-gradient-to-r ${company.bannerColor} relative flex-shrink-0`}>
         <button onClick={onClose} className="absolute top-3 right-3 p-1.5 bg-black/20 hover:bg-black/30 rounded-lg text-white transition-colors">
           <X className="w-4 h-4" />
@@ -230,20 +379,15 @@ const CompanyDetailPanel = ({ company, onClose }: { company: Company; onClose: (
           </div>
         </div>
       </div>
-      <div className="px-5 pt-8 pb-4 border-b border-[#E5E7EB]">
+
+      <div className="pt-7 px-5 pb-3 border-b border-[#E5E7EB] flex-shrink-0 bg-white">
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-display font-bold text-[#0F172A] text-lg">{company.name}</h2>
-              {company.verified && <span className="flex items-center gap-1 bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200"><CheckCircle className="w-3 h-3" />Verified</span>}
+              <h2 className="text-lg font-bold text-slate-900">{company.name}</h2>
+              {company.verified && <CheckCircle className="w-4 h-4 text-blue-500" />}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">{company.industry} · {company.location}</p>
-            <div className="flex items-center gap-1.5 mt-1">
-              {[1,2,3,4,5].map(i => (
-                <Star key={i} className={`w-3.5 h-3.5 ${i <= Math.round(company.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />
-              ))}
-              <span className="text-xs text-slate-600 font-medium">({company.reviewCount.toLocaleString()} reviews)</span>
-            </div>
           </div>
           <a href={company.website} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 border border-primary-200 text-primary-700 text-xs font-semibold rounded-xl hover:bg-primary-50 transition-colors">
             <Globe className="w-3.5 h-3.5" />
@@ -253,134 +397,24 @@ const CompanyDetailPanel = ({ company, onClose }: { company: Company; onClose: (
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b border-[#E5E7EB] overflow-x-auto flex-shrink-0">
-        {(['Overview', 'Jobs', 'Reviews', 'About', 'Benefits', 'Photos'] as const).map(t => (
+      <div className="flex border-b border-[#E5E7EB] overflow-x-auto flex-shrink-0 bg-white">
+        {(['Overview', 'About'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
-              tab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-            }`}
+            className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${tab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
           >
-            {t}{t === 'Jobs' ? ` (${company.openJobs})` : t === 'Reviews' ? ` (${(company.reviewCount / 1000).toFixed(1)}K)` : ''}
+            {t}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-5">
+      <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-white">
         {tab === 'Overview' && (
-          <>
-            <div>
-              <h4 className="font-bold text-slate-900 text-sm mb-2">About {company.name}</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">{company.overview}</p>
-              <button className="text-xs text-primary-600 font-medium mt-1.5 flex items-center gap-1">Show more <ChevronDown className="w-3.5 h-3.5" /></button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Employees', value: company.size, icon: <Users className="w-3.5 h-3.5 text-slate-400" /> },
-                { label: 'Founded', value: company.founded, icon: <Building className="w-3.5 h-3.5 text-slate-400" /> },
-                { label: 'Headquarters', value: company.location.split(',')[0], icon: <MapPin className="w-3.5 h-3.5 text-slate-400" /> },
-                { label: 'Type', value: company.type, icon: <Briefcase className="w-3.5 h-3.5 text-slate-400" /> },
-                { label: 'Industry', value: company.industry, icon: <Globe className="w-3.5 h-3.5 text-slate-400" /> },
-                { label: 'CEO', value: company.ceo, icon: <Star className="w-3.5 h-3.5 text-slate-400" /> },
-              ].map(f => (
-                <div key={f.label} className="flex items-start gap-2">
-                  {f.icon}
-                  <div>
-                    <p className="text-[10px] text-slate-400">{f.label}</p>
-                    <p className="text-xs font-semibold text-slate-800">{f.value}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Highlights */}
-            <div>
-              <h4 className="font-bold text-slate-900 text-sm mb-2">Company Highlights</h4>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="bg-blue-50 rounded-xl p-3 border border-blue-100 text-center">
-                  <p className="text-[10px] text-slate-500 mb-1">Work Culture</p>
-                  <p className="text-xs font-bold text-slate-800">{company.culture}</p>
-                </div>
-                <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100 text-center">
-                  <p className="text-[10px] text-slate-500 mb-1">Career Growth</p>
-                  <p className="text-xs font-bold text-slate-800">{company.careerGrowth}</p>
-                </div>
-                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100 text-center">
-                  <p className="text-[10px] text-slate-500 mb-1">Employee Rating</p>
-                  <p className="text-xs font-bold text-slate-800">{company.employeeRating}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Rating Breakdown */}
-            <div>
-              <h4 className="font-bold text-slate-900 text-sm mb-3">Ratings & Reviews</h4>
-              <div className="flex items-center gap-4 mb-3">
-                <div className="text-center">
-                  <p className="text-4xl font-display font-bold text-slate-900">{company.rating}</p>
-                  <div className="flex items-center gap-0.5 mt-1">
-                    {[1,2,3,4,5].map(i => <Star key={i} className={`w-3 h-3 ${i <= Math.round(company.rating) ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />)}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mt-1">({company.reviewCount.toLocaleString()} reviews)</p>
-                </div>
-                <div className="flex-1 space-y-1.5">
-                  {[5,4,3,2,1].map(star => (
-                    <div key={star} className="flex items-center gap-2">
-                      <span className="text-[11px] text-slate-600 w-4">{star}</span>
-                      <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                      <div className="flex-1 bg-slate-200 rounded-full h-1.5">
-                        <div className="bg-amber-400 h-1.5 rounded-full" style={{ width: `${company.ratingBreakdown[star as keyof typeof company.ratingBreakdown]}%` }} />
-                      </div>
-                      <span className="text-[10px] text-slate-400 w-6">{company.ratingBreakdown[star as keyof typeof company.ratingBreakdown]}%</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {company.reviews.map((review, i) => (
-                <div key={i} className="bg-slate-50 rounded-xl p-4 border border-[#E5E7EB] mb-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="text-xs font-bold text-slate-900">{review.name}</p>
-                      <p className="text-[10px] text-slate-400">{review.role} · {review.date}</p>
-                    </div>
-                    <div className="flex items-center gap-0.5">
-                      {[1,2,3,4,5].map(i => <Star key={i} className={`w-3 h-3 ${i <= review.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}`} />)}
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">{review.pros}</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <button className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-primary-600 transition-colors">
-                      <ThumbsUp className="w-3 h-3" />{review.helpful}
-                    </button>
-                    <button className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-red-500 transition-colors">
-                      <ThumbsDown className="w-3 h-3" />{review.unhelpful}
-                    </button>
-                    <span className="text-[10px] text-slate-400">Was this helpful?</span>
-                  </div>
-                </div>
-              ))}
-              {company.reviews.length === 0 && <p className="text-xs text-slate-400">No reviews yet.</p>}
-              <button className="text-xs text-primary-600 font-semibold hover:text-primary-700">View All Reviews →</button>
-            </div>
-          </>
-        )}
-        {tab === 'Jobs' && (
-          <div className="space-y-3">
-            <p className="text-xs text-slate-500">{company.openJobs} open positions at {company.name}</p>
-            {jobsData.filter(j => j.company === company.name).map(job => (
-              <div key={job.id} className="p-3 border border-[#E5E7EB] rounded-xl hover:border-primary-200 hover:bg-slate-50 transition-all cursor-pointer">
-                <p className="text-sm font-bold text-slate-900">{job.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{job.location} · {job.type}</p>
-                <p className="text-xs font-semibold text-slate-700 mt-1">{job.salary}</p>
-              </div>
-            ))}
-          </div>
-        )}
-        {tab === 'About' && (
-          <div className="space-y-3 text-xs text-slate-600">
-            <p className="leading-relaxed">{company.overview}</p>
+          <div>
+            <h4 className="font-bold text-slate-900 text-sm mb-2">About {company.name}</h4>
+            <p className="text-xs text-slate-600 leading-relaxed">{company.overview}</p>
           </div>
         )}
       </div>
@@ -390,18 +424,67 @@ const CompanyDetailPanel = ({ company, onClose }: { company: Company; onClose: (
 
 // ─── Main Page ────────────────────────────────────────────
 const FindJobsPage = () => {
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'Jobs' | 'Companies'>('Jobs');
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState('');
-  const [selectedJob, setSelectedJob] = useState<Job | null>(jobsData[0]);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(companiesData[0]);
-  const [savedJobs, setSavedJobs] = useState<string[]>(['job_1', 'job_5']);
+  const [savedJobs, setSavedJobs] = useState<string[]>([]);
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
 
-  const filteredJobs = jobsData.filter(j =>
-    j.title.toLowerCase().includes(search.toLowerCase()) ||
-    j.company.toLowerCase().includes(search.toLowerCase()) ||
-    j.skills.some(s => s.toLowerCase().includes(search.toLowerCase()))
+  // 1. Fetch Real Published Jobs
+  const { data: publishedJobs = [], isLoading: isLoadingJobs } = useQuery({
+    queryKey: jobKeys.published({ search, location }),
+    queryFn: () => jobApi.listPublishedJobs({ search, location }),
+  });
+
+  // 2. Fetch Candidate Resumes for the Apply Flow
+  const { data: resumes = [] } = useQuery({
+    queryKey: candidateKeys.resumes,
+    queryFn: candidateApi.getResumes,
+  });
+
+  // 3. Fetch Candidate's Existing Applications to show applied status
+  const { data: myApplicationsData } = useQuery({
+    queryKey: candidateKeys.applications(),
+    queryFn: () => candidateApi.getMyApplications({ limit: 100 }),
+  });
+
+  const applicationsList: any[] = Array.isArray(myApplicationsData)
+    ? myApplicationsData
+    : Array.isArray(myApplicationsData?.data)
+      ? myApplicationsData.data
+      : Array.isArray((myApplicationsData as any)?.applications)
+        ? (myApplicationsData as any).applications
+        : [];
+
+  const appliedJobIds = new Set<string>(
+    applicationsList.map((app: any) => app.jobId || app.job?.id).filter(Boolean)
   );
+
+  // 4. Apply Job Mutation
+  const applyMutation = useMutation({
+    mutationFn: async ({ jobId, resumeId }: { jobId: string; resumeId: string }) => {
+      return candidateApi.applyJob(jobId, resumeId);
+    },
+    onSuccess: () => {
+      toast.success('Application submitted successfully!');
+      setIsApplyModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: candidateKeys.applications() });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to submit application';
+      toast.error(msg);
+      if (typeof msg === 'string' && msg.toLowerCase().includes('already applied')) {
+        setIsApplyModalOpen(false);
+        queryClient.invalidateQueries({ queryKey: candidateKeys.applications() });
+      }
+    },
+  });
+
+  // Active selected job
+  const selectedJob = publishedJobs.find(j => j.id === selectedJobId) || publishedJobs[0] || null;
 
   const toggleSave = (id: string) =>
     setSavedJobs(prev => prev.includes(id) ? prev.filter(j => j !== id) : [...prev, id]);
@@ -416,9 +499,8 @@ const FindJobsPage = () => {
             <button
               key={t}
               onClick={() => setActiveTab(t)}
-              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
-                activeTab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
+              className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${activeTab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
             >
               {t === 'Jobs' ? <Briefcase className="w-4 h-4" /> : <Building className="w-4 h-4" />}
               {t}
@@ -427,45 +509,34 @@ const FindJobsPage = () => {
         </div>
 
         {activeTab === 'Jobs' && (
-          <>
-            <div className="flex gap-3 mb-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Search by job title, skill or keyword"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <div className="relative w-52">
-                <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Enter location"
-                  value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 text-sm border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-              </div>
-              <button className="px-5 py-2.5 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm rounded-xl transition-colors">Search</button>
-              <button className="flex items-center gap-2 px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-                <Filter className="w-4 h-4" />Filters
-              </button>
-              <button className="px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">Reset</button>
+          <div className="flex gap-3 mb-1">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search by job title, skill or keyword..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
             </div>
-            <div className="flex items-center gap-2 flex-wrap">
-              {['Job Type', 'Experience Level', 'Salary Range', 'Date Posted'].map(f => (
-                <button key={f} className="flex items-center gap-1 px-3 py-1.5 border border-[#E5E7EB] rounded-lg text-xs text-slate-600 hover:bg-slate-50 transition-colors">
-                  {f}<ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                </button>
-              ))}
-              <button className="flex items-center gap-1 px-3 py-1.5 border border-[#E5E7EB] rounded-lg text-xs text-slate-600 hover:bg-slate-50">
-                ⊕ More Filters
-              </button>
+            <div className="relative w-52">
+              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Enter location..."
+                value={location}
+                onChange={e => setLocation(e.target.value)}
+                className="w-full pl-9 pr-4 py-2.5 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
             </div>
-          </>
+            <button
+              onClick={() => { setSearch(''); setLocation(''); }}
+              className="px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              Reset
+            </button>
+          </div>
         )}
       </div>
 
@@ -475,46 +546,49 @@ const FindJobsPage = () => {
         {activeTab === 'Jobs' && (
           <>
             {/* Jobs list */}
-            <div className="w-[420px] flex-shrink-0 border-r border-[#E5E7EB] flex flex-col overflow-hidden">
+            <div className="w-[420px] flex-shrink-0 border-r border-[#E5E7EB] flex flex-col overflow-hidden bg-white">
               <div className="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between bg-white flex-shrink-0">
-                <p className="text-sm font-semibold text-slate-700">{filteredJobs.length} jobs found</p>
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                  Sort by:
-                  <button className="font-semibold text-slate-700 flex items-center gap-1">Most Relevant<ChevronDown className="w-3.5 h-3.5" /></button>
-                </div>
+                <p className="text-xs font-bold text-slate-700">{publishedJobs.length} Published Jobs Found</p>
               </div>
               <div className="flex-1 overflow-y-auto">
-                {filteredJobs.map((job) => (
-                  <JobCard
-                    key={job.id}
-                    job={job}
-                    selected={selectedJob?.id === job.id}
-                    onSelect={() => setSelectedJob(job)}
-                    saved={savedJobs.includes(job.id)}
-                    onSave={() => toggleSave(job.id)}
-                  />
-                ))}
-              </div>
-              {/* Bottom alert bar */}
-              <div className="border-t border-[#E5E7EB] bg-blue-50 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-                <span className="text-blue-500 text-base">🔔</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-800">Don't miss out on the best opportunities!</p>
-                  <p className="text-[10px] text-slate-500">Enable job alerts and we'll notify you when new jobs match your profile.</p>
-                </div>
-                <button className="flex-shrink-0 px-3 py-1.5 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors flex items-center gap-1.5">
-                  ✦ Create Job Alert
-                </button>
+                {isLoadingJobs ? (
+                  <div className="py-16 text-center text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary-600 mb-2" />
+                    <p className="text-xs">Loading published jobs...</p>
+                  </div>
+                ) : publishedJobs.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400">
+                    <Briefcase className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                    <p className="text-xs font-semibold text-slate-600">No published jobs match your search</p>
+                  </div>
+                ) : (
+                  publishedJobs.map((job) => (
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      selected={selectedJob?.id === job.id}
+                      onSelect={() => setSelectedJobId(job.id)}
+                      saved={savedJobs.includes(job.id)}
+                      onSave={() => toggleSave(job.id)}
+                      isApplied={appliedJobIds.has(job.id)}
+                    />
+                  ))
+                )}
               </div>
             </div>
 
             {/* Job Detail */}
             <div className="flex-1 overflow-hidden">
               {selectedJob ? (
-                <JobDetailPanel job={selectedJob} onClose={() => setSelectedJob(null)} />
+                <JobDetailPanel
+                  job={selectedJob}
+                  onClose={() => setSelectedJobId(null)}
+                  onOpenApplyModal={() => setIsApplyModalOpen(true)}
+                  isApplied={appliedJobIds.has(selectedJob.id)}
+                />
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">
-                  <p className="text-sm">Select a job to view details</p>
+                  <p className="text-xs">Select a job to view details</p>
                 </div>
               )}
             </div>
@@ -525,18 +599,14 @@ const FindJobsPage = () => {
         {activeTab === 'Companies' && (
           <>
             {/* Companies list */}
-            <div className="w-72 flex-shrink-0 border-r border-[#E5E7EB] flex flex-col overflow-hidden">
+            <div className="w-72 flex-shrink-0 border-r border-[#E5E7EB] flex flex-col overflow-hidden bg-white">
               <div className="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between bg-white flex-shrink-0">
-                <p className="text-sm font-bold text-slate-900">All Companies</p>
-                <button className="text-xs text-primary-600 font-semibold">View All</button>
+                <p className="text-xs font-bold text-slate-900">Companies</p>
               </div>
               <div className="flex-1 overflow-y-auto">
                 {companiesData.map((co) => (
                   <CompanyCard key={co.id} company={co} selected={selectedCompany?.id === co.id} onSelect={() => setSelectedCompany(co)} />
                 ))}
-                <div className="px-4 py-3">
-                  <button className="text-xs text-primary-600 font-semibold">See more companies →</button>
-                </div>
               </div>
             </div>
 
@@ -546,13 +616,24 @@ const FindJobsPage = () => {
                 <CompanyDetailPanel company={selectedCompany} onClose={() => setSelectedCompany(null)} />
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">
-                  <p className="text-sm">Select a company to view details</p>
+                  <p className="text-xs">Select a company to view details</p>
                 </div>
               )}
             </div>
           </>
         )}
       </div>
+
+      {/* Apply Modal */}
+      {isApplyModalOpen && selectedJob && (
+        <ApplyModal
+          job={selectedJob}
+          resumes={resumes}
+          onClose={() => setIsApplyModalOpen(false)}
+          onApply={(resumeId) => applyMutation.mutate({ jobId: selectedJob.id, resumeId })}
+          isApplying={applyMutation.isPending}
+        />
+      )}
     </div>
   );
 };

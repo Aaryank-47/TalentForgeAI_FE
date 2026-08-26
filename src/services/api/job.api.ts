@@ -119,8 +119,40 @@ export const jobApi = {
     return (res as any).data || res;
   },
 
+  /** List all published jobs for candidates (public) */
+  listPublishedJobs: async (params?: {
+    search?: string;
+    employmentType?: string;
+    workplaceType?: string;
+    location?: string;
+  }): Promise<JobItem[]> => {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.employmentType) query.append('employmentType', params.employmentType);
+    if (params?.workplaceType) query.append('workplaceType', params.workplaceType);
+    if (params?.location) query.append('location', params.location);
+
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    const res = await api.get<{ status: string; message: string; data: JobItem[] }>(
+      `/jobs/published${queryString}`
+    );
+    return (res as any).data || res;
+  },
+
+  /** Get single published job details (public) */
+  getPublicJob: async (jobId: string): Promise<JobItem> => {
+    const res = await api.get<{ status: string; message: string; data: JobItem }>(
+      `/jobs/published/${jobId}`
+    );
+    return (res as any).data || res;
+  },
+
   /** Update job details */
-  updateJobDetails: async (companyId: string, jobId: string, payload: UpdateJobPayload): Promise<JobItem> => {
+  updateJobDetails: async (
+    companyId: string,
+    jobId: string,
+    payload: UpdateJobPayload
+  ): Promise<JobItem> => {
     const res = await api.patch<{ status: string; message: string; data: JobItem }>(
       `/jobs/company/${companyId}/job/${jobId}/update`,
       payload
@@ -128,8 +160,12 @@ export const jobApi = {
     return (res as any).data || res;
   },
 
-  /** Update job status */
-  updateJobStatus: async (companyId: string, jobId: string, status: JobStatus): Promise<JobItem> => {
+  /** Update job status (DRAFT | PUBLISHED | CLOSED | ARCHIVED) */
+  updateJobStatus: async (
+    companyId: string,
+    jobId: string,
+    status: JobStatus
+  ): Promise<JobItem> => {
     const res = await api.patch<{ status: string; message: string; data: JobItem }>(
       `/jobs/company/${companyId}/job/${jobId}/status`,
       { status }

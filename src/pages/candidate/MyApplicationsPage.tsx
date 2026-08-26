@@ -1,39 +1,76 @@
 import React, { useState } from 'react';
-import { Search, Filter, ChevronDown, Download, X, Bell, ChevronRight, CheckCircle, Circle, AlertCircle, ExternalLink } from 'lucide-react';
-import { applicationsData } from '../../constants/candidate_mockData';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  Search, Filter, ChevronDown, Download, X, Bell, ChevronRight, CheckCircle,
+  Circle, AlertCircle, ExternalLink, Briefcase, MapPin, Loader2, FileText, XCircle
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 
-type Application = typeof applicationsData[0];
+import { candidateApi } from '../../services/api/candidate.api';
+import { candidateKeys } from '../../constants/queryKeys';
 
-const stageSteps = ['Applied', 'Assessment', 'AI Interview', 'Technical', 'HR', 'Offer'];
+const StatusBadge = ({ status }: { status: string }) => {
+  const getBadgeStyle = () => {
+    switch (status?.toUpperCase()) {
+      case 'HIRED':
+      case 'OFFER':
+        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'REJECTED':
+      case 'WITHDRAWN':
+        return 'bg-red-50 text-red-700 border-red-200';
+      case 'IN_REVIEW':
+      case 'SHORTLISTED':
+        return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'INTERVIEW':
+      case 'ASSESSMENT':
+        return 'bg-purple-50 text-purple-700 border-purple-200';
+      default:
+        return 'bg-slate-50 text-slate-700 border-slate-200';
+    }
+  };
 
-const StatusBadge = ({ status, color }: { status: string; color: string }) => (
-  <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold border ${color}`}>
-    {status}
-  </span>
-);
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getBadgeStyle()}`}>
+      {status || 'APPLIED'}
+    </span>
+  );
+};
 
 // Detail Panel
-const ApplicationDetailPanel = ({ app, onClose }: { app: Application; onClose: () => void }) => {
-  const [tab, setTab] = useState<'Overview' | 'Timeline' | 'Job Details' | 'Messages'>('Overview');
+const ApplicationDetailPanel = ({
+  app,
+  onClose,
+  onWithdraw,
+  isWithdrawing
+}: {
+  app: any;
+  onClose: () => void;
+  onWithdraw: (appId: string) => void;
+  isWithdrawing: boolean;
+}) => {
+  const [tab, setTab] = useState<'Overview' | 'Job Details'>('Overview');
+  const job = app.job;
+  const company = job?.company;
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-white">
       {/* Header */}
       <div className="p-5 border-b border-[#E5E7EB] bg-white flex-shrink-0">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className={`w-10 h-10 rounded-xl ${app.companyColor} flex items-center justify-center text-white font-bold flex-shrink-0`}>
-              {app.companyLogo}
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
+              {company?.companyName?.charAt(0) || '🏢'}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="font-display font-bold text-[#0F172A] text-base">{app.jobTitle}</h2>
-                <StatusBadge status={app.status} color={app.statusColor} />
+                <h2 className="font-display font-bold text-[#0F172A] text-base">{job?.title}</h2>
+                <StatusBadge status={app.status} />
               </div>
-              <p className="text-sm text-slate-500 mt-0.5">{app.company}</p>
-              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-2">
-                <span>📍 {app.location}</span>
+              <p className="text-xs text-slate-500 mt-0.5">{company?.companyName || 'TalentForge Employer'}</p>
+              <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
+                <span>📍 {job?.location || job?.workplaceType}</span>
                 <span>·</span>
-                <span>🌐 {app.workType}</span>
+                <span>🌐 {job?.employmentType?.replace('_', ' ')}</span>
               </p>
             </div>
           </div>
@@ -41,12 +78,14 @@ const ApplicationDetailPanel = ({ app, onClose }: { app: Application; onClose: (
             <X className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-xs text-slate-400">Applied on <span className="font-semibold text-slate-600">{app.appliedDate}</span></p>
+        <p className="text-xs text-slate-400">
+          Applied on <span className="font-semibold text-slate-600">{new Date(app.appliedAt).toLocaleDateString()}</span>
+        </p>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-[#E5E7EB] flex-shrink-0 bg-white">
-        {(['Overview', 'Timeline', 'Job Details', 'Messages'] as const).map(t => (
+        {(['Overview', 'Job Details'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -61,274 +100,180 @@ const ApplicationDetailPanel = ({ app, onClose }: { app: Application; onClose: (
 
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {tab === 'Overview' && (
-          <>
-            {/* Current Stage + Next Step */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Current Stage</p>
-                  <p className="text-sm font-bold text-slate-900 mt-0.5">{app.currentStage}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{app.nextStepLabel}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Next Step</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[10px]">📅</span>
-                    <p className="text-xs font-bold text-primary-700">{app.nextStep}</p>
-                  </div>
-                </div>
+          <div className="space-y-4">
+            <div className="bg-gradient-to-r from-primary-50 to-indigo-50 rounded-xl p-4 border border-primary-100">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Application Status</p>
+              <p className="text-sm font-bold text-slate-900 mt-0.5">{app.status}</p>
+              <p className="text-xs text-slate-500 mt-0.5">Your application has been received and is being processed.</p>
+            </div>
+
+            <div className="border-t border-slate-100 pt-4 space-y-2">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Application Info</h4>
+              <div className="text-xs space-y-1.5 text-slate-600">
+                <p><span className="text-slate-400">Application ID:</span> <span className="font-mono text-[10px]">{app.id}</span></p>
+                <p><span className="text-slate-400">Submitted Date:</span> {new Date(app.appliedAt).toLocaleString()}</p>
               </div>
             </div>
 
-            {/* Application Timeline */}
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 mb-3">Application Timeline</h3>
-              <div className="space-y-0">
-                {app.timeline.map((t, i) => (
-                  <div key={i} className="flex items-start gap-3">
-                    <div className="flex flex-col items-center">
-                      <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        t.done
-                          ? t.upcoming ? 'bg-blue-500' : 'bg-emerald-500'
-                          : 'bg-slate-200'
-                      }`}>
-                        {t.done && !t.upcoming && <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                        {t.done && t.upcoming && <div className="w-2 h-2 bg-white rounded-full" />}
-                        {!t.done && <div className="w-2 h-2 bg-slate-400 rounded-full" />}
-                      </div>
-                      {i < app.timeline.length - 1 && (
-                        <div className={`w-0.5 h-8 my-1 ${t.done && !t.upcoming ? 'bg-emerald-400' : 'bg-slate-200'}`} />
-                      )}
-                    </div>
-                    <div className="pb-2 pt-0.5 flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className={`text-xs font-semibold ${t.done ? 'text-slate-900' : 'text-slate-400'}`}>{t.event}</p>
-                        {t.upcoming && <span className="text-[9px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full">Upcoming</span>}
-                      </div>
-                      <p className="text-[10px] text-slate-400 mt-0.5">{t.date}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Notifications */}
-            {app.notifications.length > 0 && (
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 mb-3">Notifications</h3>
-                <div className="space-y-2">
-                  {app.notifications.map((n, i) => (
-                    <div key={i} className="flex items-start gap-3 p-3 rounded-xl border border-[#E5E7EB] bg-slate-50">
-                      <span className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-sm ${n.color}`}>
-                        {n.icon}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-semibold text-slate-900">{n.text}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{n.sub}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">{n.date}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+            {app.status !== 'WITHDRAWN' && app.status !== 'REJECTED' && (
+              <div className="pt-4 border-t border-slate-100">
+                <button
+                  disabled={isWithdrawing}
+                  onClick={() => onWithdraw(app.id)}
+                  className="w-full py-2.5 px-4 text-xs font-semibold text-red-600 border border-red-200 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <XCircle className="w-4 h-4" />
+                  {isWithdrawing ? 'Withdrawing...' : 'Withdraw Application'}
+                </button>
               </div>
             )}
-          </>
-        )}
-        {tab === 'Timeline' && (
-          <div className="space-y-0">
-            {app.timeline.map((t, i) => (
-              <div key={i} className="flex items-start gap-3">
-                <div className="flex flex-col items-center">
-                  <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${t.done ? 'bg-emerald-500' : 'bg-slate-200'}`}>
-                    {t.done ? <svg className="w-4 h-4 text-white" viewBox="0 0 16 16" fill="none"><path d="M4 8l3 3 5-5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg> : <div className="w-2.5 h-2.5 bg-slate-400 rounded-full" />}
-                  </div>
-                  {i < app.timeline.length - 1 && <div className={`w-0.5 h-10 my-1 ${t.done ? 'bg-emerald-300' : 'bg-slate-200'}`} />}
-                </div>
-                <div className="pb-2 pt-1 flex-1">
-                  <p className={`text-sm font-semibold ${t.done ? 'text-slate-900' : 'text-slate-400'}`}>{t.event}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{t.date}</p>
-                </div>
-              </div>
-            ))}
           </div>
         )}
-      </div>
 
-      {/* Actions */}
-      <div className="p-4 border-t border-[#E5E7EB] flex gap-3 bg-white flex-shrink-0">
-        <button className="flex-1 py-2.5 text-sm font-semibold border border-[#E5E7EB] rounded-xl text-slate-700 hover:bg-slate-50 transition-colors">
-          View Job
-        </button>
-        <button className="flex-1 py-2.5 text-sm font-semibold border border-red-200 rounded-xl text-red-600 hover:bg-red-50 transition-colors">
-          Withdraw Application
-        </button>
+        {tab === 'Job Details' && (
+          <div className="space-y-3 text-xs text-slate-600">
+            <div>
+              <span className="text-slate-400">Position</span>
+              <p className="font-bold text-slate-900 mt-0.5">{job?.title}</p>
+            </div>
+            <div>
+              <span className="text-slate-400">Employment Type</span>
+              <p className="font-semibold text-slate-800 mt-0.5">{job?.employmentType?.replace('_', ' ')}</p>
+            </div>
+            <div>
+              <span className="text-slate-400">Location</span>
+              <p className="font-semibold text-slate-800 mt-0.5">{job?.location || job?.workplaceType}</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
+// ─── Main Page ────────────────────────────────────────────
 const MyApplicationsPage = () => {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
-  const [selectedApp, setSelectedApp] = useState<Application | null>(applicationsData[0]);
-  const [statusFilter, setStatusFilter] = useState('All Status');
+  const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
 
-  const filtered = applicationsData.filter(a => {
-    const matchSearch = a.jobTitle.toLowerCase().includes(search.toLowerCase()) || a.company.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'All Status' || a.status === statusFilter;
-    return matchSearch && matchStatus;
+  // 1. Fetch Candidate Applications
+  const { data: responseData, isLoading } = useQuery({
+    queryKey: candidateKeys.applications({ search }),
+    queryFn: () => candidateApi.getMyApplications({ search }),
   });
 
-  const stats = [
-    { label: 'Total Applications', value: 18, change: '+12% this month', icon: '📋', color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Under Review', value: 6, change: '+8% this month', icon: '🔍', color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Interviews', value: 3, change: '+50% this month', icon: '🎤', color: 'text-violet-600', bg: 'bg-violet-50' },
-    { label: 'Offers', value: 1, change: '🎉 Congratulations!', icon: '🎁', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Rejections', value: 2, change: '-10% this month', icon: '✕', color: 'text-red-500', bg: 'bg-red-50' },
-  ];
+  const applications: any[] = responseData?.data || [];
+
+  // 2. Withdraw Mutation
+  const withdrawMutation = useMutation({
+    mutationFn: async (appId: string) => {
+      return candidateApi.withdrawApplication(appId, 'Candidate requested withdrawal');
+    },
+    onSuccess: () => {
+      toast.success('Application withdrawn successfully');
+      queryClient.invalidateQueries({ queryKey: candidateKeys.applications() });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to withdraw application');
+    },
+  });
+
+  const selectedApp = applications.find(a => a.id === selectedAppId) || applications[0] || null;
 
   return (
-    <div className="-m-6 flex flex-col h-screen overflow-hidden">
+    <div className="space-y-0 -m-6 h-screen flex flex-col">
       {/* Top Header */}
-      <div className="bg-white border-b border-[#E5E7EB] px-6 py-5 flex-shrink-0">
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-[#0F172A]">My Applications</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Track the status of all the jobs you've applied for.</p>
-          </div>
-          <button className="flex items-center gap-2 px-4 py-2 border border-[#E5E7EB] rounded-xl text-sm text-slate-700 font-medium hover:bg-slate-50 transition-colors">
-            <Download className="w-4 h-4" />Export
-          </button>
-        </div>
-
-        {/* Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          {stats.map(s => (
-            <div key={s.label} className={`${s.bg} rounded-xl p-3.5 border border-transparent`}>
-              <div className="flex items-center gap-2 mb-1.5">
-                <span className="text-xl">{s.icon}</span>
-              </div>
-              <p className={`text-2xl font-display font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-[11px] text-slate-600 font-medium leading-tight">{s.label}</p>
-              <p className="text-[10px] text-slate-400 mt-0.5">{s.change}</p>
+      <div className="bg-white border-b border-[#E5E7EB] px-6 py-4 flex-shrink-0">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white shadow-2xs">
+              <Briefcase className="w-5 h-5" />
             </div>
-          ))}
+            <div>
+              <h1 className="text-lg font-display font-bold text-slate-900">My Applications</h1>
+              <p className="text-xs text-slate-500">Track all your applied job roles and recruitment statuses</p>
+            </div>
+          </div>
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by job or company..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-2xs"
+            />
+          </div>
         </div>
       </div>
 
-      {/* Body */}
+      {/* Main layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Applications list */}
-        <div className="flex-1 flex flex-col min-w-0 border-r border-[#E5E7EB] overflow-hidden">
-          {/* Filters */}
-          <div className="px-6 py-3 border-b border-[#E5E7EB] bg-white flex items-center gap-3 flex-wrap flex-shrink-0">
-            <div className="relative flex-1 min-w-[180px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by job title or company"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 text-sm border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            {['All Status', 'All Companies', 'All Time'].map(f => (
-              <div key={f} className="relative">
-                <select
-                  className="appearance-none pl-3 pr-8 py-2 text-sm border border-[#E5E7EB] rounded-xl text-slate-600 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  onChange={e => f === 'All Status' && setStatusFilter(e.target.value)}
-                >
-                  <option>{f}</option>
-                  {f === 'All Status' && ['Interview', 'Under Review', 'Assessment', 'Offer', 'Rejected'].map(s => <option key={s}>{s}</option>)}
-                </select>
-                <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
-              </div>
-            ))}
-            <button className="flex items-center gap-1.5 px-3 py-2 border border-[#E5E7EB] rounded-xl text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-              <Filter className="w-4 h-4" />Filters
-            </button>
+        {/* Applications List */}
+        <div className="w-[420px] flex-shrink-0 border-r border-[#E5E7EB] flex flex-col overflow-hidden bg-white">
+          <div className="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between bg-white flex-shrink-0">
+            <p className="text-xs font-bold text-slate-700">{applications.length} Applications</p>
           </div>
 
-          {/* Table header */}
-          <div className="px-6 py-2 border-b border-[#E5E7EB] bg-slate-50 flex items-center justify-between flex-shrink-0">
-            <p className="text-xs text-slate-500">Showing 1–{filtered.length} of {filtered.length} applications</p>
-            <div className="flex items-center gap-1.5 text-xs text-slate-500">
-              Sort by:
-              <button className="font-semibold text-slate-700 flex items-center gap-0.5">Most Recent <ChevronDown className="w-3.5 h-3.5" /></button>
-            </div>
-          </div>
-
-          {/* Applications */}
           <div className="flex-1 overflow-y-auto">
-            {filtered.map((app) => (
-              <div
-                key={app.id}
-                onClick={() => setSelectedApp(app)}
-                className={`px-6 py-4 border-b border-[#E5E7EB] hover:bg-slate-50 cursor-pointer transition-colors ${selectedApp?.id === app.id ? 'bg-primary-50/30 border-l-2 border-l-primary-500' : ''}`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-10 h-10 rounded-xl ${app.companyColor} flex items-center justify-center text-white font-bold flex-shrink-0`}>
-                    {app.companyLogo}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <p className="text-sm font-bold text-slate-900">{app.jobTitle}</p>
-                      <StatusBadge status={app.status} color={app.statusColor} />
+            {isLoading ? (
+              <div className="py-16 text-center text-slate-400">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary-600 mb-2" />
+                <p className="text-xs">Loading applications...</p>
+              </div>
+            ) : applications.length === 0 ? (
+              <div className="py-16 text-center text-slate-400 p-4">
+                <Briefcase className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                <p className="text-xs font-semibold text-slate-600">No applications found</p>
+                <p className="text-[11px] text-slate-400 mt-1">Explore published jobs to submit your first job application.</p>
+              </div>
+            ) : (
+              applications.map((app) => (
+                <div
+                  key={app.id}
+                  onClick={() => setSelectedAppId(app.id)}
+                  className={`p-4 border-b border-[#E5E7EB] hover:bg-slate-50 cursor-pointer transition-colors ${
+                    selectedApp?.id === app.id ? 'bg-primary-50/40 border-l-2 border-l-primary-500' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
+                      {app.job?.company?.companyName?.charAt(0) || '🏢'}
                     </div>
-                    <div className="flex items-center gap-3 text-[11px] text-slate-500">
-                      <span className="font-medium text-slate-700">{app.company}</span>
-                      <span>·</span>
-                      <span>📍 {app.location}</span>
-                      <span>·</span>
-                      <span>🌐 {app.workType}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="text-xs font-bold text-slate-900 leading-tight truncate">{app.job?.title}</h3>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{app.job?.company?.companyName || 'Employer'}</p>
+                        </div>
+                        <StatusBadge status={app.status} />
+                      </div>
+                      <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-2">
+                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{app.job?.location || app.job?.workplaceType}</span>
+                        <span>·</span>
+                        <span>Applied {new Date(app.appliedAt).toLocaleDateString()}</span>
+                      </div>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0 hidden md:block">
-                    <p className="text-[10px] text-slate-400 mb-0.5">Current Stage</p>
-                    <p className="text-xs font-semibold text-slate-700">{app.currentStage}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0 hidden md:block">
-                    <p className="text-[10px] text-slate-400 mb-0.5">Applied on</p>
-                    <p className="text-xs font-semibold text-slate-700">{app.appliedDate}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0" />
                 </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Pagination + bottom bar */}
-          <div className="border-t border-[#E5E7EB] bg-white px-6 py-3 flex items-center justify-between flex-shrink-0">
-            <div className="bg-blue-50 rounded-xl px-4 py-2.5 flex items-center gap-3 flex-1 mr-4">
-              <Bell className="w-4 h-4 text-blue-500" />
-              <div>
-                <p className="text-xs font-semibold text-slate-800">Stay updated on your applications</p>
-                <p className="text-[10px] text-slate-500">Enable notifications so you never miss an update from recruiters.</p>
-              </div>
-              <button className="ml-auto px-3 py-1.5 bg-primary-600 text-white text-xs font-semibold rounded-lg hover:bg-primary-700 transition-colors whitespace-nowrap">
-                Enable Notifications
-              </button>
-            </div>
-            <div className="flex items-center gap-2">
-              <button className="p-1.5 rounded border border-[#E5E7EB] text-slate-500 hover:bg-slate-50">
-                <ChevronDown className="w-4 h-4 rotate-90" />
-              </button>
-              {[1, 2, 3].map(p => (
-                <button key={p} className={`w-8 h-8 rounded text-xs font-semibold ${p === 1 ? 'bg-primary-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>{p}</button>
-              ))}
-              <button className="p-1.5 rounded border border-[#E5E7EB] text-slate-500 hover:bg-slate-50">
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Detail Panel */}
-        <div className="w-[380px] flex-shrink-0 flex flex-col overflow-hidden">
+        {/* Application Detail */}
+        <div className="flex-1 overflow-hidden bg-slate-50">
           {selectedApp ? (
-            <ApplicationDetailPanel app={selectedApp} onClose={() => setSelectedApp(null)} />
+            <ApplicationDetailPanel
+              app={selectedApp}
+              onClose={() => setSelectedAppId(null)}
+              onWithdraw={(id) => withdrawMutation.mutate(id)}
+              isWithdrawing={withdrawMutation.isPending}
+            />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400">
-              <p className="text-sm">Select an application to view details</p>
+              <p className="text-xs">Select an application to view full details</p>
             </div>
           )}
         </div>
