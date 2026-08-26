@@ -234,18 +234,17 @@ const CreateJobPage = () => {
         createdJobId = created?.id;
       }
 
-      // Sync Attached Assessments to this Job if any selected
-      if (createdJobId && form.selectedAssessmentIds) {
-        const formattedAssessments = form.selectedAssessmentIds.map((assessmentId, idx) => ({
-          assessmentId,
-          displayOrder: idx + 1,
-          isMandatory: true,
-        }));
-
-        if (formattedAssessments.length > 0) {
+      // Sync Attached Assessments to this Job
+      if (createdJobId) {
+        if (hasAssessmentStage && form.selectedAssessmentIds && form.selectedAssessmentIds.length > 0) {
+          const formattedAssessments = form.selectedAssessmentIds.map((assessmentId, idx) => ({
+            assessmentId,
+            displayOrder: idx + 1,
+            isMandatory: true,
+          }));
           await assessmentApi.updateJobAssessments(createdJobId, formattedAssessments);
-        } else if (editId) {
-          // If all deselected, remove any previous assignments
+        } else {
+          // If workflow has no assessment stage or all assessments deselected, remove any previous assignments
           const existingAssignments = await assessmentApi.getJobAssessments(createdJobId);
           for (const item of existingAssignments) {
             await assessmentApi.removeJobAssessment(item.id);
@@ -290,6 +289,36 @@ const CreateJobPage = () => {
     || defaultWorkflow;
 
   const workflowStages = selectedWorkflow?.stages ?? [];
+
+  // Check if selected workflow contains an Assessment stage
+  const hasAssessmentStage = workflowStages.some((s: any) => {
+    const name = (s?.stageLibrary?.name || s?.name || '').toLowerCase();
+    const type = (s?.stageLibrary?.type || s?.type || '').toLowerCase();
+    return name.includes('assessment') || name.includes('test') || name.includes('exam') || type.includes('assessment');
+  });
+
+  // Dynamic steps: Only include 'Job Assessments' step if workflow actually has an assessment round
+  const activeSteps = React.useMemo(() => {
+    const all = [
+      { key: 'basics', id: 1, label: 'Role Basics', shortLabel: 'Basics' },
+      { key: 'description', id: 2, label: 'Job Description', shortLabel: 'Description' },
+      { key: 'skills', id: 3, label: 'Skills & Perks', shortLabel: 'Skills & Perks' },
+      { key: 'workflow', id: 4, label: 'Hiring Workflow', shortLabel: 'Workflow' },
+      ...(hasAssessmentStage ? [{ key: 'assessments', id: 5, label: 'Job Assessments', shortLabel: 'Assessments' }] : []),
+      { key: 'review', id: hasAssessmentStage ? 6 : 5, label: 'Review & Publish', shortLabel: 'Review' },
+    ];
+    return all;
+  }, [hasAssessmentStage]);
+
+  // Adjust step if current step exceeds max active steps or if assessments were removed
+  useEffect(() => {
+    if (!hasAssessmentStage && step === 5) {
+      setStep(5); // Now Review step is 5
+    }
+  }, [hasAssessmentStage, step]);
+
+  const currentStepObj = activeSteps.find(s => s.id === step) || activeSteps[0];
+  const currentStepKey = currentStepObj?.key || 'basics';
 
   if (editId && isLoadingExistingJob) {
     return (
@@ -378,14 +407,14 @@ const CreateJobPage = () => {
             <div className="flex items-center justify-between px-1 mb-2.5">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-md border border-primary-100">
-                  Step {step} of {steps.length}
+                  Step {step} of {activeSteps.length}
                 </span>
                 <span className="text-xs font-semibold text-slate-800">
-                  {steps[step - 1]?.label}
+                  {currentStepObj?.label}
                 </span>
               </div>
               <span className="text-xs font-medium text-slate-400">
-                {Math.round((step / steps.length) * 100)}% Completed
+                {Math.round((step / activeSteps.length) * 100)}% Completed
               </span>
             </div>
 
@@ -393,13 +422,13 @@ const CreateJobPage = () => {
             <div className="w-full bg-slate-100 h-1 rounded-full mb-3 overflow-hidden">
               <div
                 className="bg-gradient-to-r from-primary-500 to-primary-600 h-full rounded-full transition-all duration-300"
-                style={{ width: `${(step / steps.length) * 100}%` }}
+                style={{ width: `${(step / activeSteps.length) * 100}%` }}
               />
             </div>
 
             {/* Step Grid Buttons */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
-              {steps.map((s) => {
+            <div className={`grid grid-cols-2 sm:grid-cols-3 ${hasAssessmentStage ? 'lg:grid-cols-6' : 'lg:grid-cols-5'} gap-2`}>
+              {activeSteps.map((s) => {
                 const isCompleted = step > s.id;
                 const isCurrent = step === s.id;
 
@@ -668,7 +697,21 @@ const CreateJobPage = () => {
                     <div className="mt-2">
                       <WorkflowSelector
                         selectedId={form.workflowId || null}
-                        onSelect={id => setForm(f => ({ ...f, workflowId: id }))}
+                        onSelect={id => {
+                          const wf = workflows.find(w => w.id === id);
+                          const stages = wf?.stages ?? [];
+                          const hasAssess = stages.some((s: any) => {
+                            const name = (s?.stageLibrary?.name || s?.name || '').toLowerCase();
+                            const type = (s?.stageLibrary?.type || s?.type || '').toLowerCase();
+                            return name.includes('assessment') || name.includes('test') || name.includes('exam') || type.includes('assessment');
+                          });
+
+                          setForm(f => ({
+                            ...f,
+                            workflowId: id,
+                            selectedAssessmentIds: hasAssess ? f.selectedAssessmentIds : []
+                          }));
+                        }}
                         workflows={workflows}
                         isLoading={isLoadingWorkflows}
                       />
@@ -703,8 +746,8 @@ const CreateJobPage = () => {
               </>
             )}
 
-            {/* Step 5: Job Assessments */}
-            {step === 5 && (
+            {/* Step: Job Assessments (Only if workflow has assessment round) */}
+            {currentStepKey === 'assessments' && hasAssessmentStage && (
               <>
                 <SectionTitle
                   title="Attach & Sequence Job Assessments"
@@ -946,8 +989,8 @@ const CreateJobPage = () => {
               </>
             )}
 
-            {/* Step 6: Review & Publish */}
-            {step === 6 && (
+            {/* Step: Review & Publish */}
+            {currentStepKey === 'review' && (
               <>
                 <SectionTitle title="Review & Publish" subtitle="Review your job details before saving or publishing" />
                 <div className="space-y-4">
@@ -988,16 +1031,12 @@ const CreateJobPage = () => {
                     }
                   />
                   <ReviewField
-                    label="Skills"
-                    value={form.skills.length > 0 ? form.skills.join(', ') : 'None specified'}
-                  />
-                  <ReviewField
-                    label="Deadline"
-                    value={form.applicationDeadline ? new Date(form.applicationDeadline).toLocaleDateString() : 'No deadline'}
+                    label="Application Deadline"
+                    value={form.applicationDeadline ? new Date(form.applicationDeadline).toLocaleDateString() : 'Rolling'}
                   />
                   <ReviewField label="Hiring Workflow" value={selectedWorkflow?.name ?? 'Not selected'} />
 
-                  {form.selectedAssessmentIds.length > 0 && (
+                  {hasAssessmentStage && form.selectedAssessmentIds.length > 0 && (
                     <div className="flex gap-4">
                       <span className="text-sm font-semibold text-slate-500 w-36 flex-shrink-0">Tests Sequence</span>
                       <div className="flex flex-wrap gap-1.5 items-center">
@@ -1086,10 +1125,10 @@ const CreateJobPage = () => {
             >
               <ChevronLeft className="w-4 h-4" /> Previous
             </button>
-            {step < steps.length && (
+            {step < activeSteps.length && (
               <button
                 type="button"
-                onClick={() => setStep(s => Math.min(steps.length, s + 1))}
+                onClick={() => setStep(s => Math.min(activeSteps.length, s + 1))}
                 className="btn-primary text-sm flex items-center gap-2"
               >
                 Continue <ChevronRight className="w-4 h-4" />
@@ -1169,7 +1208,7 @@ const CreateJobPage = () => {
                 </div>
               )}
 
-              {(form.selectedAssessmentIds?.length || 0) > 0 && (
+              {hasAssessmentStage && (form.selectedAssessmentIds?.length || 0) > 0 && (
                 <div className="border-t border-[#E5E7EB] pt-3">
                   <p className="text-xs text-slate-400 mb-2 flex items-center gap-1">
                     <ClipboardList className="w-3 h-3" /> Assessments
