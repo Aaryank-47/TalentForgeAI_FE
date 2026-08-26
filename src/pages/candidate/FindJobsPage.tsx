@@ -8,10 +8,8 @@ import toast from 'react-hot-toast';
 
 import { jobApi, type JobItem } from '../../services/api/job.api';
 import { candidateApi, type CandidateResume } from '../../services/api/candidate.api';
-import { jobKeys, candidateKeys } from '../../constants/queryKeys';
-import { companiesData } from '../../constants/candidate_mockData';
-
-type Company = typeof companiesData[0];
+import { companyApi, type CompanyDetails } from '../../services/api/company.api';
+import { jobKeys, candidateKeys, companyKeys } from '../../constants/queryKeys';
 
 // ─── Job Card ─────────────────────────────────────────────
 const JobCard = ({
@@ -89,25 +87,25 @@ const JobCard = ({
 const CompanyCard = ({
   company, selected, onSelect,
 }: {
-  company: Company; selected: boolean; onSelect: () => void;
+  company: CompanyDetails; selected: boolean; onSelect: () => void;
 }) => (
   <div
     onClick={onSelect}
     className={`p-4 border-b border-[#E5E7EB] flex items-center gap-3 hover:bg-slate-50 cursor-pointer transition-colors ${selected ? 'bg-primary-50/40 border-l-2 border-l-primary-500' : ''}`}
   >
-    <div className={`w-10 h-10 rounded-xl ${company.logoColor} flex items-center justify-center text-white font-bold flex-shrink-0`}>
-      {company.logo}
-    </div>
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-1">
-        <p className="text-sm font-bold text-slate-900">{company.name}</p>
-        {company.verified && <CheckCircle className="w-3.5 h-3.5 text-blue-500" />}
+    {company.logo ? (
+      <img src={company.logo} alt={company.companyName} className="w-10 h-10 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+    ) : (
+      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
+        {company.companyName?.charAt(0) || '🏢'}
       </div>
-      <p className="text-[11px] text-slate-400">{company.openJobs} open jobs</p>
-    </div>
-    <div className="flex items-center gap-1 text-amber-500">
-      <Star className="w-3 h-3 fill-amber-400" />
-      <span className="text-xs font-bold text-slate-700">{company.rating}</span>
+    )}
+    <div className="flex-1 min-w-0">
+      <div className="flex items-center gap-1.5">
+        <p className="text-xs font-bold text-slate-900 truncate">{company.companyName}</p>
+        {company.isVerified && <CheckCircle className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
+      </div>
+      <p className="text-[11px] text-slate-400 truncate">{company.industry || 'Technology'} • {company.headquarters || 'Remote'}</p>
     </div>
   </div>
 );
@@ -365,34 +363,49 @@ const JobDetailPanel = ({
 };
 
 // ─── Company Detail Panel ─────────────────────────────────
-const CompanyDetailPanel = ({ company, onClose }: { company: Company; onClose: () => void }) => {
+const CompanyDetailPanel = ({ company, onClose }: { company: CompanyDetails; onClose: () => void }) => {
   const [tab, setTab] = useState<'Overview' | 'About'>('Overview');
   return (
-    <div className="flex flex-col h-full">
-      <div className={`h-28 bg-gradient-to-r ${company.bannerColor} relative flex-shrink-0`}>
-        <button onClick={onClose} className="absolute top-3 right-3 p-1.5 bg-black/20 hover:bg-black/30 rounded-lg text-white transition-colors">
+    <div className="flex flex-col h-full bg-white">
+      {/* Banner / Cover */}
+      <div className="h-32 bg-gradient-to-r from-primary-600 via-indigo-600 to-primary-800 relative flex-shrink-0">
+        {company.coverImage && (
+          <img src={company.coverImage} alt={company.companyName} className="w-full h-full object-cover" />
+        )}
+        <button onClick={onClose} className="absolute top-3 right-3 p-1.5 bg-black/30 hover:bg-black/50 rounded-lg text-white transition-colors">
           <X className="w-4 h-4" />
         </button>
-        <div className="absolute -bottom-5 left-5">
-          <div className={`w-14 h-14 rounded-2xl ${company.logoColor} flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-lg`}>
-            {company.logo}
-          </div>
+        <div className="absolute -bottom-6 left-5">
+          {company.logo ? (
+            <img src={company.logo} alt={company.companyName} className="w-14 h-14 rounded-2xl object-cover border-4 border-white shadow-md bg-white" />
+          ) : (
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-700 to-indigo-800 flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-md">
+              {company.companyName?.charAt(0) || '🏢'}
+            </div>
+          )}
         </div>
       </div>
 
-      <div className="pt-7 px-5 pb-3 border-b border-[#E5E7EB] flex-shrink-0 bg-white">
-        <div className="flex items-start justify-between">
+      <div className="pt-8 px-5 pb-3 border-b border-[#E5E7EB] flex-shrink-0 bg-white">
+        <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-lg font-bold text-slate-900">{company.name}</h2>
-              {company.verified && <CheckCircle className="w-4 h-4 text-blue-500" />}
+              <h2 className="text-lg font-bold text-slate-900">{company.companyName}</h2>
+              {company.isVerified && <CheckCircle className="w-4 h-4 text-blue-500" />}
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">{company.industry} · {company.location}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{company.industry || 'Technology'} • {company.headquarters || 'Remote'}</p>
           </div>
-          <a href={company.website} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 px-3 py-2 border border-primary-200 text-primary-700 text-xs font-semibold rounded-xl hover:bg-primary-50 transition-colors">
-            <Globe className="w-3.5 h-3.5" />
-            Website
-          </a>
+          {company.website && (
+            <a
+              href={company.website.startsWith('http') ? company.website : `https://${company.website}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-primary-200 text-primary-700 text-xs font-semibold rounded-xl hover:bg-primary-50 transition-colors shadow-2xs"
+            >
+              <Globe className="w-3.5 h-3.5" />
+              Website
+            </a>
+          )}
         </div>
       </div>
 
@@ -402,19 +415,51 @@ const CompanyDetailPanel = ({ company, onClose }: { company: Company; onClose: (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${tab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
+            className={`px-4 py-2.5 text-xs font-semibold whitespace-nowrap border-b-2 transition-colors ${
+              tab === t ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
           >
             {t}
           </button>
         ))}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-5 space-y-5 bg-white">
+      <div className="flex-1 overflow-y-auto p-5 space-y-4 bg-white">
         {tab === 'Overview' && (
-          <div>
-            <h4 className="font-bold text-slate-900 text-sm mb-2">About {company.name}</h4>
-            <p className="text-xs text-slate-600 leading-relaxed">{company.overview}</p>
+          <>
+            <div className="grid grid-cols-2 gap-3 mb-2">
+              {[
+                { label: 'Headquarters', value: company.headquarters || 'Not specified' },
+                { label: 'Company Size', value: company.companySize || 'Not specified' },
+                { label: 'Industry', value: company.industry || 'Technology' },
+                { label: 'Founded', value: company.foundedYear ? `${company.foundedYear}` : 'N/A' },
+              ].map(f => (
+                <div key={f.label} className="bg-slate-50 rounded-xl p-3 border border-[#E5E7EB]">
+                  <p className="text-[10px] text-slate-400 mb-0.5">{f.label}</p>
+                  <p className="text-xs font-bold text-slate-900">{f.value}</p>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wide mb-1.5">About {company.companyName}</h4>
+              <p className="text-xs text-slate-600 leading-relaxed whitespace-pre-line">
+                {company.description || 'No description provided by this company.'}
+              </p>
+            </div>
+          </>
+        )}
+
+        {tab === 'About' && (
+          <div className="space-y-3 text-xs text-slate-600">
+            <div>
+              <span className="text-slate-400">Email</span>
+              <p className="font-semibold text-slate-800 mt-0.5">{company.companyEmail || 'N/A'}</p>
+            </div>
+            <div>
+              <span className="text-slate-400">Phone</span>
+              <p className="font-semibold text-slate-800 mt-0.5">{company.phoneNumber || 'N/A'}</p>
+            </div>
           </div>
         )}
       </div>
@@ -429,7 +474,7 @@ const FindJobsPage = () => {
   const [search, setSearch] = useState('');
   const [location, setLocation] = useState('');
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(companiesData[0]);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [savedJobs, setSavedJobs] = useState<string[]>([]);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
 
@@ -439,13 +484,33 @@ const FindJobsPage = () => {
     queryFn: () => jobApi.listPublishedJobs({ search, location }),
   });
 
-  // 2. Fetch Candidate Resumes for the Apply Flow
+  // 2. Fetch Real Companies
+  const { data: companiesResponse = [], isLoading: isLoadingCompanies } = useQuery({
+    queryKey: companyKeys.all,
+    queryFn: companyApi.getAllCompanies,
+  });
+
+  const companies: CompanyDetails[] = Array.isArray(companiesResponse)
+    ? companiesResponse
+    : Array.isArray((companiesResponse as any)?.data)
+      ? (companiesResponse as any).data
+      : [];
+
+  const filteredCompanies = companies.filter(c => {
+    if (search && !c.companyName.toLowerCase().includes(search.toLowerCase()) && !c.industry?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (location && !c.headquarters?.toLowerCase().includes(location.toLowerCase())) return false;
+    return true;
+  });
+
+  const selectedCompany = filteredCompanies.find(c => c.id === selectedCompanyId) || filteredCompanies[0] || null;
+
+  // 3. Fetch Candidate Resumes for the Apply Flow
   const { data: resumes = [] } = useQuery({
     queryKey: candidateKeys.resumes,
     queryFn: candidateApi.getResumes,
   });
 
-  // 3. Fetch Candidate's Existing Applications to show applied status
+  // 4. Fetch Candidate's Existing Applications to show applied status
   const { data: myApplicationsData } = useQuery({
     queryKey: candidateKeys.applications(),
     queryFn: () => candidateApi.getMyApplications({ limit: 100 }),
@@ -463,7 +528,7 @@ const FindJobsPage = () => {
     applicationsList.map((app: any) => app.jobId || app.job?.id).filter(Boolean)
   );
 
-  // 4. Apply Job Mutation
+  // 5. Apply Job Mutation
   const applyMutation = useMutation({
     mutationFn: async ({ jobId, resumeId }: { jobId: string; resumeId: string }) => {
       return candidateApi.applyJob(jobId, resumeId);
@@ -508,36 +573,36 @@ const FindJobsPage = () => {
           ))}
         </div>
 
-        {activeTab === 'Jobs' && (
-          <div className="flex gap-3 mb-1">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search by job title, skill or keyword..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
-            <div className="relative w-52">
-              <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Enter location..."
-                value={location}
-                onChange={e => setLocation(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </div>
+        <div className="flex gap-3 mb-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder={activeTab === 'Jobs' ? "Search by job title, skill or keyword..." : "Search companies by name, industry or keyword..."}
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-2xs"
+            />
+          </div>
+          <div className="relative w-52">
+            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder={activeTab === 'Jobs' ? "Enter location or workplace..." : "Enter headquarters location..."}
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-2xs"
+            />
+          </div>
+          {(search || location) && (
             <button
               onClick={() => { setSearch(''); setLocation(''); }}
-              className="px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-xs text-slate-600 hover:bg-slate-50 transition-colors"
+              className="px-4 py-2.5 border border-[#E5E7EB] rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
             >
               Reset
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Content */}
@@ -599,21 +664,38 @@ const FindJobsPage = () => {
         {activeTab === 'Companies' && (
           <>
             {/* Companies list */}
-            <div className="w-72 flex-shrink-0 border-r border-[#E5E7EB] flex flex-col overflow-hidden bg-white">
+            <div className="w-80 flex-shrink-0 border-r border-[#E5E7EB] flex flex-col overflow-hidden bg-white">
               <div className="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between bg-white flex-shrink-0">
-                <p className="text-xs font-bold text-slate-900">Companies</p>
+                <p className="text-xs font-bold text-slate-900">{filteredCompanies.length} Companies</p>
               </div>
               <div className="flex-1 overflow-y-auto">
-                {companiesData.map((co) => (
-                  <CompanyCard key={co.id} company={co} selected={selectedCompany?.id === co.id} onSelect={() => setSelectedCompany(co)} />
-                ))}
+                {isLoadingCompanies ? (
+                  <div className="py-16 text-center text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-primary-600 mb-2" />
+                    <p className="text-xs">Loading companies...</p>
+                  </div>
+                ) : filteredCompanies.length === 0 ? (
+                  <div className="py-16 text-center text-slate-400 p-4">
+                    <Building className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+                    <p className="text-xs font-semibold text-slate-600">No companies found</p>
+                  </div>
+                ) : (
+                  filteredCompanies.map((co) => (
+                    <CompanyCard
+                      key={co.id}
+                      company={co}
+                      selected={selectedCompany?.id === co.id}
+                      onSelect={() => setSelectedCompanyId(co.id)}
+                    />
+                  ))
+                )}
               </div>
             </div>
 
             {/* Company Detail */}
             <div className="flex-1 overflow-hidden">
               {selectedCompany ? (
-                <CompanyDetailPanel company={selectedCompany} onClose={() => setSelectedCompany(null)} />
+                <CompanyDetailPanel company={selectedCompany} onClose={() => setSelectedCompanyId(null)} />
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">
                   <p className="text-xs">Select a company to view details</p>

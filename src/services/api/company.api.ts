@@ -130,9 +130,17 @@ export const companyApi = {
   registerCompany: (data: CreateCompanyDto) =>
     api.post<CompanyDetails>('/companies/register', data),
 
-  /** Fetch detailed profile of a company by its ID */
+  /** Fetch detailed profile of a company by its ID (member access) */
   getCompanyDetails: (companyId: string) =>
     api.get<CompanyDetails>(`/companies/${companyId}`),
+
+  /** Fetch public detailed profile of a company by its ID */
+  getPublicCompanyDetails: (companyId: string) =>
+    api.get<CompanyDetails>(`/companies/public/${companyId}`),
+
+  /** Fetch all active verified public companies */
+  getAllCompanies: () =>
+    api.get<CompanyDetails[]>('/companies/get/all'),
 
   /** Update company profile information */
   updateCompanyProfile: (companyId: string, data: UpdateCompanyDto) =>
