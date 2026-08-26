@@ -172,4 +172,21 @@ export const jobApi = {
     );
     return (res as any).data || res;
   },
+
+  // ── Saved Jobs (Candidate) ──────────────────────────────────
+  /** Fetch all saved jobs (GET /jobs/saved) */
+  getSavedJobs: async (): Promise<any[]> => {
+    const res: any = await api.get<any>('/jobs/saved');
+    if (Array.isArray(res)) return res;
+    if (Array.isArray(res?.data)) return res.data;
+    return [];
+  },
+
+  /** Save a job (POST /jobs/:jobId/save) */
+  saveJob: (jobId: string) =>
+    api.post<any>(`/jobs/${jobId}/save`),
+
+  /** Unsave a job (DELETE /jobs/:jobId/save) */
+  unsaveJob: (jobId: string) =>
+    api.delete<any>(`/jobs/${jobId}/save`),
 };

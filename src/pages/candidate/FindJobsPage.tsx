@@ -48,9 +48,10 @@ const JobCard = ({
             <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={(e) => { e.stopPropagation(); onSave(); }}
-                className="p-1 text-slate-300 hover:text-primary-500 transition-colors"
+                className={`p-1.5 rounded-lg transition-colors ${saved ? 'text-primary-700 bg-primary-50 hover:bg-primary-100' : 'text-slate-400 hover:text-primary-600 hover:bg-slate-100'}`}
+                title={saved ? 'Remove from saved' : 'Save job'}
               >
-                <Bookmark className={`w-4 h-4 ${saved ? 'fill-primary-500 text-primary-500' : ''}`} />
+                <Bookmark className={`w-4 h-4 ${saved ? 'fill-primary-700 text-primary-700' : ''}`} />
               </button>
             </div>
           </div>
@@ -203,11 +204,15 @@ const JobDetailPanel = ({
   onClose,
   onOpenApplyModal,
   isApplied,
+  saved,
+  onSave,
 }: {
   job: JobItem;
   onClose: () => void;
   onOpenApplyModal: () => void;
   isApplied?: boolean;
+  saved?: boolean;
+  onSave?: () => void;
 }) => {
   const [tab, setTab] = useState<'Overview' | 'Skills' | 'Benefits' | 'Company'>('Overview');
   const company = (job as any).company;
@@ -278,6 +283,17 @@ const JobDetailPanel = ({
               className="flex-1 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2 shadow-2xs"
             >
               Apply Now
+            </button>
+          )}
+
+          {onSave && (
+            <button
+              onClick={onSave}
+              className={`px-3.5 py-2.5 border rounded-xl transition-all flex items-center justify-center gap-2 ${saved ? 'border-primary-600 bg-primary-50 text-primary-800 font-semibold' : 'border-[#E5E7EB] hover:bg-slate-50 text-slate-700'}`}
+              title={saved ? 'Remove from saved' : 'Save job'}
+            >
+              <Bookmark className={`w-4 h-4 ${saved ? 'fill-primary-700 text-primary-700' : 'text-slate-600'}`} />
+              <span className="text-xs">{saved ? 'Saved' : 'Save'}</span>
             </button>
           )}
         </div>
@@ -528,7 +544,37 @@ const FindJobsPage = () => {
     applicationsList.map((app: any) => app.jobId || app.job?.id).filter(Boolean)
   );
 
-  // 5. Apply Job Mutation
+  // 5. Fetch Real Saved Jobs
+  const { data: savedJobsData = [] } = useQuery({
+    queryKey: jobKeys.saved,
+    queryFn: jobApi.getSavedJobs,
+  });
+
+  const savedJobIds = new Set<string>(
+    (savedJobsData || []).map((s: any) => s.jobId || s.job?.id).filter(Boolean)
+  );
+
+  // 6. Save / Unsave Mutations
+  const toggleSaveMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      const isSaved = savedJobIds.has(jobId);
+      if (isSaved) {
+        return jobApi.unsaveJob(jobId);
+      } else {
+        return jobApi.saveJob(jobId);
+      }
+    },
+    onSuccess: (_, jobId) => {
+      const isSaved = savedJobIds.has(jobId);
+      toast.success(isSaved ? 'Job removed from saved jobs' : 'Job saved successfully');
+      queryClient.invalidateQueries({ queryKey: jobKeys.saved });
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.message || err?.message || 'Failed to update saved job');
+    },
+  });
+
+  // 7. Apply Job Mutation
   const applyMutation = useMutation({
     mutationFn: async ({ jobId, resumeId }: { jobId: string; resumeId: string }) => {
       return candidateApi.applyJob(jobId, resumeId);
@@ -551,8 +597,9 @@ const FindJobsPage = () => {
   // Active selected job
   const selectedJob = publishedJobs.find(j => j.id === selectedJobId) || publishedJobs[0] || null;
 
-  const toggleSave = (id: string) =>
-    setSavedJobs(prev => prev.includes(id) ? prev.filter(j => j !== id) : [...prev, id]);
+  const toggleSave = (id: string) => {
+    toggleSaveMutation.mutate(id);
+  };
 
   return (
     <div className="space-y-0 -m-6 h-screen flex flex-col">
@@ -633,7 +680,7 @@ const FindJobsPage = () => {
                       job={job}
                       selected={selectedJob?.id === job.id}
                       onSelect={() => setSelectedJobId(job.id)}
-                      saved={savedJobs.includes(job.id)}
+                      saved={savedJobIds.has(job.id)}
                       onSave={() => toggleSave(job.id)}
                       isApplied={appliedJobIds.has(job.id)}
                     />
@@ -650,6 +697,8 @@ const FindJobsPage = () => {
                   onClose={() => setSelectedJobId(null)}
                   onOpenApplyModal={() => setIsApplyModalOpen(true)}
                   isApplied={appliedJobIds.has(selectedJob.id)}
+                  saved={savedJobIds.has(selectedJob.id)}
+                  onSave={() => toggleSave(selectedJob.id)}
                 />
               ) : (
                 <div className="h-full flex items-center justify-center text-slate-400">

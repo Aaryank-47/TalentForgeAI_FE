@@ -23,6 +23,7 @@ export const candidateKeys = {
   experiences: ['candidate', 'experiences'] as const,
   applications: (params?: Record<string, any>) => ['candidate', 'applications', params] as const,
   applicationDetail: (id: string) => ['candidate', 'application', id] as const,
+  savedJobs: ['candidate', 'savedJobs'] as const,
 };
 
 export const workflowKeys = {
@@ -60,4 +61,5 @@ export const jobKeys = {
   assessments: (jobId: string) => ['jobs', 'assessments', jobId] as const,
   published: (params?: Record<string, any>) => ['jobs', 'published', params] as const,
   publicDetail: (jobId: string) => ['jobs', 'publicDetail', jobId] as const,
+  saved: ['jobs', 'saved'] as const,
 };
