@@ -22,6 +22,11 @@ const PipelinePage = () => {
   const [search, setSearch] = useState('');
   const [preview, setPreview] = useState<HiringBoardApplication | null>(null);
 
+  // Scorecard modal state
+  const [selectedScorecard, setSelectedScorecard] = useState<any>(null);
+  const [isScorecardModalOpen, setIsScorecardModalOpen] = useState<boolean>(false);
+  const [isLoadingScorecard, setIsLoadingScorecard] = useState<boolean>(false);
+
   // 1. Fetch Company Jobs to populate the Job Selector dropdown (only PUBLISHED jobs can have hiring boards)
   const { data: allJobs = [], isLoading: isLoadingJobs } = useQuery({
     queryKey: jobKeys.list(companyId || ''),
@@ -343,18 +348,27 @@ const PipelinePage = () => {
                           <button
                             onClick={async () => {
                               try {
+                                setIsLoadingScorecard(true);
                                 const scorecard = await assessmentApi.getApplicationAssessmentResult(preview.id);
                                 if (scorecard) {
-                                  toast.success(`Scorecard: ${scorecard.assessmentTitle || 'Assessment'} - Score: ${scorecard.score ?? scorecard.percentage ?? 0}%`);
+                                  setSelectedScorecard(scorecard);
+                                  setIsScorecardModalOpen(true);
                                 }
                               } catch (err: any) {
                                 toast.error(err?.response?.data?.message || 'No scorecard available yet for this candidate.');
+                              } finally {
+                                setIsLoadingScorecard(false);
                               }
                             }}
-                            className="w-full py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                            disabled={isLoadingScorecard}
+                            className="w-full py-2 bg-slate-900 hover:bg-slate-850 text-white font-semibold text-xs rounded-lg transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                           >
-                            <Activity className="w-3.5 h-3.5 text-primary-600" />
-                            View Scorecard
+                            {isLoadingScorecard ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                            )}
+                            View Full Scorecard
                           </button>
                         </div>
                       </div>
@@ -382,6 +396,143 @@ const PipelinePage = () => {
           Drag & drop candidate cards across columns to advance or change their workflow stage
         </div>
       </div>
+
+      {/* Full Assessment Scorecard Modal */}
+      {isScorecardModalOpen && selectedScorecard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-primary-50 border border-primary-100 flex items-center justify-center text-primary-600">
+                  <Activity className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm md:text-base">
+                    {selectedScorecard.assessmentTitle || 'Assessment Scorecard'}
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Candidate Evaluation Report & Performance Summary
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsScorecardModalOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Summary KPIs */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                    Overall Score
+                  </span>
+                  <span className="text-2xl font-black text-slate-900">
+                    {selectedScorecard.score ?? 0}
+                    <span className="text-xs text-slate-400 font-normal"> / {selectedScorecard.totalMarks ?? 100}</span>
+                  </span>
+                </div>
+
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                    Percentage
+                  </span>
+                  <span className="text-2xl font-black text-primary-600">
+                    {Math.round(selectedScorecard.percentage ?? 0)}%
+                  </span>
+                </div>
+
+                <div className="p-4 bg-slate-50 border border-slate-100 rounded-xl text-center">
+                  <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                    Status
+                  </span>
+                  <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full ${
+                    selectedScorecard.passed
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {selectedScorecard.passed ? (
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                    ) : (
+                      <XCircle className="w-3.5 h-3.5" />
+                    )}
+                    {selectedScorecard.passed ? 'PASSED' : 'FAILED'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Assessment & Submission Meta */}
+              <div className="bg-slate-50/70 border border-slate-100 rounded-xl p-4 space-y-2 text-xs text-slate-600">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Passing Threshold:</span>
+                  <span className="font-semibold text-slate-700">{selectedScorecard.passingScore ?? 60}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Evaluation State:</span>
+                  <span className="font-semibold text-slate-700 capitalize">{selectedScorecard.evaluationStatus?.toLowerCase() || 'Completed'}</span>
+                </div>
+                {selectedScorecard.submittedAt && (
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Submitted At:</span>
+                    <span className="font-semibold text-slate-700">{new Date(selectedScorecard.submittedAt).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Question Breakdown List */}
+              {selectedScorecard.answers && selectedScorecard.answers.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Question-by-Question Breakdown ({selectedScorecard.answers.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {selectedScorecard.answers.map((ans: any, idx: number) => (
+                      <div
+                        key={ans.id || idx}
+                        className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between text-xs hover:border-slate-300 transition-colors"
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-slate-800">
+                              Q{idx + 1}. {ans.questionTitle || `Question ${idx + 1}`}
+                            </span>
+                            <span className="px-1.5 py-0.2 bg-slate-100 text-slate-600 rounded text-[10px] font-semibold">
+                              {ans.questionType || 'MCQ'}
+                            </span>
+                          </div>
+                          {ans.feedback && (
+                            <p className="text-[11px] text-slate-500">{ans.feedback}</p>
+                          )}
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <span className={`font-bold ${ans.isCorrect ? 'text-emerald-600' : 'text-slate-600'}`}>
+                            {ans.score ?? 0} Marks
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button
+                onClick={() => setIsScorecardModalOpen(false)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition-colors cursor-pointer"
+              >
+                Close Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

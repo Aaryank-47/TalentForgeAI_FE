@@ -336,12 +336,11 @@ export const assessmentApi = {
     attemptId: string,
     questionId: string,
     data: {
-      type: 'MCQ' | 'DSA' | 'PROJECT';
-      selectedOptionIndex?: number;
-      code?: string;
-      language?: string;
+      selectedOptionIds?: string[];
+      codeResponse?: { code: string; language: string };
       submissionUrl?: string;
-      timeSpentSeconds?: number;
+      attachmentUrls?: string[];
+      meta?: any;
     }
   ): Promise<any> => {
     const res = await api.put<{ success: boolean; message: string; data: any }>(

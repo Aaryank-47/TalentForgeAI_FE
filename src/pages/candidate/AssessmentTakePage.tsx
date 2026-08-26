@@ -28,6 +28,7 @@ import { useMedia } from '../../context/MediaProvider';
 import AssessmentMonitoringPanel from '../../components/assessment/AssessmentMonitoringPanel';
 import MonacoEditorWrapper from '../../components/assessment/MonacoEditorWrapper';
 import { assessmentApi } from '../../services/api/assessment.api';
+import { candidateApi } from '../../services/api/candidate.api';
 import { mockMCQQuestions } from '../../constants/assessment_mockData';
 import { mockDsaProblems, runMockCode, submitMockCode } from '../../constants/assessment_candidate_mock';
 import type { MCQQuestion, MockExecutionResult } from '../../types/assessment';
@@ -49,7 +50,8 @@ const AssessmentTakePage: React.FC = () => {
 
   // Attempt backend tracking state
   const [attemptId, setAttemptId] = useState<string>('');
-  const [isInitializingAttempt, setIsInitializingAttempt] = useState<boolean>(Boolean(invitationToken));
+  const [attemptDetails, setAttemptDetails] = useState<any>(null);
+  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(true);
 
   // Media context
   const {
@@ -63,32 +65,92 @@ const AssessmentTakePage: React.FC = () => {
     requestFullscreen,
   } = useMedia();
 
-  // Initialize attempt with token if present
-  useEffect(() => {
-    if (!invitationToken) return;
+  const assessmentIdFromUrl = id || '';
+  const applicationIdFromUrl = searchParams.get('applicationId') || '';
 
+  // Initialize attempt with token if present or query invitation
+  useEffect(() => {
     const initAttempt = async () => {
       try {
-        const attempt = await assessmentApi.startAssessmentAttempt(invitationToken);
-        if (attempt?.attemptId) {
-          setAttemptId(attempt.attemptId);
-          if (attempt.remainingSeconds) {
-            setSecondsLeft(attempt.remainingSeconds);
+        let currentAttemptId = attemptId;
+        let tokenToUse = invitationToken;
+
+        // If no token in URL, query candidate applications to find the matching assessment invitation
+        if (!tokenToUse) {
+          try {
+            const appsRes = await candidateApi.getMyApplications({ limit: 50 });
+            const apps = appsRes?.applications || appsRes?.data || (Array.isArray(appsRes) ? appsRes : []);
+            
+            // Search for invitation across candidate applications
+            for (const app of apps) {
+              if (applicationIdFromUrl && app.id !== applicationIdFromUrl) continue;
+              const inv = await assessmentApi.getAssessmentInvitation(app.id).catch(() => null);
+              if (inv?.token) {
+                if (!assessmentIdFromUrl || inv.assessment?.id === assessmentIdFromUrl) {
+                  tokenToUse = inv.token;
+                  if (inv.attempt?.id) {
+                    currentAttemptId = inv.attempt.id;
+                    setAttemptId(inv.attempt.id);
+                  }
+                  break;
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to query candidate invitations:', e);
+          }
+        }
+
+        if (tokenToUse && !currentAttemptId) {
+          try {
+            const startRes = await assessmentApi.startAssessmentAttempt(tokenToUse);
+            if (startRes?.attemptId) {
+              currentAttemptId = startRes.attemptId;
+              setAttemptId(startRes.attemptId);
+            }
+          } catch (err: any) {
+            console.warn('Attempt might already be started:', err);
+          }
+        }
+
+        if (currentAttemptId) {
+          const details = await assessmentApi.getAttemptDetails(currentAttemptId);
+          if (details) {
+            setAttemptDetails(details);
+            if (details.remainingSeconds !== undefined) {
+              setSecondsLeft(details.remainingSeconds);
+            }
           }
         }
       } catch (err: any) {
-        // If already started, that's okay
-        console.warn('Start attempt response:', err);
+        console.error('Failed to load attempt details:', err);
       } finally {
-        setIsInitializingAttempt(false);
+        setIsLoadingDetails(false);
       }
     };
 
     initAttempt();
-  }, [invitationToken]);
+  }, [invitationToken, attemptId, applicationIdFromUrl, assessmentIdFromUrl]);
+
+  // Extract real sections and questions from attemptDetails
+  const allSections: any[] = attemptDetails?.sections || [];
+  
+  // Flatten all questions by type
+  const realMcqQuestions = allSections.flatMap((s: any) => (s.questions || []).filter((q: any) => q.type === 'MCQ' || q.type === 'MULTIPLE_CHOICE' || (q.options && q.options.length > 0)));
+  const realDsaQuestions = allSections.flatMap((s: any) => (s.questions || []).filter((q: any) => q.type === 'DSA' || q.type === 'CODING' || q.type === 'PROJECT'));
+
+  const activeMCQs = realMcqQuestions;
+  const activeDSAs = realDsaQuestions;
 
   // Active section: 'mcq' | 'dsa'
   const [activeSection, setActiveSection] = useState<'mcq' | 'dsa'>('mcq');
+
+  // Auto-switch to DSA if there are no MCQs but DSA exists
+  useEffect(() => {
+    if (activeMCQs.length === 0 && activeDSAs.length > 0) {
+      setActiveSection('dsa');
+    }
+  }, [activeMCQs.length, activeDSAs.length]);
 
   // Indexes for questions
   const [mcqIndex, setMcqIndex] = useState(0);
@@ -105,8 +167,19 @@ const AssessmentTakePage: React.FC = () => {
   const [mcqAnswers, setMcqAnswers] = useState<Record<string, number | null>>({});
   const [mcqStatuses, setMcqStatuses] = useState<Record<string, 'unanswered' | 'answered' | 'marked'>>({});
 
-  // DSA workspace state
-  const currentDsaProblem = mockDsaProblems[dsaIndex] || mockDsaProblems[0];
+  // DSA workspace state with safe default
+  const currentDsaProblem: any = activeDSAs[dsaIndex] || activeDSAs[0] || {
+    id: 'placeholder-dsa',
+    title: 'Coding Problem',
+    problemStatement: 'No coding problem available in this section.',
+    category: 'DSA',
+    difficulty: 'MEDIUM',
+    marks: 10,
+    starterCode: {},
+    sampleTestcases: [],
+    examples: [],
+    constraints: []
+  };
   const [selectedLang, setSelectedLang] = useState('javascript');
   const [codeMap, setCodeMap] = useState<Record<string, string>>({});
   const [editorTheme, setEditorTheme] = useState<'vs-dark' | 'light'>('vs-dark');
@@ -131,16 +204,22 @@ const AssessmentTakePage: React.FC = () => {
     if (currentDsaProblem) {
       const codeKey = `${currentDsaProblem.id}-${selectedLang}`;
       if (!codeMap[codeKey]) {
+        const starter = currentDsaProblem.starterCode?.[selectedLang] || 
+                       (typeof currentDsaProblem.starterCode === 'string' ? currentDsaProblem.starterCode : '') ||
+                       '// Write your solution here\nfunction solution() {\n  \n}\n';
         setCodeMap((prev) => ({
           ...prev,
-          [codeKey]: currentDsaProblem.starterCode[selectedLang] || '',
+          [codeKey]: starter,
         }));
       }
     }
   }, [currentDsaProblem, selectedLang, codeMap]);
 
   const activeCode = currentDsaProblem
-    ? codeMap[`${currentDsaProblem.id}-${selectedLang}`] || currentDsaProblem.starterCode[selectedLang] || ''
+    ? codeMap[`${currentDsaProblem.id}-${selectedLang}`] || 
+      currentDsaProblem.starterCode?.[selectedLang] || 
+      (typeof currentDsaProblem.starterCode === 'string' ? currentDsaProblem.starterCode : '') ||
+      ''
     : '';
 
   const handleCodeChange = (newCode: string) => {
@@ -206,7 +285,7 @@ const AssessmentTakePage: React.FC = () => {
 
   // Timer for fullscreen validation duration
   useEffect(() => {
-    let warningTimeout: NodeJS.Timeout;
+    let warningTimeout: ReturnType<typeof setTimeout>;
     if (!isFullscreen && !submitted) {
       warningTimeout = setTimeout(() => {
         setFullscreenTimeWarning(true);
@@ -273,15 +352,19 @@ const AssessmentTakePage: React.FC = () => {
     setSubmitted(true);
   };
 
-  const selectMcqAnswer = (qId: string, optionIdx: number) => {
+  const selectMcqAnswer = (qId: string, optionIdx: number, optionId?: string) => {
     setMcqAnswers((prev) => ({ ...prev, [qId]: optionIdx }));
     setMcqStatuses((prev) => ({ ...prev, [qId]: 'answered' }));
 
     // Send answer to backend if attempt is active
     if (attemptId) {
+      const selectedOptionId = optionId || activeMcq.options?.[optionIdx]?.id || String(optionIdx);
       assessmentApi.saveAssessmentAnswer(attemptId, qId, {
-        type: 'MCQ',
-        selectedOptionIndex: optionIdx
+        selectedOptionIds: [selectedOptionId],
+        meta: {
+          answeredAt: new Date().toISOString(),
+          timeSpentSeconds: 10
+        }
       }).catch(err => console.warn('Failed to save MCQ answer:', err));
     }
   };
@@ -299,6 +382,23 @@ const AssessmentTakePage: React.FC = () => {
     if (!currentDsaProblem) return;
     setIsRunning(true);
     setBottomTab('console');
+
+    // Save code to backend if attempt is active
+    if (attemptId && currentDsaProblem.id) {
+      assessmentApi.saveAssessmentAnswer(attemptId, currentDsaProblem.id, {
+        codeResponse: {
+          code: activeCode,
+          language: selectedLang
+        },
+        meta: {
+          language: selectedLang,
+          languageId: selectedLang,
+          action: 'run_code',
+          answeredAt: new Date().toISOString()
+        }
+      }).catch(err => console.warn('Failed to save code answer:', err));
+    }
+
     try {
       const res = await runMockCode(currentDsaProblem.id, selectedLang, activeCode, customInput);
       setConsoleResult(res);
@@ -316,6 +416,23 @@ const AssessmentTakePage: React.FC = () => {
     if (!currentDsaProblem) return;
     setIsSubmitting(true);
     setBottomTab('console');
+
+    // Save and submit code to backend if attempt is active
+    if (attemptId && currentDsaProblem.id) {
+      assessmentApi.saveAssessmentAnswer(attemptId, currentDsaProblem.id, {
+        codeResponse: {
+          code: activeCode,
+          language: selectedLang
+        },
+        meta: {
+          language: selectedLang,
+          languageId: selectedLang,
+          action: 'submit_code',
+          answeredAt: new Date().toISOString()
+        }
+      }).catch(err => console.warn('Failed to save submitted code answer:', err));
+    }
+
     try {
       const res = await submitMockCode(currentDsaProblem.id, selectedLang, activeCode);
       setConsoleResult(res);
@@ -333,11 +450,18 @@ const AssessmentTakePage: React.FC = () => {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const activeMcq: MCQQuestion = mockMCQQuestions[mcqIndex] || mockMCQQuestions[0];
+  const activeMcq: any = activeMCQs[mcqIndex] || activeMCQs[0] || {
+    id: 'placeholder',
+    question: 'No questions available in this section.',
+    options: [],
+    category: 'General',
+    difficulty: 'EASY',
+    marks: 0
+  };
 
   // Calculations for legend/completion
   const mcqAnsweredCount = Object.values(mcqAnswers).filter((a) => a !== null).length;
-  const dsaAnsweredCount = Object.keys(codeMap).filter((k) => codeMap[k]?.trim().length > 100).length;
+  const dsaAnsweredCount = Object.keys(codeMap).filter((k) => codeMap[k]?.trim().length > 10).length;
 
   if (submitted) {
     return (
@@ -359,13 +483,13 @@ const AssessmentTakePage: React.FC = () => {
               <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
                 <p className="text-[10px] text-slate-500 uppercase font-bold">MCQ SECTION</p>
                 <p className="text-lg font-bold text-slate-200 mt-1">
-                  {mcqAnsweredCount} / {mockMCQQuestions.length} Answered
+                  {mcqAnsweredCount} / {activeMCQs.length} Answered
                 </p>
               </div>
               <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
                 <p className="text-[10px] text-slate-500 uppercase font-bold">DSA PROBLEMS</p>
                 <p className="text-lg font-bold text-slate-200 mt-1">
-                  {dsaAnsweredCount} / {mockDsaProblems.length} Coded
+                  {dsaAnsweredCount} / {activeDSAs.length} Coded
                 </p>
               </div>
               <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/50">
@@ -430,7 +554,7 @@ const AssessmentTakePage: React.FC = () => {
           <div className="w-8 h-8 rounded-lg bg-primary-600 flex items-center justify-center font-black text-white text-base">TF</div>
           <div>
             <h1 className="text-sm font-bold text-white flex items-center gap-2">
-              TalentForge AI - DSA Assessment
+              {attemptDetails?.assessmentTitle || 'TalentForge Technical Assessment'}
               <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping" />
                 Live
@@ -441,22 +565,26 @@ const AssessmentTakePage: React.FC = () => {
 
         {/* Section Tabs */}
         <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
-          <button
-            onClick={() => setActiveSection('mcq')}
-            className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
-              activeSection === 'mcq' ? 'bg-primary-600 text-white' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            MCQ Section
-          </button>
-          <button
-            onClick={() => setActiveSection('dsa')}
-            className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
-              activeSection === 'dsa' ? 'bg-primary-600 text-white' : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            DSA Section
-          </button>
+          {activeMCQs.length > 0 && (
+            <button
+              onClick={() => setActiveSection('mcq')}
+              className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
+                activeSection === 'mcq' ? 'bg-primary-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              MCQ Section ({activeMCQs.length})
+            </button>
+          )}
+          {activeDSAs.length > 0 && (
+            <button
+              onClick={() => setActiveSection('dsa')}
+              className={`px-3 py-1.5 text-xs font-bold rounded transition-colors ${
+                activeSection === 'dsa' ? 'bg-primary-600 text-white' : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              DSA Section ({activeDSAs.length})
+            </button>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
@@ -485,12 +613,12 @@ const AssessmentTakePage: React.FC = () => {
             {/* Question Navigator Grid */}
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Question Navigator ({activeSection === 'mcq' ? `${mcqIndex + 1}/${mockMCQQuestions.length}` : `${dsaIndex + 1}/${mockDsaProblems.length}`})
+                Question Navigator ({activeSection === 'mcq' ? `${mcqIndex + 1}/${activeMCQs.length}` : `${dsaIndex + 1}/${activeDSAs.length}`})
               </h3>
 
               {activeSection === 'mcq' ? (
                 <div className="grid grid-cols-5 gap-2">
-                  {mockMCQQuestions.map((q, idx) => {
+                  {activeMCQs.map((q: any, idx: number) => {
                     const status = mcqStatuses[q.id] || 'unanswered';
                     const isCurrent = idx === mcqIndex;
                     return (
@@ -514,8 +642,8 @@ const AssessmentTakePage: React.FC = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-2">
-                  {mockDsaProblems.map((p, idx) => {
-                    const hasCoded = codeMap[`${p.id}-${selectedLang}`]?.trim().length > 100;
+                  {activeDSAs.map((p: any, idx: number) => {
+                    const hasCoded = Boolean(codeMap[`${p.id}-${selectedLang}`]?.trim());
                     const isCurrent = idx === dsaIndex;
                     return (
                       <button
@@ -566,7 +694,7 @@ const AssessmentTakePage: React.FC = () => {
               <div className="space-y-1">
                 <div className="flex justify-between text-[11px] font-semibold text-slate-300">
                   <span>Completed</span>
-                  <span>{mcqAnsweredCount + dsaAnsweredCount} / {mockMCQQuestions.length + mockDsaProblems.length}</span>
+                  <span>{mcqAnsweredCount + dsaAnsweredCount} / {activeMCQs.length + activeDSAs.length}</span>
                 </div>
                 <div className="h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700/50">
                   <div
@@ -574,7 +702,7 @@ const AssessmentTakePage: React.FC = () => {
                     style={{
                       width: `${
                         ((mcqAnsweredCount + dsaAnsweredCount) /
-                          (mockMCQQuestions.length + mockDsaProblems.length)) *
+                          Math.max(1, activeMCQs.length + activeDSAs.length)) *
                         100
                       }%`,
                     }}
@@ -644,17 +772,21 @@ const AssessmentTakePage: React.FC = () => {
                 <span className="text-xs text-slate-500 ml-auto">{activeMcq.marks} Marks</span>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl text-sm font-semibold text-slate-100 leading-relaxed shadow-sm">
-                {activeMcq.question}
+              <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl text-sm font-semibold text-slate-100 leading-relaxed shadow-sm space-y-2">
+                <p className="font-bold text-white text-base">{activeMcq.title || `Question ${mcqIndex + 1}`}</p>
+                <p className="text-slate-300 text-sm">{activeMcq.problemStatement || activeMcq.description || activeMcq.question}</p>
               </div>
 
               <div className="space-y-3 pt-3">
-                {activeMcq.options.map((opt, idx) => {
+                {(activeMcq.options || []).map((opt: any, idx: number) => {
                   const isSelected = mcqAnswers[activeMcq.id] === idx;
+                  const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.optionText || '');
+                  const optId = typeof opt === 'object' && opt?.id ? opt.id : undefined;
+
                   return (
                     <button
                       key={idx}
-                      onClick={() => selectMcqAnswer(activeMcq.id, idx)}
+                      onClick={() => selectMcqAnswer(activeMcq.id, idx, optId)}
                       className={`w-full text-left p-4 rounded-xl border-2 transition-all flex items-center gap-4 ${
                         isSelected
                           ? 'border-primary-500 bg-primary-500/10 shadow-lg text-white'
@@ -666,7 +798,7 @@ const AssessmentTakePage: React.FC = () => {
                       }`}>
                         {String.fromCharCode(65 + idx)}
                       </span>
-                      <span className="text-xs md:text-sm font-medium">{opt}</span>
+                      <span className="text-xs md:text-sm font-medium">{optText}</span>
                     </button>
                   );
                 })}
@@ -681,7 +813,7 @@ const AssessmentTakePage: React.FC = () => {
                 >
                   Previous
                 </button>
-                {mcqIndex < mockMCQQuestions.length - 1 ? (
+                {mcqIndex < activeMCQs.length - 1 ? (
                   <button
                     onClick={() => setMcqIndex((i) => i + 1)}
                     className="px-4 py-2 bg-primary-600 hover:bg-primary-750 text-white text-xs font-semibold rounded-lg shadow"
@@ -707,57 +839,83 @@ const AssessmentTakePage: React.FC = () => {
                     Question {dsaIndex + 1}
                   </span>
                   <span className="text-xs font-semibold text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full border border-slate-700">
-                    {currentDsaProblem.category}
+                    {currentDsaProblem.category || currentDsaProblem.type || 'DSA'}
                   </span>
                   <span className="text-xs font-semibold text-amber-500 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/25">
-                    {currentDsaProblem.difficulty}
+                    {currentDsaProblem.difficulty || 'MEDIUM'}
                   </span>
-                  <span className="text-xs text-slate-500 ml-auto">{currentDsaProblem.points} Points</span>
+                  <span className="text-xs text-slate-500 ml-auto">{currentDsaProblem.marks || currentDsaProblem.points || 10} Marks</span>
                 </div>
 
                 <div className="space-y-4">
                   <h2 className="text-lg font-bold text-white">{currentDsaProblem.title}</h2>
                   <p className="text-slate-300 text-sm whitespace-pre-line leading-relaxed">
-                    {currentDsaProblem.statement}
+                    {currentDsaProblem.problemStatement || currentDsaProblem.description || currentDsaProblem.statement}
                   </p>
                 </div>
 
-                {/* Examples */}
-                <div className="space-y-3">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Examples</h3>
+                {/* Sample Testcases / Examples */}
+                {(currentDsaProblem.sampleTestcases || currentDsaProblem.examples || []).length > 0 && (
                   <div className="space-y-3">
-                    {currentDsaProblem.examples.map((ex, idx) => (
-                      <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase">Example {idx + 1}</p>
-                        <div className="space-y-1 font-mono text-xs text-slate-300">
-                          <div className="flex">
-                            <span className="text-slate-500 w-16 flex-shrink-0">Input:</span>
-                            <code>{ex.input}</code>
-                          </div>
-                          <div className="flex">
-                            <span className="text-slate-500 w-16 flex-shrink-0">Output:</span>
-                            <code className="text-emerald-400">{ex.output}</code>
-                          </div>
-                          {ex.explanation && (
-                            <p className="text-slate-450 mt-1 font-sans text-xs leading-normal">{ex.explanation}</p>
-                          )}
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Example Testcases</h3>
+                    {(currentDsaProblem.sampleTestcases || currentDsaProblem.examples || []).map((ex: any, idx: number) => (
+                      <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-2 text-xs font-mono">
+                        <div>
+                          <span className="text-slate-500">Input:</span> <span className="text-slate-300">{ex.input}</span>
                         </div>
+                        <div>
+                          <span className="text-slate-500">Expected Output:</span> <span className="text-emerald-400">{ex.output}</span>
+                        </div>
+                        {ex.explanation && (
+                          <div className="text-slate-400 font-sans text-[11px] pt-1 border-t border-slate-800/80">
+                            <span className="font-bold text-slate-500">Explanation: </span>{ex.explanation}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
-                </div>
+                )}
+
+                {/* Examples */}
+                {(currentDsaProblem.examples || []).length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Examples</h3>
+                    <div className="space-y-3">
+                      {(currentDsaProblem.examples || []).map((ex: any, idx: number) => (
+                        <div key={idx} className="bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-2">
+                          <p className="text-[10px] font-bold text-slate-500 uppercase">Example {idx + 1}</p>
+                          <div className="space-y-1 font-mono text-xs text-slate-300">
+                            <div className="flex">
+                              <span className="text-slate-500 w-16 flex-shrink-0">Input:</span>
+                              <code>{ex.input}</code>
+                            </div>
+                            <div className="flex">
+                              <span className="text-slate-500 w-16 flex-shrink-0">Output:</span>
+                              <code className="text-emerald-400">{ex.output}</code>
+                            </div>
+                            {ex.explanation && (
+                              <p className="text-slate-450 mt-1 font-sans text-xs leading-normal">{ex.explanation}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Constraints */}
-                <div className="space-y-2">
-                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Constraints</h3>
-                  <ul className="space-y-1.5 list-disc pl-4 text-xs text-slate-400">
-                    {currentDsaProblem.constraints.map((c, idx) => (
-                      <li key={idx}>
-                        <code className="bg-slate-900 px-1.5 py-0.5 rounded font-mono text-slate-300">{c}</code>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                {(currentDsaProblem.constraints || []).length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Constraints</h3>
+                    <ul className="space-y-1.5 list-disc pl-4 text-xs text-slate-400">
+                      {(currentDsaProblem.constraints || []).map((c: string, idx: number) => (
+                        <li key={idx}>
+                          <code className="bg-slate-900 px-1.5 py-0.5 rounded font-mono text-slate-300">{c}</code>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               {/* Custom Testcase input panel */}
@@ -911,12 +1069,16 @@ const AssessmentTakePage: React.FC = () => {
                   <div className="space-y-3">
                     <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Example Testcases</p>
                     <div className="space-y-2">
-                      {currentDsaProblem.examples.map((ex, idx) => (
+                      {(currentDsaProblem.sampleTestcases || currentDsaProblem.examples || []).map((ex: any, idx: number) => (
                         <div key={idx} className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 space-y-1">
                           <span className="text-[10px] text-slate-500 font-bold">CASE {idx + 1}</span>
                           <div className="flex text-slate-300">
                             <span className="w-12 text-slate-500">Input:</span>
                             <code>{ex.input}</code>
+                          </div>
+                          <div className="flex text-slate-300">
+                            <span className="w-12 text-slate-500">Output:</span>
+                            <code className="text-emerald-400">{ex.output}</code>
                           </div>
                         </div>
                       ))}
