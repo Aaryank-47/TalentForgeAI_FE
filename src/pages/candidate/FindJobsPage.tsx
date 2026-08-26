@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, MapPin, Filter, X, Bookmark, ChevronDown, Star, ExternalLink, CheckCircle,
-  Briefcase, Building, Globe, Users, ChevronRight, Loader2, FileText, CheckCircle2, AlertCircle
+  Search, MapPin, X, Bookmark, CheckCircle,
+  Briefcase, Building, Globe, Loader2, FileText, AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

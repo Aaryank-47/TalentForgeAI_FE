@@ -294,7 +294,11 @@ export const candidateApi = {
 
   /** Withdraw an application (PATCH /candidate/applications/candidate/withdraw/:applicationId) */
   withdrawApplication: (applicationId: string, remarks?: string) =>
-    api.patch<any>(`/candidate/applications/candidate/withdraw/${applicationId}`, { remarks }),
+    api.patch<any>(`/candidate/applications/candidate/withdraw/${applicationId}`, {
+      status: 'WITHDRAWN',
+      withdrawReason: remarks || 'Candidate requested withdrawal',
+      remarks: remarks || 'Candidate requested withdrawal',
+    }),
 
   // ── Preferences ──────────────────────────────────────────────
   /** Toggle Open To Work status */

@@ -1,8 +1,7 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, ChevronDown, Download, X, Bell, ChevronRight, CheckCircle,
-  Circle, AlertCircle, ExternalLink, Briefcase, MapPin, Loader2, FileText, XCircle
+  Search, X, Briefcase, Loader2, FileText, XCircle, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -25,7 +24,7 @@ const StatusBadge = ({ status }: { status: string }) => {
       case 'ASSESSMENT':
         return 'bg-purple-50 text-purple-700 border-purple-200';
       default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
+        return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
@@ -48,9 +47,16 @@ const ApplicationDetailPanel = ({
   onWithdraw: (appId: string) => void;
   isWithdrawing: boolean;
 }) => {
-  const [tab, setTab] = useState<'Overview' | 'Job Details'>('Overview');
+  const [tab, setTab] = useState<'Overview' | 'Timeline' | 'Job Details'>('Overview');
   const job = app.job;
   const company = job?.company;
+  const workflow = app.applicationWorkflow;
+  const currentStage = workflow?.workflowStage;
+  const allStages = currentStage?.workflow?.workflowStages || [];
+  const histories = workflow?.workflowHistories || [];
+
+  // Find index of current stage
+  const currentStageIndex = allStages.findIndex((s: any) => s.id === currentStage?.id);
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -58,11 +64,15 @@ const ApplicationDetailPanel = ({
       <div className="p-5 border-b border-[#E5E7EB] bg-white flex-shrink-0">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
-              {company?.companyName?.charAt(0) || '🏢'}
-            </div>
+            {company?.logo ? (
+              <img src={company.logo} alt={company.companyName} className="w-11 h-11 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+            ) : (
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold text-base flex-shrink-0 shadow-2xs">
+                {company?.companyName?.charAt(0) || '🏢'}
+              </div>
+            )}
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="font-display font-bold text-[#0F172A] text-base">{job?.title}</h2>
                 <StatusBadge status={app.status} />
               </div>
@@ -78,14 +88,20 @@ const ApplicationDetailPanel = ({
             <X className="w-4 h-4" />
           </button>
         </div>
-        <p className="text-xs text-slate-400">
-          Applied on <span className="font-semibold text-slate-600">{new Date(app.appliedAt).toLocaleDateString()}</span>
-        </p>
+        <div className="flex items-center justify-between text-xs text-slate-400">
+          <p>Applied on <span className="font-semibold text-slate-600">{new Date(app.appliedAt).toLocaleDateString()}</span></p>
+          {app.applicationResume && (
+            <p className="flex items-center gap-1 text-[11px] text-slate-500">
+              <FileText className="w-3.5 h-3.5 text-slate-400" />
+              <span>{app.applicationResume.fileName}</span>
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Tabs */}
       <div className="flex border-b border-[#E5E7EB] flex-shrink-0 bg-white">
-        {(['Overview', 'Job Details'] as const).map(t => (
+        {(['Overview', 'Timeline', 'Job Details'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
@@ -101,21 +117,71 @@ const ApplicationDetailPanel = ({
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {tab === 'Overview' && (
           <div className="space-y-4">
+            {/* Current Stage Card */}
             <div className="bg-gradient-to-r from-primary-50 to-indigo-50 rounded-xl p-4 border border-primary-100">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Application Status</p>
-              <p className="text-sm font-bold text-slate-900 mt-0.5">{app.status}</p>
-              <p className="text-xs text-slate-500 mt-0.5">Your application has been received and is being processed.</p>
-            </div>
-
-            <div className="border-t border-slate-100 pt-4 space-y-2">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Application Info</h4>
-              <div className="text-xs space-y-1.5 text-slate-600">
-                <p><span className="text-slate-400">Application ID:</span> <span className="font-mono text-[10px]">{app.id}</span></p>
-                <p><span className="text-slate-400">Submitted Date:</span> {new Date(app.appliedAt).toLocaleString()}</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Current Stage</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">{currentStage?.stageLibrary?.name || 'Application Received'}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{currentStage?.stageLibrary?.description || 'Your application is currently active.'}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Stage Updated</p>
+                  <p className="text-xs font-semibold text-slate-700 mt-0.5">
+                    {workflow?.movedAt ? new Date(workflow.movedAt).toLocaleDateString() : new Date(app.appliedAt).toLocaleDateString()}
+                  </p>
+                </div>
               </div>
             </div>
 
-            {app.status !== 'WITHDRAWN' && app.status !== 'REJECTED' && (
+            {/* Workflow Progression Stepper */}
+            {allStages.length > 0 && (
+              <div>
+                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-3">Recruitment Pipeline</h4>
+                <div className="space-y-0">
+                  {allStages.map((stage: any, index: number) => {
+                    const isDone = currentStageIndex > index || app.status === 'HIRED';
+                    const isCurrent = currentStageIndex === index && app.status !== 'HIRED' && app.status !== 'REJECTED' && app.status !== 'WITHDRAWN';
+                    const isPassed = isDone || isCurrent;
+
+                    return (
+                      <div key={stage.id} className="flex items-start gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+                            isDone ? 'bg-emerald-500 text-white' : isCurrent ? 'bg-primary-600 text-white ring-4 ring-primary-100' : 'bg-slate-200 text-slate-400'
+                          }`}>
+                            {isDone ? <Check className="w-3.5 h-3.5" /> : <span className="text-[10px] font-bold">{index + 1}</span>}
+                          </div>
+                          {index < allStages.length - 1 && (
+                            <div className={`w-0.5 h-7 my-1 ${isDone ? 'bg-emerald-400' : 'bg-slate-200'}`} />
+                          )}
+                        </div>
+                        <div className="pb-3">
+                          <p className={`text-xs font-bold ${isPassed ? 'text-slate-900' : 'text-slate-400'}`}>
+                            {stage.stageLibrary?.name || `Stage ${index + 1}`}
+                          </p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{stage.stageLibrary?.description || ''}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Application Summary */}
+            <div className="border-t border-slate-100 pt-4 space-y-2">
+              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Application Information</h4>
+              <div className="text-xs space-y-1.5 text-slate-600">
+                <p><span className="text-slate-400">Application ID:</span> <span className="font-mono text-[10px]">{app.id}</span></p>
+                <p><span className="text-slate-400">Submitted:</span> {new Date(app.appliedAt).toLocaleString()}</p>
+                {app.applicationResume && (
+                  <p><span className="text-slate-400">Resume Attached:</span> {app.applicationResume.fileName}</p>
+                )}
+              </div>
+            </div>
+
+            {app.status !== 'WITHDRAWN' && app.status !== 'REJECTED' && app.status !== 'HIRED' && (
               <div className="pt-4 border-t border-slate-100">
                 <button
                   disabled={isWithdrawing}
@@ -130,11 +196,43 @@ const ApplicationDetailPanel = ({
           </div>
         )}
 
+        {tab === 'Timeline' && (
+          <div className="space-y-4">
+            <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Stage Activity Log</h4>
+            {histories.length === 0 ? (
+              <div className="p-4 bg-slate-50 rounded-xl border border-[#E5E7EB] text-xs text-slate-500">
+                Application submitted and registered in the hiring workflow.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {histories.map((hist: any, i: number) => (
+                  <div key={i} className="p-3 bg-slate-50 rounded-xl border border-[#E5E7EB] space-y-1">
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-800">
+                      <span>{hist.toStage?.stageLibrary?.name || 'Moved Stage'}</span>
+                      <span className="text-[10px] text-slate-400 font-normal">{new Date(hist.createdAt).toLocaleString()}</span>
+                    </div>
+                    {hist.fromStage && (
+                      <p className="text-[11px] text-slate-500">Moved from: {hist.fromStage.stageLibrary?.name}</p>
+                    )}
+                    {hist.comment && (
+                      <p className="text-[11px] text-slate-600 italic">"{hist.comment}"</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === 'Job Details' && (
           <div className="space-y-3 text-xs text-slate-600">
             <div>
               <span className="text-slate-400">Position</span>
               <p className="font-bold text-slate-900 mt-0.5">{job?.title}</p>
+            </div>
+            <div>
+              <span className="text-slate-400">Company</span>
+              <p className="font-semibold text-slate-800 mt-0.5">{company?.companyName || 'TalentForge Employer'}</p>
             </div>
             <div>
               <span className="text-slate-400">Employment Type</span>
@@ -155,15 +253,33 @@ const ApplicationDetailPanel = ({
 const MyApplicationsPage = () => {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL');
   const [selectedAppId, setSelectedAppId] = useState<string | null>(null);
 
   // 1. Fetch Candidate Applications
   const { data: responseData, isLoading } = useQuery({
-    queryKey: candidateKeys.applications({ search }),
-    queryFn: () => candidateApi.getMyApplications({ search }),
+    queryKey: candidateKeys.applications({ search, status: statusFilter === 'ALL' ? undefined : statusFilter }),
+    queryFn: () => candidateApi.getMyApplications({
+      search: search || undefined,
+      status: statusFilter === 'ALL' ? undefined : statusFilter,
+      limit: 100,
+    }),
   });
 
-  const applications: any[] = responseData?.data || [];
+  const applications: any[] = Array.isArray(responseData)
+    ? responseData
+    : Array.isArray(responseData?.data)
+      ? responseData.data
+      : Array.isArray((responseData as any)?.applications)
+        ? (responseData as any).applications
+        : [];
+
+  // Statistics counters
+  const totalCount = applications.length;
+  const activeCount = applications.filter(a => !['REJECTED', 'WITHDRAWN', 'HIRED'].includes(a.status?.toUpperCase())).length;
+  const inReviewCount = applications.filter(a => ['IN_REVIEW', 'SHORTLISTED', 'APPLIED'].includes(a.status?.toUpperCase())).length;
+  const interviewCount = applications.filter(a => ['INTERVIEW', 'ASSESSMENT'].includes(a.status?.toUpperCase())).length;
+  const offerCount = applications.filter(a => ['OFFER', 'HIRED'].includes(a.status?.toUpperCase())).length;
 
   // 2. Withdraw Mutation
   const withdrawMutation = useMutation({
@@ -185,24 +301,64 @@ const MyApplicationsPage = () => {
     <div className="space-y-0 -m-6 h-screen flex flex-col">
       {/* Top Header */}
       <div className="bg-white border-b border-[#E5E7EB] px-6 py-4 flex-shrink-0">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white shadow-2xs">
               <Briefcase className="w-5 h-5" />
             </div>
             <div>
               <h1 className="text-lg font-display font-bold text-slate-900">My Applications</h1>
-              <p className="text-xs text-slate-500">Track all your applied job roles and recruitment statuses</p>
+              <p className="text-xs text-slate-500">Track and monitor real-time candidate hiring stages and statuses</p>
             </div>
           </div>
+
+          {/* Stat summary pills */}
+          <div className="flex items-center gap-3 text-xs flex-wrap">
+            {[
+              { label: 'Total', count: totalCount, color: 'text-slate-800 bg-slate-100' },
+              { label: 'Active', count: activeCount, color: 'text-blue-700 bg-blue-50 border-blue-200' },
+              { label: 'In Review', count: inReviewCount, color: 'text-amber-700 bg-amber-50 border-amber-200' },
+              { label: 'Assessments/Interviews', count: interviewCount, color: 'text-purple-700 bg-purple-50 border-purple-200' },
+              { label: 'Offers', count: offerCount, color: 'text-emerald-700 bg-emerald-50 border-emerald-200' },
+            ].map(s => (
+              <div key={s.label} className={`px-3 py-1 rounded-xl border border-transparent font-medium flex items-center gap-1.5 ${s.color}`}>
+                <span className="font-bold">{s.count}</span>
+                <span className="text-[11px] opacity-80">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Filter bar */}
+        <div className="flex items-center justify-between gap-3 mt-4 flex-wrap">
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+            {[
+              { label: 'All', value: 'ALL' },
+              { label: 'Applied', value: 'APPLIED' },
+              { label: 'In Review', value: 'IN_REVIEW' },
+              { label: 'Shortlisted', value: 'SHORTLISTED' },
+              { label: 'Hired', value: 'HIRED' },
+            ].map(t => (
+              <button
+                key={t.value}
+                onClick={() => setStatusFilter(t.value)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                  statusFilter === t.value ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
           <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by job or company..."
+              placeholder="Search by position or company..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-2xs"
+              className="w-full pl-9 pr-4 py-1.5 text-xs border border-[#E5E7EB] rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-2xs"
             />
           </div>
         </div>
@@ -238,9 +394,13 @@ const MyApplicationsPage = () => {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
-                      {app.job?.company?.companyName?.charAt(0) || '🏢'}
-                    </div>
+                    {app.job?.company?.logo ? (
+                      <img src={app.job.company.logo} alt="" className="w-10 h-10 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
+                        {app.job?.company?.companyName?.charAt(0) || '🏢'}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -249,10 +409,11 @@ const MyApplicationsPage = () => {
                         </div>
                         <StatusBadge status={app.status} />
                       </div>
-                      <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-2">
-                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{app.job?.location || app.job?.workplaceType}</span>
-                        <span>·</span>
-                        <span>Applied {new Date(app.appliedAt).toLocaleDateString()}</span>
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 mt-2">
+                        <span className="truncate">
+                          Stage: <span className="font-semibold text-slate-700">{app.applicationWorkflow?.workflowStage?.stageLibrary?.name || 'Applied'}</span>
+                        </span>
+                        <span>{new Date(app.appliedAt).toLocaleDateString()}</span>
                       </div>
                     </div>
                   </div>
@@ -273,7 +434,7 @@ const MyApplicationsPage = () => {
             />
           ) : (
             <div className="h-full flex items-center justify-center text-slate-400">
-              <p className="text-xs">Select an application to view full details</p>
+              <p className="text-xs">Select an application to view full stage progression and details</p>
             </div>
           )}
         </div>
