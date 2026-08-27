@@ -13,16 +13,16 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Flag, Lightbulb, Monitor, Clock, Mic, MicOff, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { Flag, Lightbulb, Monitor, Clock, Mic, MicOff, RotateCcw, Volume2, VolumeX, Send, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
-// ── Constants / Data ──────────────────────────────────────────
-import { aiInterviewData, aiInterviewConfig } from '../../constants/candidate_mockData';
-
-// ── Services ──────────────────────────────────────────────────
-import { generateNextQuestion } from '../../services/ai/interviewAI.service';
-import type { InterviewContext, TranscriptEntry } from '../../services/ai/interviewAI.service';
+// ── Services & Sockets ─────────────────────────────────────────
+import {
+  aiInterviewSocketService,
+  type AIQuestionPayload,
+  type AIInterviewErrorPayload
+} from '../../services/websocket/interviewSocket.service';
 
 // ── Hooks ─────────────────────────────────────────────────────
 import { useSpeechSynthesis } from '../../hooks/useSpeechSynthesis';
@@ -34,7 +34,7 @@ import {
   RecordingIndicator,
 } from '../../components/interview/InterviewComponents';
 
-// ── New Conversation Components ───────────────────────────────
+// ── Conversation Components ───────────────────────────────────
 import {
   ConversationPanel,
   AIInterviewerCard,
@@ -54,10 +54,10 @@ import { useMedia } from '../../context/MediaProvider';
 // ─────────────────────────────────────────────────────────────
 const INTERVIEW_TIPS = [
   'Speak clearly and at a natural pace.',
-  'Use the STAR method for behavioral questions.',
+  'Use the STAR method for behavioral and scenario questions.',
   'Look at the camera when answering.',
-  "It's okay to pause before responding.",
-  'Be specific — use real examples where possible.',
+  "It's okay to pause briefly before responding.",
+  'Be specific — mention concrete architecture, tools, and tradeoffs.',
 ];
 
 // ─────────────────────────────────────────────────────────────
@@ -75,14 +75,8 @@ function makeId(): string {
 // Component
 // ─────────────────────────────────────────────────────────────
 export default function InterviewRoomPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-
-  // ── Config from mock data (never hardcoded here) ─────────────
-  const { questions } = aiInterviewData;
-  const totalQuestions = aiInterviewConfig.totalQuestions;
-  const silenceTimeoutMs = aiInterviewConfig.silenceTimeoutMs;
-  const textRenderDelayMs = aiInterviewConfig.textRenderDelayMs;
 
   // ── Media context ─────────────────────────────────────────────
   const { cameraStream, screenStream, deviceState, faceState, tabSwitches } = useMedia();
@@ -90,37 +84,35 @@ export default function InterviewRoomPage() {
   // ── Speech hooks ──────────────────────────────────────────────
   const tts = useSpeechSynthesis();
   const stt = useSpeechRecognition({
-    silenceTimeoutMs,
-    onSilenceStop: () => handleSttSilenceStop(),
+    silenceTimeoutMs: 5000,
+    onSilenceStop: () => {
+      // Auto-stop when silence is detected
+    },
   });
 
   // ── Interview state ───────────────────────────────────────────
   const [aiState, setAiState] = useState<FullAIState>('loading');
+  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(null);
   const [currentQIdx, setCurrentQIdx] = useState(0);
-  const [answered, setAnswered] = useState<number[]>([]);
+  const [totalQuestions, setTotalQuestions] = useState(5);
+  const [answeredCount, setAnsweredCount] = useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const [tipIdx, setTipIdx] = useState(0);
 
+  // ── Text response input for candidate ─────────────────────────
+  const [manualTextAnswer, setManualTextAnswer] = useState('');
+
   // ── Conversation messages ──────────────────────────────────────
   const [messages, setMessages] = useState<ConversationMessageData[]>([]);
-  // Live message: current question (AI) or current partial answer (candidate)
   const [liveMessage, setLiveMessage] = useState<ConversationMessageData | null>(null);
   const conversationBottomRef = useRef<HTMLDivElement | null>(null);
 
   // ── Current displayed question (for left panel) ───────────────
   const [displayedQuestion, setDisplayedQuestion] = useState('');
-  const [currentCategory, setCurrentCategory] = useState(
-    questions[0]?.category ?? 'Introduction'
-  );
+  const [currentCategory, setCurrentCategory] = useState('Technical Question');
 
-  // ── Transcript accumulation (for AI context) ──────────────────
-  const transcriptHistoryRef = useRef<TranscriptEntry[]>([]);
-  const previousQuestionsRef = useRef<string[]>([]);
   const currentQuestionRef = useRef<string>('');
-
-  // ── State guards to prevent overlapping flows ─────────────────
   const flowLockRef = useRef(false);
-  const isLastQuestion = currentQIdx >= totalQuestions - 1;
 
   // ─────────────────────────────────────────────────────────────
   // Scroll to bottom whenever messages change
@@ -138,137 +130,91 @@ export default function InterviewRoomPage() {
   }, []);
 
   // ─────────────────────────────────────────────────────────────
-  // Core: generate + speak + listen flow
-  // ─────────────────────────────────────────────────────────────
-  const runQuestionFlow = useCallback(
-    async (questionNumber: number) => {
-      if (flowLockRef.current) return;
-      flowLockRef.current = true;
-
-      // ── Step 1: Generating ──────────────────────────────────
-      setAiState('generating');
-      setLiveMessage({
-        id: makeId(),
-        role: 'ai',
-        text: '', // empty = skeleton dots
-        timestamp: nowTimestamp(),
-        status: 'generating',
-        questionNumber,
-      });
-
-      // Build context from accumulated history
-      const ctx: InterviewContext = {
-        role: aiInterviewConfig.role,
-        company: aiInterviewConfig.company,
-        experience: aiInterviewConfig.experience,
-        interviewType: aiInterviewConfig.interviewType,
-        difficulty: aiInterviewConfig.difficulty,
-        skills: aiInterviewConfig.skills,
-        questionNumber,
-        totalQuestions,
-        previousQuestions: previousQuestionsRef.current,
-        topicsCovered: previousQuestionsRef.current.map((_, i) =>
-          questions[i]?.category ?? ''
-        ).filter(Boolean),
-        transcript: transcriptHistoryRef.current,
-      };
-
-      let generatedQ = '';
-      let isFallback = false;
-
-      try {
-        const result = await generateNextQuestion(ctx);
-        generatedQ = result.question;
-        isFallback = result.isFallback;
-
-        if (result.error) {
-          const errorMessages = {
-            timeout: '⏱ AI took too long — using a prepared question instead.',
-            network: '🌐 Network issue — using a prepared question instead.',
-            api: result.error.message.includes('No API key')
-              ? '🔑 No OpenRouter API key set — using fallback questions. Add VITE_OPENROUTER_API_KEY to .env.local'
-              : `⚠️ AI error — using a prepared question instead.`,
-            empty: '⚠️ AI returned empty — using a prepared question instead.',
-          };
-          toast(errorMessages[result.error.type] ?? '⚠️ Using fallback question.', {
-            icon: isFallback ? '📋' : '✅',
-            duration: 4000,
-          });
-        }
-      } catch {
-        generatedQ = questions[questionNumber - 1]?.text ?? 'Tell me about yourself.';
-        isFallback = true;
-        toast.error('Failed to generate question. Using prepared fallback.');
-      }
-
-      currentQuestionRef.current = generatedQ;
-      previousQuestionsRef.current = [...previousQuestionsRef.current, generatedQ];
-
-      // ── Step 2: Start TTS immediately — show text after delay ──
-      setAiState('speaking');
-
-      // Show skeleton → real text after textRenderDelayMs
-      const renderTimeout = setTimeout(() => {
-        const category =
-          questions[questionNumber - 1]?.category ??
-          ['Introduction', 'Technical', 'Behavioral', 'Experience'][questionNumber % 4];
-
-        setCurrentCategory(category);
-        setDisplayedQuestion(generatedQ);
-
-        setLiveMessage({
-          id: makeId(),
-          role: 'ai',
-          text: generatedQ,
-          timestamp: nowTimestamp(),
-          status: 'speaking',
-          questionNumber,
-          isFallback,
-        });
-      }, textRenderDelayMs);
-
-      // Speak (returns promise that resolves when done)
-      if (tts.isSupported) {
-        await tts.speak(generatedQ);
-      } else {
-        toast('🔇 Text-to-Speech is not supported in this browser. Read the question above.', {
-          duration: 5000,
-        });
-        // Wait a moment for user to read
-        await new Promise((r) => setTimeout(r, 3000));
-      }
-
-      clearTimeout(renderTimeout);
-
-      // Finalize AI message in conversation list (move from live → messages)
-      const finalAiMsg: ConversationMessageData = {
-        id: makeId(),
-        role: 'ai',
-        text: generatedQ,
-        timestamp: nowTimestamp(),
-        status: 'pinned',
-        questionNumber,
-        isFallback,
-      };
-      setMessages((prev) => [...prev, finalAiMsg]);
-      setLiveMessage(null);
-
-      // ── Step 3: Waiting for candidate ─────────────────────────
-      setAiState('waiting');
-      flowLockRef.current = false;
-    },
-    [tts, questions, totalQuestions, textRenderDelayMs]
-  );
-
-  // ─────────────────────────────────────────────────────────────
-  // Mount: start first question
+  // Connect AI Interview Socket on Mount
   // ─────────────────────────────────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => {
-      runQuestionFlow(1);
-    }, 800);
-    return () => clearTimeout(t);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!id) {
+      toast.error('Session ID is missing');
+      navigate('/candidate/interviews');
+      return;
+    }
+
+    setAiState('loading');
+    aiInterviewSocketService.connect(id);
+
+    const unsubQuestion = aiInterviewSocketService.onQuestion(async (q: AIQuestionPayload) => {
+      console.log('[InterviewRoom] Received ai-question:', q);
+      flowLockRef.current = false;
+      setCurrentQuestionId(q.questionId);
+      setCurrentQIdx(q.sequence - 1);
+      setDisplayedQuestion(q.question);
+      setCurrentCategory(q.topic || q.skill || 'AI Technical Question');
+      currentQuestionRef.current = q.question;
+      setManualTextAnswer('');
+
+      // Add AI Question to messages
+      const newAiMsg: ConversationMessageData = {
+        id: q.questionId || makeId(),
+        role: 'ai',
+        text: q.question,
+        timestamp: nowTimestamp(),
+        status: 'pinned',
+        questionNumber: q.sequence,
+        isFallback: false,
+      };
+      setMessages((prev) => [...prev, newAiMsg]);
+
+      // Speak question via TTS
+      setAiState('speaking');
+      if (tts.isSupported) {
+        try {
+          await tts.speak(q.question);
+        } catch {
+          // Ignore TTS interruption
+        }
+      }
+      setAiState('waiting');
+    });
+
+    const unsubAnswerReceived = aiInterviewSocketService.onAnswerReceived((data) => {
+      console.log('[InterviewRoom] Answer confirmed by backend:', data);
+    });
+
+    const unsubCompleted = aiInterviewSocketService.onCompleted((data) => {
+      console.log('[InterviewRoom] Interview completed:', data);
+      tts.cancel();
+      stt.abort();
+      setAiState('loading');
+      toast.success(data.message || 'Interview completed successfully!');
+      setTimeout(() => {
+        navigate(`/candidate/ai-interview/${id}/submitted`);
+      }, 1200);
+    });
+
+    const unsubTimeout = aiInterviewSocketService.onTimeout((data) => {
+      console.log('[InterviewRoom] Interview timed out:', data);
+      tts.cancel();
+      stt.abort();
+      toast.error('Interview time limit reached.');
+      navigate(`/candidate/ai-interview/${id}/submitted`);
+    });
+
+    const unsubError = aiInterviewSocketService.onError((err: AIInterviewErrorPayload) => {
+      console.error('[InterviewRoom] Socket error:', err);
+      toast.error(err.message || 'Error communicating with AI interviewer.');
+      flowLockRef.current = false;
+      setAiState('waiting');
+    });
+
+    return () => {
+      unsubQuestion();
+      unsubAnswerReceived();
+      unsubCompleted();
+      unsubTimeout();
+      unsubError();
+      aiInterviewSocketService.disconnect();
+    };
+  }, [id, navigate]);
 
   // ─────────────────────────────────────────────────────────────
   // STT: live transcript → update live candidate bubble
@@ -284,66 +230,68 @@ export default function InterviewRoomPage() {
         timestamp: nowTimestamp(),
         status: 'partial',
       });
+      setManualTextAnswer(stt.transcript);
     }
   }, [stt.transcript, stt.isListening]);
 
   // ─────────────────────────────────────────────────────────────
-  // STT finalized → process answer → generate next question
+  // Submit Answer to Backend Socket
   // ─────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!stt.isFinalized) return;
-    handleAnswerFinalized(stt.finalTranscript);
-  }, [stt.isFinalized]); // eslint-disable-line react-hooks/exhaustive-deps
+  const handleSubmitAnswer = useCallback(
+    (answerTextToSubmit?: string) => {
+      const finalAnswer = (answerTextToSubmit ?? manualTextAnswer ?? stt.transcript ?? '').trim();
+      if (!finalAnswer) {
+        toast.error('Please speak or type your answer before submitting.');
+        return;
+      }
 
-  const handleAnswerFinalized = useCallback(
-    async (answerText: string) => {
+      if (!id || !currentQuestionId) {
+        toast.error('Session or Question ID is missing.');
+        return;
+      }
+
       if (flowLockRef.current) return;
       flowLockRef.current = true;
 
-      // Add finalized candidate message to history
+      // Stop speech recognition
+      stt.stop();
+      tts.cancel();
+
+      // Add finalized candidate message to conversation
       const candidateMsg: ConversationMessageData = {
         id: makeId(),
         role: 'candidate',
-        text: answerText || '[No response detected]',
+        text: finalAnswer,
         timestamp: nowTimestamp(),
         status: 'final',
       };
       setMessages((prev) => [...prev, candidateMsg]);
       setLiveMessage(null);
+      setManualTextAnswer('');
+      setAnsweredCount((prev) => prev + 1);
 
-      // Accumulate transcript for AI context
-      transcriptHistoryRef.current = [
-        ...transcriptHistoryRef.current,
-        {
-          questionNumber: currentQIdx + 1,
-          question: currentQuestionRef.current,
-          answer: answerText,
-        },
-      ];
-
-      // Mark question as answered
-      const newAnswered = [...answered, currentQIdx];
-      setAnswered(newAnswered);
-
-      flowLockRef.current = false;
-
-      if (isLastQuestion) {
-        setAiState('loading');
-        toast.success('Interview complete! Uploading your responses…');
-        setTimeout(() => navigate(`/candidate/ai-interview/${id}/uploading`), 1500);
-        return;
-      }
-
-      // ── Processing → Generate next ─────────────────────────
+      // Set UI to processing/evaluating
       setAiState('processing');
-      await new Promise((r) => setTimeout(r, 800));
 
-      const nextIdx = currentQIdx + 1;
-      setCurrentQIdx(nextIdx);
-      await runQuestionFlow(nextIdx + 1);
+      // Submit to backend via Socket.IO
+      aiInterviewSocketService.submitAnswer({
+        sessionId: id,
+        questionId: currentQuestionId,
+        answerText: finalAnswer,
+        recordingUrl: null,
+      });
     },
-    [currentQIdx, answered, isLastQuestion, id, navigate, runQuestionFlow]
+    [id, currentQuestionId, manualTextAnswer, stt, tts]
   );
+
+  // ─────────────────────────────────────────────────────────────
+  // STT finalized callback
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (stt.isFinalized && stt.finalTranscript) {
+      setManualTextAnswer(stt.finalTranscript);
+    }
+  }, [stt.isFinalized, stt.finalTranscript]);
 
   // ─────────────────────────────────────────────────────────────
   // Silence auto-stop handler
@@ -389,6 +337,9 @@ export default function InterviewRoomPage() {
   const handleFinishInterview = useCallback(() => {
     tts.cancel();
     stt.abort();
+    if (id) {
+      aiInterviewSocketService.endInterview(id);
+    }
     navigate(`/candidate/ai-interview/${id}/uploading`);
   }, [id, navigate, tts, stt]);
 
@@ -439,7 +390,7 @@ export default function InterviewRoomPage() {
         <TabSwitchIndicator count={tabSwitches} />
         <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
           <Clock className="w-3.5 h-3.5" />
-          <span>Q {currentQIdx + 1}/{totalQuestions}</span>
+          <span>Question {currentQIdx + 1}</span>
         </div>
         {showFinishConfirm ? (
           <div className="flex items-center gap-2">
@@ -469,7 +420,7 @@ export default function InterviewRoomPage() {
             <QuestionCard
               order={currentQIdx + 1}
               total={totalQuestions}
-              text={displayedQuestion || '…'}
+              text={displayedQuestion || 'Connecting to AI Interviewer…'}
               category={currentCategory}
               isTyping={aiState === 'generating' || aiState === 'speaking'}
             />
@@ -477,13 +428,12 @@ export default function InterviewRoomPage() {
 
           {/* Question Navigator */}
           <div>
-            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mb-2">Question Timeline</p>
+            <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide mb-2">Interview Progression</p>
             <div className="space-y-1.5">
-              {Array.from({ length: totalQuestions }).map((_, i) => {
-                const isAnswered = answered.includes(i);
+              {Array.from({ length: Math.max(totalQuestions, currentQIdx + 1) }).map((_, i) => {
+                const isAnswered = i < answeredCount;
                 const isCurrent = i === currentQIdx;
                 const isFuture = i > currentQIdx;
-                const cat = questions[i]?.category ?? `Q${i + 1}`;
                 return (
                   <div
                     key={i}
@@ -493,7 +443,7 @@ export default function InterviewRoomPage() {
                       {isAnswered ? '✓' : i + 1}
                     </div>
                     <span className={`truncate ${isCurrent ? 'text-primary-800 font-semibold' : isAnswered ? 'text-emerald-700' : 'text-slate-500'}`}>
-                      {isFuture && !isCurrent ? '—' : cat}
+                      {isCurrent ? currentCategory : isAnswered ? `Question ${i + 1} (Submitted)` : `Question ${i + 1}`}
                     </span>
                   </div>
                 );
@@ -505,17 +455,17 @@ export default function InterviewRoomPage() {
           <div className="mt-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Progress</p>
-              <span className="text-[10px] font-bold text-slate-600">{Math.round((answered.length / totalQuestions) * 100)}%</span>
+              <span className="text-[10px] font-bold text-slate-600">{Math.round((answeredCount / totalQuestions) * 100)}%</span>
             </div>
             <div className="w-full bg-slate-200 rounded-full h-1.5">
               <div
                 className="h-1.5 rounded-full bg-primary-500 transition-all duration-700"
-                style={{ width: `${(answered.length / totalQuestions) * 100}%` }}
+                style={{ width: `${Math.min((answeredCount / totalQuestions) * 100, 100)}%` }}
               />
             </div>
             <div className="flex justify-between mt-1.5 text-[10px] text-slate-500">
-              <span>{answered.length} answered</span>
-              <span>{totalQuestions - answered.length} remaining</span>
+              <span>{answeredCount} answered</span>
+              <span>{Math.max(totalQuestions - answeredCount, 0)} remaining</span>
             </div>
           </div>
         </div>
@@ -565,7 +515,7 @@ export default function InterviewRoomPage() {
                 <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center text-2xl animate-gentle-spin">
                   🤖
                 </div>
-                <p className="text-sm font-medium">Starting your interview…</p>
+                <p className="text-sm font-medium">Connecting to AI Interview room…</p>
               </div>
             )}
             <ConversationPanel
@@ -575,49 +525,78 @@ export default function InterviewRoomPage() {
             />
           </div>
 
-          {/* Bottom controls — mic button */}
+          {/* Bottom controls — candidate response */}
           <div className="flex-shrink-0 px-6 py-4 border-t border-slate-200 bg-white">
-            <div className="flex items-center gap-4">
-              {/* Mic button */}
-              {aiState === 'waiting' && (
-                <button
-                  onClick={handleStartListening}
-                  className="flex items-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm shadow-emerald-200 animate-fade-in-up"
-                >
-                  <Mic className="w-4 h-4" />
-                  Start Speaking
-                </button>
-              )}
-              {aiState === 'listening' && (
-                <button
-                  onClick={handleStopListening}
-                  className="flex items-center gap-2.5 bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm shadow-red-200 animate-fade-in-up"
-                >
-                  <MicOff className="w-4 h-4" />
-                  Done Speaking
-                </button>
-              )}
-              {(aiState === 'generating' || aiState === 'speaking' || aiState === 'processing' || aiState === 'thinking') && (
-                <div className="flex items-center gap-2 text-slate-400 text-sm">
-                  <div className="w-2 h-2 rounded-full bg-slate-300 animate-recording-pulse" />
-                  {aiState === 'speaking' ? 'AI is speaking…' : 'Please wait…'}
-                </div>
-              )}
+            <div className="space-y-3">
+              {/* Text / Live transcript edit box */}
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={manualTextAnswer}
+                  onChange={(e) => setManualTextAnswer(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey && aiState === 'waiting') {
+                      e.preventDefault();
+                      handleSubmitAnswer();
+                    }
+                  }}
+                  disabled={aiState !== 'waiting' && aiState !== 'listening'}
+                  placeholder={stt.isListening ? 'Listening… (or type here)' : 'Type your answer or use voice mic to speak…'}
+                  className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-slate-50 focus:bg-white transition-all disabled:opacity-60"
+                />
 
-              <div className="flex-1" />
+                {/* Submit button */}
+                <button
+                  onClick={() => handleSubmitAnswer()}
+                  disabled={aiState !== 'waiting' && aiState !== 'listening'}
+                  className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl font-semibold text-sm transition-all shadow-sm shadow-primary-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Send className="w-4 h-4" />
+                  Submit Answer
+                </button>
+              </div>
 
-              {/* Live stats when listening */}
-              {aiState === 'listening' && (
-                <div className="flex items-center gap-4 text-xs text-slate-500">
-                  <span className="font-medium tabular-nums">
-                    {stt.wordCount} words
-                  </span>
-                  <span className="font-medium tabular-nums">
-                    {Math.floor(stt.speakingSeconds / 60)}:{String(stt.speakingSeconds % 60).padStart(2, '0')}
-                  </span>
-                  <MicLevelBar level={stt.micLevel} isActive={stt.isListening} />
-                </div>
-              )}
+              <div className="flex items-center gap-4">
+                {/* Voice Mic button */}
+                {aiState === 'waiting' && (
+                  <button
+                    onClick={handleStartListening}
+                    className="flex items-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl font-semibold text-xs transition-all shadow-sm shadow-emerald-200 animate-fade-in-up"
+                  >
+                    <Mic className="w-4 h-4" />
+                    Start Speaking (Mic)
+                  </button>
+                )}
+                {aiState === 'listening' && (
+                  <button
+                    onClick={handleStopListening}
+                    className="flex items-center gap-2.5 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-semibold text-xs transition-all shadow-sm shadow-red-200 animate-fade-in-up"
+                  >
+                    <MicOff className="w-4 h-4" />
+                    Stop Mic
+                  </button>
+                )}
+
+                {(aiState === 'generating' || aiState === 'speaking' || aiState === 'processing' || aiState === 'thinking') && (
+                  <div className="flex items-center gap-2 text-slate-400 text-xs font-medium">
+                    <div className="w-2 h-2 rounded-full bg-primary-500 animate-recording-pulse" />
+                    {aiState === 'speaking' ? 'AI Interviewer is speaking…' : 'AI is evaluating your response…'}
+                  </div>
+                )}
+
+                <div className="flex-1" />
+
+                {/* Live stats when listening */}
+                {aiState === 'listening' && (
+                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <span className="font-medium tabular-nums">{stt.wordCount} words</span>
+                    <span className="font-medium tabular-nums">
+                      {Math.floor(stt.speakingSeconds / 60)}:{String(stt.speakingSeconds % 60).padStart(2, '0')}
+                    </span>
+                    <MicLevelBar level={stt.micLevel} isActive={stt.isListening} />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -659,20 +638,6 @@ export default function InterviewRoomPage() {
             </div>
           </div>
 
-          {/* Notes (disabled) */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">Notes</p>
-              <span className="text-[10px] text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full font-medium">Disabled</span>
-            </div>
-            <textarea
-              disabled
-              placeholder="Note-taking is disabled during AI interview"
-              className="w-full bg-transparent text-xs text-slate-500 resize-none outline-none placeholder-slate-400 cursor-not-allowed"
-              rows={3}
-            />
-          </div>
-
           {/* Monitoring status */}
           <div className="space-y-2 mt-auto">
             <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
@@ -684,7 +649,7 @@ export default function InterviewRoomPage() {
             </div>
             <div className="flex items-center justify-between text-xs text-slate-600 font-medium">
               <span>Questions Answered</span>
-              <span className="font-bold text-primary-600 tabular-nums">{answered.length}/{totalQuestions}</span>
+              <span className="font-bold text-primary-600 tabular-nums">{answeredCount}</span>
             </div>
             {stt.isListening && (
               <div className="flex items-center justify-between text-xs text-slate-600 font-medium">

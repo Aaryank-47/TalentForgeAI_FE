@@ -44,6 +44,8 @@ export class ApiError extends Error {
 
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
+  /** Query parameters to append to the URL */
+  params?: Record<string, unknown> | URLSearchParams;
   /** If true, send as multipart/form-data (skip JSON serialization) */
   isFormData?: boolean;
   /** Internal flag to prevent refresh recursion */
@@ -126,7 +128,27 @@ export async function request<T = unknown>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { body, isFormData, _isRetry, ...rest } = options;
+  const { body, params, isFormData, _isRetry, ...rest } = options;
+
+  let url = `${BASE_URL}${path}`;
+  if (params) {
+    let queryString = '';
+    if (params instanceof URLSearchParams) {
+      queryString = params.toString();
+    } else {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          searchParams.append(key, String(value));
+        }
+      });
+      queryString = searchParams.toString();
+    }
+
+    if (queryString) {
+      url += (url.includes('?') ? '&' : '?') + queryString;
+    }
+  }
 
   const buildHeaders = (): HeadersInit => {
     const headers: Record<string, string> = {};
@@ -148,7 +170,7 @@ export async function request<T = unknown>(
   };
 
   const makeRequest = async () =>
-    fetch(`${BASE_URL}${path}`, {
+    fetch(url, {
       credentials: 'include',
       ...rest,
       headers: {

@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, MapPin, X, Briefcase, Mail, Globe, Tag, Loader2, User, FileText,
+  Search, MapPin, X, Briefcase, Mail, Globe, Tag, Loader2, User, FileText, Bot, Sparkles, Calendar, AlertCircle
 } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 import { useAuth } from '../../context/AuthContext';
 import { candidateApi } from '../../services/api/candidate.api';
+import { interviewApi } from '../../services/api/interview.api';
 
 const stageStyle = (s: string) => ({
   'Applied': 'bg-blue-50 text-blue-700 border-blue-200',
@@ -41,10 +43,45 @@ const CandidatesPage = () => {
   const { user } = useAuth();
   const companyId = user?.companyId || user?.companies?.[0]?.companyId;
 
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selectedStage, setSelectedStage] = useState('All');
   const [selectedCandidate, setSelectedCandidate] = useState<any | null>(null);
   const [drawerTab, setDrawerTab] = useState<'Profile' | 'Assessment' | 'Timeline'>('Profile');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  // Fetch company AI interview templates
+  const { data: templatesData } = useQuery({
+    queryKey: ['company-interviews', companyId],
+    queryFn: async () => {
+      if (!companyId) return { items: [] };
+      const res: any = await interviewApi.getCompanyInterviews(companyId, { limit: 50 });
+      return res?.data || res || { items: [] };
+    },
+    enabled: Boolean(companyId),
+  });
+
+  const availableTemplates: any[] = templatesData?.items || templatesData?.interviews || (Array.isArray(templatesData) ? templatesData : []);
+
+  // Assign Interview Mutation
+  const assignMutation = useMutation({
+    mutationFn: async ({ interviewId, applicationId }: { interviewId: string; applicationId: string }) => {
+      if (!companyId) throw new Error('Company ID is missing');
+      return await interviewApi.createAssignments(companyId, interviewId, {
+        applicationIds: [applicationId]
+      });
+    },
+    onSuccess: () => {
+      toast.success('AI Interview assigned! Candidate can now start the interview.');
+      setIsAssigning(false);
+      setSelectedTemplateId('');
+      queryClient.invalidateQueries({ queryKey: ['recruiter-candidates'] });
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Failed to assign interview');
+    }
+  });
 
   // Fetch all company candidate applications
   const { data: applicationsData, isLoading } = useQuery({
@@ -386,6 +423,119 @@ const CandidatesPage = () => {
                       </a>
                     </div>
                   )}
+
+                  {/* Stage-Aware Interview Action Panel */}
+                  {(() => {
+                    const normalizedStage = (activeCandidate.stage || '').toLowerCase();
+                    const isAIInterviewStage = normalizedStage.includes('ai interview') || normalizedStage.includes('ai technical') || normalizedStage.includes('ai screening');
+                    const isLiveInterviewStage = !isAIInterviewStage && normalizedStage.includes('interview');
+
+                    return (
+                      <div className="pt-4 border-t border-slate-200 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                            {isAIInterviewStage ? (
+                              <>
+                                <Sparkles className="w-4 h-4 text-violet-600" />
+                                AI Interview Assignment
+                              </>
+                            ) : isLiveInterviewStage ? (
+                              <>
+                                <Calendar className="w-4 h-4 text-indigo-600" />
+                                Interview Scheduling
+                              </>
+                            ) : (
+                              <>
+                                <Tag className="w-4 h-4 text-slate-600" />
+                                Current Pipeline Stage
+                              </>
+                            )}
+                          </p>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${stageStyle(activeCandidate.stage)}`}>
+                            {activeCandidate.stage}
+                          </span>
+                        </div>
+
+                        {isAIInterviewStage ? (
+                          /* Only show AI interview controls when candidate is in AI Interview stage */
+                          <div className="space-y-2.5">
+                            <div className="bg-violet-50 border border-violet-100 rounded-lg p-2.5">
+                              <p className="text-[11px] text-violet-800 leading-relaxed font-medium">
+                                ✓ Candidate has reached the <strong>AI Interview</strong> stage and is eligible to be assigned.
+                              </p>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-[11px] font-semibold text-slate-500 block">Select AI Interview Template</label>
+                              <select
+                                value={selectedTemplateId}
+                                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                              >
+                                <option value="">-- Choose AI Template --</option>
+                                {availableTemplates.map((t: any) => (
+                                  <option key={t.id} value={t.id}>
+                                    {t.title || t.name} ({t.durationMinutes || 25} min · {t.aiConfiguration?.difficulty || 'MEDIUM'})
+                                  </option>
+                                ))}
+                              </select>
+
+                              <button
+                                onClick={() => {
+                                  if (!selectedTemplateId) {
+                                    toast.error('Please select an AI template first');
+                                    return;
+                                  }
+                                  assignMutation.mutate({
+                                    interviewId: selectedTemplateId,
+                                    applicationId: activeCandidate.id
+                                  });
+                                }}
+                                disabled={assignMutation.isPending || !selectedTemplateId}
+                                className="w-full btn-primary py-2 text-xs flex items-center justify-center gap-2"
+                              >
+                                {assignMutation.isPending ? (
+                                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                  <Bot className="w-3.5 h-3.5" />
+                                )}
+                                {assignMutation.isPending ? 'Assigning Interview...' : 'Assign AI Interview'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : isLiveInterviewStage ? (
+                          /* Only show Interview round controls when candidate is in Interview stage */
+                          <div className="space-y-2.5">
+                            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5">
+                              <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
+                                ✓ Candidate has reached the <strong>Interview</strong> stage. Schedule a live interview round.
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => {
+                                toast.success(`Interview scheduler ready for ${activeCandidate.name}`);
+                              }}
+                              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg text-xs flex items-center justify-center gap-2 transition-colors"
+                            >
+                              <Calendar className="w-3.5 h-3.5" />
+                              Schedule Interview
+                            </button>
+                          </div>
+                        ) : (
+                          /* For all other stages (Applied, Screening, Assessment, Offer, Hired, etc.) -> NO interview buttons shown */
+                          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-slate-700 font-semibold text-xs">
+                              <AlertCircle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                              Current Stage: {activeCandidate.stage}
+                            </div>
+                            <p className="text-[11px] text-slate-500 leading-relaxed">
+                              Interview assignment actions are only enabled when the candidate reaches the <strong className="text-slate-700 font-semibold">AI Interview</strong> stage in the workflow pipeline.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
               {drawerTab === 'Assessment' && (

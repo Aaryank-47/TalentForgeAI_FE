@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Bot, Clock, AlertCircle, ChevronRight, ArrowUpRight, CheckCircle, Calendar, Zap } from 'lucide-react';
-import { aiInterviewData } from '../../constants/candidate_mockData';
+import { useQuery } from '@tanstack/react-query';
+import { Bot, Clock, AlertCircle, ChevronRight, ArrowUpRight, CheckCircle, Calendar, Zap, Loader2, Award } from 'lucide-react';
+import { interviewApi } from '../../services/api/interview.api';
 import { InterviewStatusBadge } from '../../components/interview/InterviewComponents';
 
 const urgencyColor = (u: string) => ({
@@ -12,7 +13,17 @@ const urgencyColor = (u: string) => ({
 
 export default function CandidateAIInterviewPage() {
   const navigate = useNavigate();
-  const { pendingInterviews, pastInterviews } = aiInterviewData;
+
+  const { data: interviewData, isLoading } = useQuery({
+    queryKey: ['candidate-my-interviews'],
+    queryFn: async () => {
+      const res: any = await interviewApi.getCandidateInterviews();
+      return res?.data || res || { pending: [], completed: [] };
+    },
+  });
+
+  const pendingInterviews: any[] = interviewData?.pending || [];
+  const pastInterviews: any[] = interviewData?.completed || [];
 
   return (
     <div className="space-y-6 max-w-4xl">
@@ -52,106 +63,125 @@ export default function CandidateAIInterviewPage() {
         </div>
       </div>
 
-      {/* Pending Interviews */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-display font-bold text-slate-900 text-base flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 text-amber-500" />
-            Pending Interviews
-          </h2>
-          <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-bold border border-amber-200">
-            {pendingInterviews.length} pending
-          </span>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
         </div>
-        <div className="space-y-4">
-          {pendingInterviews.map(iv => (
-            <div key={iv.id} className="card p-5 hover:shadow-md transition-all hover:border-primary-200">
-              <div className="flex items-start gap-4">
-                {/* Company Logo */}
-                <div className={`w-14 h-14 ${iv.companyColor} rounded-2xl flex items-center justify-center text-white font-black text-xl flex-shrink-0`}>
-                  {iv.companyLogo}
-                </div>
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div>
-                      <h3 className="font-bold text-slate-900">{iv.role}</h3>
-                      <p className="text-sm text-slate-500">{iv.company}</p>
-                    </div>
-                    <div className={`text-xs font-bold px-3 py-1 rounded-full border ${urgencyColor(iv.deadlineUrgency)}`}>
-                      Due {iv.deadline}
-                    </div>
-                  </div>
+      ) : (
+        <>
+          {/* Pending Interviews */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display font-bold text-slate-900 text-base flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-500" />
+                Pending Interviews
+              </h2>
+              <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-bold border border-amber-200">
+                {pendingInterviews.length} pending
+              </span>
+            </div>
 
-                  <div className="flex flex-wrap gap-3 mt-3">
-                    {[
-                      { icon: <Clock className="w-3.5 h-3.5" />, label: iv.estimatedDuration },
-                      { icon: <Zap className="w-3.5 h-3.5" />, label: `${iv.questionCount} Questions` },
-                      { icon: <Bot className="w-3.5 h-3.5" />, label: iv.interviewType },
-                      { icon: <Calendar className="w-3.5 h-3.5" />, label: `Assigned ${iv.assignedDate}` },
-                    ].map(item => (
-                      <span key={item.label} className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
-                        <span className="text-slate-400">{item.icon}</span>
-                        {item.label}
-                      </span>
-                    ))}
-                  </div>
+            {pendingInterviews.length === 0 ? (
+              <div className="card p-8 text-center">
+                <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-slate-800">No pending interviews</p>
+                <p className="text-xs text-slate-400 mt-1">You have no upcoming AI interviews assigned at the moment.</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pendingInterviews.map((iv: any, idx: number) => (
+                  <div key={iv.assignmentId || iv.id || `${iv.sessionId}-${idx}`} className="card p-5 hover:shadow-md transition-all hover:border-primary-200">
+                    <div className="flex items-start gap-4">
+                      {/* Company Logo */}
+                      <div className={`w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center text-white font-black text-xl flex-shrink-0`}>
+                        {iv.companyLogo || 'TF'}
+                      </div>
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-3 flex-wrap">
+                          <div>
+                            <h3 className="font-bold text-slate-900">{iv.role}</h3>
+                            <p className="text-sm text-slate-500">{iv.company}</p>
+                          </div>
+                          <div className={`text-xs font-bold px-3 py-1 rounded-full border ${urgencyColor(iv.deadlineUrgency)}`}>
+                            Due {iv.deadline}
+                          </div>
+                        </div>
 
-                  <div className="flex items-center justify-between mt-4">
-                    <p className="text-xs text-slate-400">
-                      Attempt {iv.attemptsUsed + 1} of {iv.attemptsAllowed}
-                    </p>
-                    <button
-                      onClick={() => navigate(`/candidate/ai-interview/${iv.id}/details`)}
-                      className="btn-primary text-sm flex items-center gap-2"
-                    >
-                      Start Interview
-                      <ChevronRight className="w-4 h-4" />
-                    </button>
+                        <div className="flex flex-wrap gap-3 mt-3">
+                          {[
+                            { icon: <Clock className="w-3.5 h-3.5" />, label: iv.estimatedDuration },
+                            { icon: <Zap className="w-3.5 h-3.5" />, label: `${iv.questionCount} Questions` },
+                            { icon: <Bot className="w-3.5 h-3.5" />, label: iv.interviewType },
+                            { icon: <Calendar className="w-3.5 h-3.5" />, label: `Assigned ${iv.assignedDate}` },
+                          ].map(item => (
+                            <span key={item.label} className="flex items-center gap-1.5 text-xs text-slate-600 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">
+                              <span className="text-slate-400">{item.icon}</span>
+                              {item.label}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="flex items-center justify-between mt-4">
+                          <p className="text-xs text-slate-400">
+                            Attempt {iv.attemptsUsed + 1} of {iv.attemptsAllowed}
+                          </p>
+                          <button
+                            onClick={() => navigate(`/candidate/ai-interview/${iv.sessionId || iv.id}/details`)}
+                            className="btn-primary text-sm flex items-center gap-2"
+                          >
+                            Start Interview
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Past Interviews */}
+          {pastInterviews.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-display font-bold text-slate-900 text-base flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  Submitted Interviews
+                </h2>
+              </div>
+              <div className="space-y-3">
+                {pastInterviews.map((iv: any, idx: number) => (
+                  <div key={iv.assignmentId || iv.id || `${iv.sessionId}-${idx}`} className="card p-4 flex items-center gap-4">
+                    <div className={`w-11 h-11 bg-primary-600 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0`}>
+                      {iv.companyLogo || 'TF'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900">{iv.role}</p>
+                      <p className="text-xs text-slate-500">{iv.company} {iv.submittedDate ? `· Submitted ${iv.submittedDate}` : ''}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {iv.aiScore !== null && (
+                        <div className="text-right">
+                          <p className="text-lg font-black text-primary-600">{iv.aiScore}</p>
+                          <p className="text-[10px] text-slate-400">AI Score</p>
+                        </div>
+                      )}
+                      <InterviewStatusBadge status={iv.status} />
+                      <button
+                        onClick={() => navigate(`/candidate/ai-interview/${iv.sessionId || iv.id}/submitted`)}
+                        className="text-xs btn-secondary py-1.5 px-3 flex items-center gap-1"
+                      >
+                        View Status <ArrowUpRight className="w-3 h-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Past Interviews */}
-      {pastInterviews.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-display font-bold text-slate-900 text-base flex items-center gap-2">
-              <CheckCircle className="w-4 h-4 text-emerald-500" />
-              Submitted Interviews
-            </h2>
-          </div>
-          <div className="space-y-3">
-            {pastInterviews.map(iv => (
-              <div key={iv.id} className="card p-4 flex items-center gap-4">
-                <div className={`w-11 h-11 ${iv.companyColor} rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0`}>
-                  {iv.companyLogo}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900">{iv.role}</p>
-                  <p className="text-xs text-slate-500">{iv.company} · Submitted {iv.submittedDate}</p>
-                </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="text-right">
-                    <p className="text-lg font-black text-primary-600">{iv.aiScore}</p>
-                    <p className="text-[10px] text-slate-400">AI Score</p>
-                  </div>
-                  <InterviewStatusBadge status={iv.status} />
-                  <Link
-                    to={`/candidate/ai-interview/${iv.id}/status`}
-                    className="text-xs btn-secondary py-1.5 px-3 flex items-center gap-1"
-                  >
-                    View Status <ArrowUpRight className="w-3 h-3" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+          )}
+        </>
       )}
     </div>
   );

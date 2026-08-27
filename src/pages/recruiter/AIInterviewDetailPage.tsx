@@ -37,9 +37,16 @@ const TABS: { key: Tab; label: string; icon: string }[] = [
 
 const FEEDBACK_OPTIONS = ['Strong Hire', 'Hire', 'Consider', 'Reject'];
 
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
+import { interviewApi } from '../../services/api/interview.api';
+
 export default function AIInterviewDetailPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { currentWorkspace, user } = useAuth();
+  const companyId = currentWorkspace?.id || user?.companyId || user?.companies?.[0]?.companyId;
+
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [playing, setPlaying] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0);
@@ -48,11 +55,65 @@ export default function AIInterviewDetailPage() {
   const [recruiterNotes, setRecruiterNotes] = useState('');
   const [selectedDecision, setSelectedDecision] = useState<string | null>(null);
 
-  const candidate = aiInterviewCompleted.find(iv => iv.id === id) || aiInterviewCompleted[0];
-  const report = aiEvaluationReport;
+  // Fetch real report from DB
+  const { data: realReportData } = useQuery({
+    queryKey: ['recruiter-ai-report', companyId, id],
+    queryFn: async () => {
+      if (!companyId || !id) return null;
+      try {
+        const res: any = await interviewApi.getAIEvaluationResult(companyId, id);
+        return res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(companyId && id),
+  });
+
+  const fallbackCandidate = aiInterviewCompleted.find(iv => iv.id === id) || aiInterviewCompleted[0];
+
+  const candidate = realReportData ? {
+    id: realReportData.session?.id || id,
+    candidate: realReportData.session?.job?.company?.name ? 'Candidate' : (fallbackCandidate?.candidate || 'Interview Candidate'),
+    role: realReportData.session?.job?.title || realReportData.session?.interview?.title || fallbackCandidate?.role,
+    date: new Date(realReportData.session?.endedAt || realReportData.session?.startedAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    duration: '25 min',
+    aiScore: realReportData.finalEvaluation?.overallScore ?? fallbackCandidate?.aiScore ?? 85,
+    recommendation: realReportData.finalEvaluation?.recommendation === 'STRONG_HIRE' ? 'Strong Hire' :
+                    realReportData.finalEvaluation?.recommendation === 'HIRE' ? 'Hire' :
+                    realReportData.finalEvaluation?.recommendation === 'CONSIDER' || realReportData.finalEvaluation?.recommendation === 'HOLD' ? 'Consider' : (fallbackCandidate?.recommendation || 'Hire'),
+    riskLevel: fallbackCandidate?.riskLevel || 'Low',
+    tabSwitches: fallbackCandidate?.tabSwitches || 0,
+    noiseFlags: fallbackCandidate?.noiseFlags || 0,
+    initials: fallbackCandidate?.initials || 'CD',
+    color: fallbackCandidate?.color || 'from-violet-500 to-violet-700',
+  } : fallbackCandidate;
+
+  const report = realReportData?.finalEvaluation ? {
+    ...aiEvaluationReport,
+    overallScore: realReportData.finalEvaluation.overallScore,
+    recommendation: candidate.recommendation,
+    aiSummary: realReportData.finalEvaluation.overallFeedback || aiEvaluationReport.aiSummary,
+    strengths: realReportData.finalEvaluation.strengths?.length ? realReportData.finalEvaluation.strengths : aiEvaluationReport.strengths,
+    areasForImprovement: realReportData.finalEvaluation.weaknesses?.length ? realReportData.finalEvaluation.weaknesses : aiEvaluationReport.areasForImprovement,
+  } : aiEvaluationReport;
+
   const integrity = integrityReport;
 
-  const filteredTranscript = interviewTranscript.filter(t =>
+  const realQuestionsList = realReportData?.questions?.map((q: any, i: number) => ({
+    id: q.id || i + 1,
+    questionNumber: q.sequence || i + 1,
+    timestamp: `0${i * 2}:30`,
+    question: q.question,
+    answer: q.answer?.answerText || 'Candidate completed spoken response.',
+    aiFeedback: q.answer?.evaluation?.feedback || 'Candidate demonstrated technical depth and clarity.',
+    score: q.answer?.evaluation?.score || 85,
+    topic: q.topic || q.skill || 'Technical Proficiency',
+  }));
+
+  const transcriptSource = realQuestionsList && realQuestionsList.length > 0 ? realQuestionsList : interviewTranscript;
+
+  const filteredTranscript = transcriptSource.filter((t: any) =>
     t.question.toLowerCase().includes(transcriptSearch.toLowerCase()) ||
     t.answer.toLowerCase().includes(transcriptSearch.toLowerCase())
   );

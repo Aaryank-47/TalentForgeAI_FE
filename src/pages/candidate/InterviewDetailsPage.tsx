@@ -1,5 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, Clock, Layers, Mic, Info, Target, ArrowLeft } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ChevronRight, Clock, Layers, Mic, Info, Target, ArrowLeft, Loader2 } from 'lucide-react';
+import { interviewApi } from '../../services/api/interview.api';
 import { aiInterviewData } from '../../constants/candidate_mockData';
 import { InterviewStepper } from '../../components/interview/InterviewComponents';
 
@@ -13,10 +15,33 @@ const STEPS = [
 ];
 
 export default function InterviewDetailsPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const detail = aiInterviewData.interviewDetail;
-  const pending = aiInterviewData.pendingInterviews.find(iv => iv.id === id) || aiInterviewData.pendingInterviews[0];
+
+  const { data: realDetail, isLoading } = useQuery({
+    queryKey: ['candidate-session-details', id],
+    queryFn: async () => {
+      if (!id) return null;
+      try {
+        const res: any = await interviewApi.getCandidateSessionDetails(id);
+        return res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(id),
+  });
+
+  const fallbackDetail = aiInterviewData.interviewDetail;
+  const detail = realDetail || fallbackDetail;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 text-primary-600 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-3xl">
@@ -28,15 +53,18 @@ export default function InterviewDetailsPage() {
       {/* Header */}
       <div className="card p-6">
         <div className="flex items-start gap-4">
-          <div className={`w-16 h-16 ${pending.companyColor} rounded-2xl flex items-center justify-center text-white font-black text-2xl flex-shrink-0`}>
-            {pending.companyLogo}
+          <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center text-white font-black text-2xl flex-shrink-0">
+            {detail.companyLogo || (detail.company || 'TF').slice(0, 2).toUpperCase()}
           </div>
           <div>
             <h1 className="text-xl font-display font-bold text-slate-900">{detail.role}</h1>
-            <p className="text-slate-500">{detail.company} · {detail.department}</p>
+            <p className="text-slate-500">{detail.company} {detail.department ? `· ${detail.department}` : ''}</p>
             <div className="flex flex-wrap gap-2 mt-2">
-              <span className="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full border border-violet-200 font-semibold">{detail.interviewType}</span>
-              <span className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-200 font-semibold">{detail.language}</span>
+              <span className="text-xs bg-violet-50 text-violet-700 px-2.5 py-1 rounded-full border border-violet-200 font-semibold">{detail.interviewType || 'Conversational AI'}</span>
+              <span className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-200 font-semibold">{detail.language || 'English'}</span>
+              {detail.difficulty && (
+                <span className="text-xs bg-slate-100 text-slate-700 px-2.5 py-1 rounded-full font-semibold">{detail.difficulty}</span>
+              )}
             </div>
           </div>
         </div>
@@ -45,9 +73,9 @@ export default function InterviewDetailsPage() {
       {/* Key Details */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { icon: <Clock className="w-5 h-5 text-primary-600" />, label: 'Estimated Time', value: detail.estimatedDuration, bg: 'bg-blue-50' },
-          { icon: <Layers className="w-5 h-5 text-violet-600" />, label: 'Questions', value: `${detail.questionCount} Questions`, bg: 'bg-violet-50' },
-          { icon: <Mic className="w-5 h-5 text-emerald-600" />, label: 'Format', value: 'Verbal Only', bg: 'bg-emerald-50' },
+          { icon: <Clock className="w-5 h-5 text-primary-600" />, label: 'Estimated Time', value: detail.estimatedDuration || `${detail.durationMinutes || 25} mins`, bg: 'bg-blue-50' },
+          { icon: <Layers className="w-5 h-5 text-violet-600" />, label: 'Questions', value: `${detail.questionCount || 5} Questions`, bg: 'bg-violet-50' },
+          { icon: <Mic className="w-5 h-5 text-emerald-600" />, label: 'Format', value: 'Verbal / Voice & Text', bg: 'bg-emerald-50' },
         ].map(item => (
           <div key={item.label} className="card p-4 text-center">
             <div className={`w-10 h-10 ${item.bg} rounded-xl flex items-center justify-center mx-auto mb-2`}>
@@ -65,7 +93,12 @@ export default function InterviewDetailsPage() {
           <Info className="w-4 h-4 text-primary-500" /> Interview Format
         </h3>
         <ul className="space-y-2">
-          {detail.format.map((item, i) => (
+          {(detail.format || [
+            'One question presented dynamically by the AI interviewer at a time.',
+            'Respond verbally using your microphone or type your answer.',
+            'The AI evaluates your response depth and asks adaptive follow-ups.',
+            'Session is timed and automatically evaluated upon completion.'
+          ]).map((item: string, i: number) => (
             <li key={i} className="flex items-start gap-2.5 text-sm text-slate-700">
               <div className="w-5 h-5 rounded-full bg-primary-100 text-primary-700 text-xs font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
               {item}
@@ -80,7 +113,12 @@ export default function InterviewDetailsPage() {
           <Target className="w-4 h-4 text-emerald-500" /> Evaluation Criteria
         </h3>
         <div className="space-y-2.5">
-          {detail.evaluationCriteria.map(c => (
+          {(detail.evaluationCriteria || [
+            { label: 'Technical Depth & Accuracy', weight: '40%' },
+            { label: 'Problem Solving & Approach', weight: '30%' },
+            { label: 'Communication & Articulation', weight: '20%' },
+            { label: 'System Design & Best Practices', weight: '10%' }
+          ]).map((c: any) => (
             <div key={c.label} className="flex items-center justify-between">
               <span className="text-sm text-slate-700">{c.label}</span>
               <span className="text-sm font-bold text-primary-600">{c.weight}</span>

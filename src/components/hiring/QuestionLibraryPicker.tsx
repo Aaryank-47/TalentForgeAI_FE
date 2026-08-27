@@ -4,6 +4,7 @@ import { QUESTION_CATEGORIES } from '../../constants/hiring_mockData';
 import type { QuestionCategory } from '../../types/hiring';
 import { Link } from 'react-router-dom';
 import { Badge } from '../ui/Badge';
+import { Search, Check } from 'lucide-react';
 
 interface QuestionLibraryPickerProps {
   selectedIds: string[];

@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { Play, Clock, Wifi, Shield } from 'lucide-react';
+import { interviewApi } from '../../services/api/interview.api';
 import { aiInterviewData } from '../../constants/candidate_mockData';
 import { InterviewStepper, AIInterviewerCard, InterviewSummaryCard } from '../../components/interview/InterviewComponents';
 import { CameraPreview, ScreenPreview } from '../../modules/shared/system-check/SystemCheck';
 import { useMedia } from '../../context/MediaProvider';
-
 
 const STEPS = [
   { label: 'Details' },
@@ -24,10 +25,32 @@ const TIPS_CAROUSEL = [
 ];
 
 export default function WaitingRoomPage() {
-  const { id } = useParams();
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { pendingInterviews } = aiInterviewData;
-  const pending = pendingInterviews.find(iv => iv.id === id) || pendingInterviews[0];
+
+  const { data: realDetail } = useQuery({
+    queryKey: ['candidate-session-details', id],
+    queryFn: async () => {
+      if (!id) return null;
+      try {
+        const res: any = await interviewApi.getCandidateSessionDetails(id);
+        return res?.data || res;
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(id),
+  });
+
+  const fallback = aiInterviewData.pendingInterviews[0];
+  const pending = realDetail ? {
+    company: realDetail.company,
+    role: realDetail.role,
+    questionCount: realDetail.questionCount || 5,
+    estimatedDuration: realDetail.estimatedDuration || `${realDetail.durationMinutes || 25} mins`,
+    companyColor: realDetail.companyColor || 'bg-primary-600',
+    companyLogo: realDetail.companyLogo || (realDetail.company || 'TF').slice(0, 2).toUpperCase()
+  } : fallback;
 
   const { cameraStream, screenStream, deviceState } = useMedia();
 

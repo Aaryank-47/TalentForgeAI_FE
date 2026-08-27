@@ -8,6 +8,8 @@ interface DeadlineConfigPanelProps {
 }
 
 export function DeadlineConfigPanel({ value, onChange }: DeadlineConfigPanelProps) {
+  const safeValue: DeadlineConfig = value || { duration: '48h', expiryAction: 'recruiter_review' };
+
   return (
     <div className="space-y-4">
       <FormField label="Complete Within" hint="Deadline for candidates to finish the interview">
@@ -16,9 +18,9 @@ export function DeadlineConfigPanel({ value, onChange }: DeadlineConfigPanelProp
             <button
               key={opt.value}
               type="button"
-              onClick={() => onChange({ ...value, duration: opt.value })}
+              onClick={() => onChange({ ...safeValue, duration: opt.value })}
               className={`px-3 py-2 text-sm font-medium rounded-lg border transition-colors ${
-                value.duration === opt.value
+                safeValue.duration === opt.value
                   ? 'bg-primary-50 border-primary-300 text-primary-700'
                   : 'bg-white border-[#E5E7EB] text-slate-600 hover:bg-slate-50'
               }`}
@@ -29,14 +31,14 @@ export function DeadlineConfigPanel({ value, onChange }: DeadlineConfigPanelProp
         </div>
       </FormField>
 
-      {value.duration === 'custom' && (
+      {safeValue.duration === 'custom' && (
         <FormField label="Custom Duration (hours)">
           <input
             type="number"
             min={1}
             className="input-field mt-1"
-            value={value.customHours ?? 72}
-            onChange={e => onChange({ ...value, customHours: Number(e.target.value) })}
+            value={safeValue.customHours ?? 72}
+            onChange={e => onChange({ ...safeValue, customHours: Number(e.target.value) })}
           />
         </FormField>
       )}
@@ -48,9 +50,9 @@ export function DeadlineConfigPanel({ value, onChange }: DeadlineConfigPanelProp
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-1">
           <button
             type="button"
-            onClick={() => onChange({ ...value, expiryAction: 'reject' })}
+            onClick={() => onChange({ ...safeValue, expiryAction: 'reject' })}
             className={`p-4 rounded-xl border text-left transition-colors ${
-              value.expiryAction === 'reject'
+              safeValue.expiryAction === 'reject'
                 ? 'bg-red-50 border-red-200 ring-2 ring-red-100'
                 : 'bg-white border-[#E5E7EB] hover:bg-slate-50'
             }`}
@@ -60,9 +62,9 @@ export function DeadlineConfigPanel({ value, onChange }: DeadlineConfigPanelProp
           </button>
           <button
             type="button"
-            onClick={() => onChange({ ...value, expiryAction: 'recruiter_review' })}
+            onClick={() => onChange({ ...safeValue, expiryAction: 'recruiter_review' })}
             className={`p-4 rounded-xl border text-left transition-colors ${
-              value.expiryAction === 'recruiter_review'
+              safeValue.expiryAction === 'recruiter_review'
                 ? 'bg-amber-50 border-amber-200 ring-2 ring-amber-100'
                 : 'bg-white border-[#E5E7EB] hover:bg-slate-50'
             }`}
