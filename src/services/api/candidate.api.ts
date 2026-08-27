@@ -312,6 +312,36 @@ export const candidateApi = {
       remarks: remarks || 'Candidate requested withdrawal',
     }),
 
+  // ── Recruiter / Employer Applications ─────────────────────────
+  /** Fetch all candidate applications for a company (GET /employer/applications/company/:companyId) */
+  getCompanyApplications: (companyId: string, params?: { page?: number; limit?: number; jobId?: string; status?: string; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.jobId) query.append('jobId', params.jobId);
+    if (params?.status) query.append('status', params.status);
+    if (params?.search) query.append('search', params.search);
+
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return api.get<any>(`/employer/applications/company/${companyId}${queryString}`);
+  },
+
+  /** Fetch all applications for a specific job (GET /employer/applications/jobs/:jobId/applications) */
+  getJobApplications: (jobId: string, params?: { page?: number; limit?: number; status?: string; search?: string }) => {
+    const query = new URLSearchParams();
+    if (params?.page) query.append('page', params.page.toString());
+    if (params?.limit) query.append('limit', params.limit.toString());
+    if (params?.status) query.append('status', params.status);
+    if (params?.search) query.append('search', params.search);
+
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return api.get<any>(`/employer/applications/jobs/${jobId}/applications${queryString}`);
+  },
+
+  /** Fetch details of a specific job application (GET /employer/applications/:applicationId) */
+  getEmployerApplicationDetails: (applicationId: string) =>
+    api.get<any>(`/employer/applications/${applicationId}`),
+
   // ── Preferences ──────────────────────────────────────────────
   /** Toggle Open To Work status */
   toggleOpenToWork: (isOpenToWork: boolean) =>
