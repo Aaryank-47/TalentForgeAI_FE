@@ -1,27 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
-  ChevronLeft,
   ChevronRight,
-  Flag,
-  Send,
   AlertTriangle,
   Play,
-  Check,
   Maximize2,
-  Monitor,
-  Camera,
   Volume2,
-  Eye,
-  Wifi,
   Terminal,
   Sun,
   Moon,
   RefreshCw,
   CheckCircle,
   XCircle,
-  AlertCircle,
-  Loader2
+  AlertCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useMedia } from '../../context/MediaProvider';
@@ -29,9 +20,8 @@ import AssessmentMonitoringPanel from '../../components/assessment/AssessmentMon
 import MonacoEditorWrapper from '../../components/assessment/MonacoEditorWrapper';
 import { assessmentApi } from '../../services/api/assessment.api';
 import { candidateApi } from '../../services/api/candidate.api';
-import { mockMCQQuestions } from '../../constants/assessment_mockData';
-import { mockDsaProblems, runMockCode, submitMockCode } from '../../constants/assessment_candidate_mock';
-import type { MCQQuestion, MockExecutionResult } from '../../types/assessment';
+import { runMockCode, submitMockCode } from '../../constants/assessment_candidate_mock';
+import type { MockExecutionResult } from '../../types/assessment';
 
 // Force dev server cache invalidate
 const TOTAL_SECONDS = 60 * 45; // 45 min
@@ -51,7 +41,7 @@ const AssessmentTakePage: React.FC = () => {
   // Attempt backend tracking state
   const [attemptId, setAttemptId] = useState<string>('');
   const [attemptDetails, setAttemptDetails] = useState<any>(null);
-  const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(true);
+  const [_isLoadingDetails, setIsLoadingDetails] = useState<boolean>(true);
 
   // Media context
   const {
