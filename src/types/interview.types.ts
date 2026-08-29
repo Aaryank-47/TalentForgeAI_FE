@@ -137,6 +137,8 @@ export interface LiveInterview {
   notes?: string;
   roomId?: string;     // mock room identifier
   recordingEnabled: boolean;
+  aiScore?: number | null;
+  recommendation?: string;
 }
 
 // ─── Interview Notification ────────────────────────────────────

@@ -10,11 +10,37 @@ import { RecruiterFeedbackForm } from '../../../components/live-interview/Recrui
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
 import { mockRecruiterEvaluations } from '../../../constants/feedback.mock';
 
+import { useQuery } from '@tanstack/react-query';
+import { interviewApi } from '../../../services/api/interview.api';
+import { useAuth } from '../../../context/AuthContext';
+import { toLiveInterview } from '../../../services/interviewSession.service';
+
 const RecruiterInterviewFeedbackPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const interview = getInterviewById(id ?? '');
+  const { user } = useAuth();
+  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
+
+  const { data: sessionResponse, isLoading } = useQuery({
+    queryKey: ['interview-session', id, companyId],
+    queryFn: () => interviewApi.getSessionById(companyId as string, id as string),
+    enabled: !!id && !!companyId,
+  });
+
+  const session = (sessionResponse as any)?.data || sessionResponse;
+  const realInterview = session ? toLiveInterview(session) : null;
+  const mockInterview = getInterviewById(id ?? '');
+  
+  const interview = realInterview || mockInterview;
   const existingEval = mockRecruiterEvaluations.find((ev) => ev.interviewId === id);
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="text-slate-500 text-sm">Loading interview...</p>
+      </div>
+    );
+  }
 
   if (!interview) {
     return (
@@ -72,6 +98,7 @@ const RecruiterInterviewFeedbackPage: React.FC = () => {
       <RecruiterFeedbackForm
         candidateName={interview.candidateName}
         interviewTitle={interview.title}
+        sessionId={id}
         onSubmit={handleSubmit}
       />
     </div>

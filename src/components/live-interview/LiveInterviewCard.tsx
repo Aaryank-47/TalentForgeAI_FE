@@ -98,7 +98,7 @@ export const LiveInterviewCard: React.FC<LiveInterviewCardProps> = ({
 
       {/* Meta row */}
       {!compact && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <Calendar className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
             <span>{interview.date}</span>
@@ -106,13 +106,27 @@ export const LiveInterviewCard: React.FC<LiveInterviewCardProps> = ({
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <Clock className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
             <span>
-              {interview.timeStart} – {interview.timeEnd} · {interview.duration}
+              {interview.duration}
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500">
             <Video className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
             <span className="capitalize">{interview.meetingType.replace('-', ' ')}</span>
           </div>
+          {interview.aiScore != null && (
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded border border-primary-100">
+              Score: {interview.aiScore}%
+            </div>
+          )}
+          {interview.recommendation && (
+            <div className={`flex items-center gap-1.5 text-xs font-semibold px-2 py-0.5 rounded border ${
+              interview.recommendation.includes('REJECT')
+                ? 'text-red-600 bg-red-50 border-red-100'
+                : 'text-emerald-600 bg-emerald-50 border-emerald-100'
+            }`}>
+              {interview.recommendation.replace('_', ' ')}
+            </div>
+          )}
         </div>
       )}
 

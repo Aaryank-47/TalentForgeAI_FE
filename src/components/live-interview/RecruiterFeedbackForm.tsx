@@ -1,7 +1,9 @@
+import { tokenStorage } from '../../services/api/apiClient';
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Recruiter Post-Interview Evaluation Form
 // ─────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Star, CheckCircle, Send, Plus, X } from 'lucide-react';
 import type { FeedbackRating, HiringRecommendation } from '../../types/interview.types';
 import { evaluationDimensions, ratingLabels, ratingEmojis } from '../../constants/feedback.mock';
@@ -46,12 +48,14 @@ const StarRating: React.FC<StarRatingProps> = ({ value, onChange }) => (
 interface RecruiterFeedbackFormProps {
   candidateName: string;
   interviewTitle: string;
+  sessionId?: string;
   onSubmit: (data: Record<string, unknown>) => void;
 }
 
 export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
   candidateName,
   interviewTitle,
+  sessionId,
   onSubmit,
 }) => {
   const [ratings, setRatings] = useState<Record<string, FeedbackRating | 0>>({
@@ -79,11 +83,49 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
 
   const allRated = Object.values(ratings).every((r) => r > 0) && recommendation !== null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!allRated) return;
-    onSubmit({ ...ratings, recommendation, comments, strengths, improvements, overallScore: avgScore });
-    setSubmitted(true);
+    try {
+      const token = tokenStorage.getAccessToken();
+      const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+      const recMap: Record<string, string> = {
+        'Strong Hire': 'STRONG_HIRE',
+        'Hire': 'HIRE',
+        'Consider': 'HOLD',
+        'Reject': 'REJECT'
+      };
+      if (sessionId) {
+        const res = await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${sessionId}/evaluation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            overallScore: avgScore,
+            communicationScore: (ratings.communication || 0) * 20,
+            technicalScore: (ratings.technical || 0) * 20,
+            problemSolvingScore: (ratings.problemSolving || 0) * 20,
+            behaviourScore: (ratings.behaviour || 0) * 20,
+            cultureFitScore: (ratings.cultureFit || 0) * 20,
+            recommendation: recommendation ? recMap[recommendation] || null : null,
+            strengths,
+            improvements,
+            comments
+          })
+        });
+        if (!res.ok) {
+          toast.error('Failed to submit evaluation');
+          return;
+        }
+      }
+      onSubmit({ ...ratings, recommendation, comments, strengths, improvements, overallScore: avgScore });
+      setSubmitted(true);
+    } catch (err) {
+      console.error('Failed to submit full recruiter feedback:', err);
+      toast.error('Failed to submit evaluation.');
+    }
   };
 
   const addStrength = () => {

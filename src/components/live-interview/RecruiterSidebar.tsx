@@ -1,3 +1,4 @@
+import MonacoEditorWrapper from '../assessment/MonacoEditorWrapper';
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Recruiter Interview Room Sidebar
 // Tabs: Resume | Notes | Job | Evaluation | Participants | Chat
@@ -24,12 +25,43 @@ const TABS = [
   { key: 'resume', label: 'Resume' },
   { key: 'notes', label: 'Notes' },
   { key: 'job', label: 'JD' },
+  { key: 'code', label: 'Code' },
   { key: 'evaluation', label: 'Eval' },
   { key: 'participants', label: 'People' },
   { key: 'chat', label: 'Chat' },
 ] as const;
 
 type TabKey = typeof TABS[number]['key'];
+
+const CodePanel: React.FC = () => {
+  const { code, language, sendCodeChange, sendLanguageChange } = useInterview();
+  return (
+    <div className="flex flex-col h-full bg-slate-900 text-white">
+      <div className="px-3 py-2 bg-slate-800 border-b border-slate-700 flex items-center justify-between flex-shrink-0">
+        <span className="text-xs font-bold text-slate-300">Collaborative Code Editor</span>
+        <select
+          value={language}
+          onChange={(e) => sendLanguageChange(e.target.value)}
+          className="bg-slate-700 text-xs text-white rounded px-2 py-1 border border-slate-600 focus:outline-none"
+        >
+          <option value="javascript">JavaScript</option>
+          <option value="typescript">TypeScript</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          <option value="cpp">C++</option>
+        </select>
+      </div>
+      <div className="flex-1 overflow-hidden">
+        <MonacoEditorWrapper
+          language={language}
+          value={code}
+          onChange={(v) => sendCodeChange(v)}
+        />
+      </div>
+    </div>
+  );
+};
+
 
 export const RecruiterSidebar: React.FC<RecruiterSidebarProps> = ({
   interview,
@@ -54,6 +86,8 @@ export const RecruiterSidebar: React.FC<RecruiterSidebarProps> = ({
         return <NotesPanel />;
       case 'job':
         return <JobPanel interview={interview} />;
+      case 'code':
+        return <CodePanel />;
       case 'evaluation':
         return <EvaluationPanel />;
       case 'participants':

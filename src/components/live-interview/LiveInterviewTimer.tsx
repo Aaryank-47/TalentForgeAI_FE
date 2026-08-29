@@ -40,7 +40,7 @@ export const InterviewTimer: React.FC<InterviewTimerProps> = ({
 
 // ─── Connection Indicator ─────────────────────────────────────
 interface ConnectionIndicatorProps {
-  status: ConnectionStatus;
+  status?: ConnectionStatus;
   showLabel?: boolean;
   className?: string;
 }
@@ -53,12 +53,12 @@ const CONNECTION_CONFIG: Record<ConnectionStatus, { color: string; label: string
 };
 
 export const ConnectionIndicator: React.FC<ConnectionIndicatorProps> = ({
-  status,
+  status = 'disconnected',
   showLabel = false,
   className = '',
 }) => {
-  const cfg = CONNECTION_CONFIG[status];
-  const Icon = cfg.Icon;
+  const cfg = CONNECTION_CONFIG[status] || CONNECTION_CONFIG['disconnected'];
+  const Icon = cfg.Icon as any;
 
   return (
     <div className={`flex items-center gap-1.5 ${className}`}>

@@ -1,11 +1,14 @@
+import { tokenStorage } from '../../services/api/apiClient';
+import { useInterview } from '../../context/InterviewContext';
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Evaluation Panel (recruiter sidebar)
 // Live rating input while interview is in progress
 // ─────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
-import { Star, ThumbsUp, ThumbsDown, Minus } from 'lucide-react';
+import { Star } from 'lucide-react';
 import type { FeedbackRating, HiringRecommendation } from '../../types/interview.types';
 import { evaluationDimensions, ratingEmojis } from '../../constants/feedback.mock';
+import { toast } from 'react-hot-toast';
 
 const RECOMMENDATIONS: { value: HiringRecommendation; label: string; color: string }[] = [
   { value: 'Strong Hire', label: 'Strong Hire', color: 'bg-emerald-500 hover:bg-emerald-600 text-white' },
@@ -59,8 +62,44 @@ export const EvaluationPanel: React.FC = () => {
         )
       : 0;
 
-  const handleSave = () => {
+  const { currentInterview } = useInterview();
+  const handleSave = async () => {
     setSaved(true);
+    try {
+      if (currentInterview) {
+        const token = tokenStorage.getAccessToken();
+        const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+        const recMap: Record<string, string> = {
+          'Strong Hire': 'STRONG_HIRE',
+          'Hire': 'HIRE',
+          'Consider': 'HOLD',
+          'Reject': 'REJECT'
+        };
+        const res = await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${currentInterview.id}/evaluation`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            overallScore: avgScore,
+            communicationScore: (ratings.communication || 0) * 20,
+            technicalScore: (ratings.technical || 0) * 20,
+            problemSolvingScore: (ratings.problemSolving || 0) * 20,
+            behaviourScore: (ratings.behaviour || 0) * 20,
+            cultureFitScore: (ratings.cultureFit || 0) * 20,
+            recommendation: recommendation ? recMap[recommendation] || null : null,
+            comments: comments || null
+          })
+        });
+        if (!res.ok) {
+          toast.error('Failed to save evaluation');
+          return;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to save evaluation to backend:', e);
+    }
     setTimeout(() => setSaved(false), 2000);
   };
 

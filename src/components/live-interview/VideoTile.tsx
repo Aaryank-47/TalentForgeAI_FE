@@ -26,10 +26,12 @@ const VideoStreamPlayer: React.FC<{ stream: MediaStream; muted?: boolean }> = ({
 
   useEffect(() => {
     if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-      videoRef.current.play().catch((err) => {
-        console.warn('Video autoplay block or error:', err);
-      });
+      if (videoRef.current.srcObject !== stream) {
+        videoRef.current.srcObject = stream;
+        videoRef.current.play().catch((err) => {
+          console.warn('Video autoplay block or error:', err);
+        });
+      }
     }
   }, [stream]);
 
@@ -52,9 +54,9 @@ export const VideoTile: React.FC<VideoTileProps> = ({
 }) => {
   const { localStream, remoteStreams, isCameraOn: localCameraOn, isMicOn: localMicOn } = useInterview();
 
-  const activeStream = isLocal ? localStream : remoteStreams[participant.id];
-  const isCameraActive = isLocal ? localCameraOn : participant.isCameraOn;
-  const isMicActive = isLocal ? localMicOn : participant.isMicOn;
+  const activeStream = isLocal ? localStream : remoteStreams[participant?.id];
+  const isCameraActive = isLocal ? localCameraOn : participant?.isCameraOn;
+  const isMicActive = isLocal ? localMicOn : participant?.isMicOn;
   const hasVideoFeed = isCameraActive && !!activeStream;
 
   const sizeClasses = {
@@ -78,7 +80,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   return (
     <div
       className={`relative bg-slate-800 overflow-hidden flex items-center justify-center ${sizeClasses} ${className} ${
-        participant.isSpeaking ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-50' : ''
+        participant?.isSpeaking ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-50' : ''
       }`}
     >
       {/* Video stream rendering */}
@@ -88,16 +90,16 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         /* Avatar fallback when camera is off */
         <div className="flex flex-col items-center gap-2 z-10">
           <div
-            className={`rounded-full bg-gradient-to-br ${participant.avatarColor} flex items-center justify-center text-white font-bold flex-shrink-0 ${avatarSize}`}
+            className={`rounded-full bg-gradient-to-br ${participant?.avatarColor} flex items-center justify-center text-white font-bold flex-shrink-0 ${avatarSize}`}
           >
-            {participant.initials}
+            {participant?.initials}
           </div>
-          <p className={`text-slate-300 font-medium ${nameSize}`}>{participant.name}</p>
+          <p className={`text-slate-300 font-medium ${nameSize}`}>{participant?.name}</p>
         </div>
       )}
 
       {/* Speaking indicator overlay */}
-      {participant.isSpeaking && (
+      {participant && participant.isSpeaking && (
         <div className="absolute top-2 right-2 flex items-end gap-0.5 h-4 z-10">
           <div className="w-1 rounded-full bg-emerald-400 animate-speaking-bar" />
           <div className="w-1 rounded-full bg-emerald-400 animate-speaking-bar-2" />
@@ -107,7 +109,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       )}
 
       {/* Screen sharing badge */}
-      {participant.isScreenSharing && (
+      {participant && participant.isScreenSharing && (
         <div className="absolute top-2 left-2 flex items-center gap-1 bg-blue-600 text-white text-[9px] font-bold px-2 py-1 rounded-full z-10">
           <Monitor className="w-3 h-3" />
           Sharing
@@ -115,14 +117,14 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       )}
 
       {/* Pin badge */}
-      {participant.isPinned && (
+      {participant && participant.isPinned && (
         <div className="absolute top-2 left-2 bg-white/20 text-white p-1 rounded-full z-10">
           <Pin className="w-3 h-3" />
         </div>
       )}
 
       {/* Hand raised */}
-      {participant.isHandRaised && (
+      {participant && participant.isHandRaised && (
         <div className="absolute top-2 right-10 bg-amber-500 text-white p-1 rounded-full z-10">
           <Hand className="w-3 h-3" />
         </div>
@@ -133,15 +135,15 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={`text-white font-semibold truncate ${nameSize}`}>
-              {participant.name}
+              {participant && participant.name}
               {isLocal && <span className="text-white/60 ml-1">(You)</span>}
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
             <span className={`text-[9px] text-white/60 hidden sm:block`}>
-              {ROLE_LABELS[participant.role]}
+              {participant && ROLE_LABELS[participant.role]}
             </span>
-            <ConnectionIndicator status={participant.connectionStatus} className="opacity-80" />
+            <ConnectionIndicator status={participant?.connectionStatus} className="opacity-80" />
             {!isMicActive && (
               <div className="bg-red-500 p-0.5 rounded-full">
                 <MicOff className="w-3 h-3 text-white" />

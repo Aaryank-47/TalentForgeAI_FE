@@ -2,12 +2,15 @@
 // TalentForge AI — Recruiter Live Interviews Page (Phase 6)
 // Main hub: list of all interviews + schedule button + tabs
 // ─────────────────────────────────────────────────────────────
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Plus, Search, Filter, Calendar, LayoutGrid, List,
   TrendingUp, Video, CheckCircle, Clock,
 } from 'lucide-react';
-import { getInterviewSessions, toLiveInterview } from '../../../services/interviewSession.service';
+import { useQuery } from '@tanstack/react-query';
+import { interviewApi } from '../../../services/api/interview.api';
+import { useAuth } from '../../../context/AuthContext';
+import { toLiveInterview } from '../../../services/interviewSession.service';
 import type { LiveInterview, InterviewStatus } from '../../../types/interview.types';
 import { LiveInterviewCard } from '../../../components/live-interview/LiveInterviewCard';
 import { CreateInterviewModal } from '../../../components/live-interview/CreateInterviewModal';
@@ -29,19 +32,30 @@ const RecruiterLiveInterviewsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [createOpen, setCreateOpen] = useState(false);
-  const [interviewsList, setInterviewsList] = useState<LiveInterview[]>([]);
   const navigate = useNavigate();
 
-  // Load and map sessions on render or when modal submits
-  const loadSessions = () => {
-    const sessions = getInterviewSessions();
-    const mapped = sessions.map(toLiveInterview);
-    setInterviewsList(mapped);
-  };
+  const { user } = useAuth();
+  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
 
-  useEffect(() => {
-    loadSessions();
-  }, []);
+  const { data: sessionsResponse, isLoading, refetch } = useQuery<any>({
+    queryKey: ['sessions', companyId],
+    queryFn: () => interviewApi.getAllSessions(companyId as string),
+    enabled: !!companyId,
+  });
+
+  const interviewsList: LiveInterview[] = React.useMemo(() => {
+    const dataArray = sessionsResponse?.data || sessionsResponse;
+    if (!Array.isArray(dataArray)) return [];
+    
+    // Sort array by scheduledAt or createdAt descending (newest first)
+    const sortedArray = [...dataArray].sort((a, b) => {
+      const dateA = new Date(a.scheduledAt || a.createdAt).getTime();
+      const dateB = new Date(b.scheduledAt || b.createdAt).getTime();
+      return dateB - dateA;
+    });
+
+    return sortedArray.map(toLiveInterview);
+  }, [sessionsResponse]);
 
   const filtered = interviewsList.filter((iv) => {
     const matchTab =
@@ -63,7 +77,7 @@ const RecruiterLiveInterviewsPage: React.FC = () => {
   };
 
   const handleCreateSubmit = () => {
-    loadSessions(); // reload list
+    refetch(); // reload list
     setCreateOpen(false);
   };
 

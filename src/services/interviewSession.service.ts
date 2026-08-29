@@ -11,63 +11,43 @@ import type {
   SessionStatus,
   InterviewType
 } from '../types/interviewSession.types';
-import {
-  mockInterviews,
-  mockInterviewAssignments,
-  mockInterviewSessions,
-  mockCompanyMembers,
-  mockApplications,
-  mockJobs
-} from '../constants/interview/scheduleMockData';
 
 // Helper to hydrate session with computed fields
 export const hydrateSession = (session: InterviewSession): InterviewSession => {
-  const interview = mockInterviews.find(i => i.id === session.interviewId);
   const candidates: InterviewSession['candidates'] = [];
   const interviewers: CompanyMember[] = [];
   
-  session.participants.forEach(p => {
-    if (p.participantType === 'CANDIDATE' && p.assignmentId) {
-      const asg = mockInterviewAssignments.find(a => a.id === p.assignmentId);
-      if (asg) {
-        candidates.push({
-          id: asg.candidate.id,
-          name: asg.candidate.name,
-          avatar: asg.candidate.initials,
-          applicationId: asg.applicationId,
-          email: asg.candidate.email
-        });
-      }
-    } else if (p.participantType === 'INTERVIEWER' && p.companyMemberId) {
-      const cm = mockCompanyMembers.find(c => c.id === p.companyMemberId);
-      if (cm) {
-        interviewers.push(cm);
-      }
-    }
-  });
-
-  // Find jobId by candidate's applicationId
   let jobId = 'job-1';
   let jobTitle = 'Senior Frontend Developer';
-  if (candidates.length > 0) {
-    const app = mockApplications.find(a => a.id === candidates[0].applicationId);
-    if (app) {
-      jobId = app.jobId;
-      const jobObj = mockJobs.find(j => j.id === jobId);
-      if (jobObj) {
-        jobTitle = jobObj.title;
+
+  if (session.participants) {
+    session.participants.forEach(p => {
+      if (p.participantType === 'CANDIDATE' && p.assignmentId) {
+        // Use backend hydrated data if available
+        if (p.assignment?.application?.candidate) {
+          const candidate = p.assignment.application.candidate;
+          candidates.push({
+            id: candidate.id,
+            name: candidate.fullName,
+            avatar: candidate.fullName.substring(0, 2).toUpperCase(),
+            applicationId: p.assignment.application.id,
+            email: candidate.user.email
+          });
+          jobId = p.assignment.application.jobId;
+          jobTitle = p.assignment.application.job.title;
+        }
       }
-    }
+    });
   }
 
   return {
     ...session,
-    interview: interview ? {
-      id: interview.id,
-      title: interview.title,
-      type: interview.type,
-      mode: interview.mode,
-      durationMinutes: interview.durationMinutes
+    interview: session.interview ? {
+      id: session.interview.id,
+      title: session.interview.title,
+      type: session.interview.type,
+      mode: session.interview.mode,
+      durationMinutes: session.interview.durationMinutes
     } : undefined,
     job: {
       id: jobId,
@@ -75,7 +55,7 @@ export const hydrateSession = (session: InterviewSession): InterviewSession => {
     },
     candidates,
     interviewers,
-    assignmentId: session.participants.find(p => p.participantType === 'CANDIDATE')?.assignmentId || '',
+    assignmentId: session.participants?.find(p => p.participantType === 'CANDIDATE')?.assignmentId || '',
     jobId,
     applicationId: candidates[0]?.applicationId || '',
     aiScore: null
@@ -144,63 +124,29 @@ export const toLiveInterview = (session: InterviewSession): LiveInterview => {
 };
 
 export const getInterviews = (): Interview[] => {
-  return mockInterviews;
+  return [];
 };
 
-export const getInterviewAssignments = (interviewId: string): InterviewAssignment[] => {
-  return mockInterviewAssignments.filter(a => a.interviewId === interviewId);
+export const getInterviewAssignments = (): InterviewAssignment[] => {
+  return [];
 };
 
 export const getInterviewSessions = (): InterviewSession[] => {
-  return mockInterviewSessions.map(hydrateSession);
+  return [];
 };
 
-export const getInterviewSessionById = (sessionId: string): InterviewSession | undefined => {
-  const sess = mockInterviewSessions.find(s => s.id === sessionId);
-  return sess ? hydrateSession(sess) : undefined;
+export const getInterviewSessionById = (): InterviewSession | undefined => {
+  return undefined;
 };
 
-export const createInterviewSession = (data: {
-  interviewId: string;
-  scheduledAt: string;
-  participantIds: { type: 'CANDIDATE' | 'INTERVIEWER'; id: string }[];
-}): InterviewSession => {
-  const sessionId = `sess-${Date.now()}`;
-  const newSession: InterviewSession = {
-    id: sessionId,
-    interviewId: data.interviewId,
-    status: 'SCHEDULED',
-    scheduledAt: data.scheduledAt,
-    startedAt: null,
-    endedAt: null,
-    participants: data.participantIds.map((p, idx) => ({
-      id: `part-${sessionId}-${idx}`,
-      sessionId,
-      participantType: p.type,
-      assignmentId: p.type === 'CANDIDATE' ? p.id : undefined,
-      companyMemberId: p.type === 'INTERVIEWER' ? p.id : undefined
-    }))
-  };
-
-  mockInterviewSessions.push(newSession);
-  return hydrateSession(newSession);
+export const createInterviewSession = (): InterviewSession | undefined => {
+  return undefined;
 };
 
 export const cancelInterviewSession = (sessionId: string): boolean => {
-  const sess = mockInterviewSessions.find(s => s.id === sessionId);
-  if (sess) {
-    sess.status = 'CANCELLED';
-    return true;
-  }
-  return false;
+  return true;
 };
 
-export const rescheduleInterviewSession = (sessionId: string, newDateISO: string): boolean => {
-  const sess = mockInterviewSessions.find(s => s.id === sessionId);
-  if (sess) {
-    sess.scheduledAt = newDateISO;
-    sess.status = 'SCHEDULED';
-    return true;
-  }
-  return false;
+export const rescheduleInterviewSession = (sessionId: string, scheduledAt: string): boolean => {
+  return true;
 };

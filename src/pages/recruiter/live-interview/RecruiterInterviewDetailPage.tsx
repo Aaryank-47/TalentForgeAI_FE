@@ -1,42 +1,71 @@
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Recruiter Interview Detail Page (Phase 6)
 // ─────────────────────────────────────────────────────────────
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Clock, Video, Users, Play, RefreshCw,
   XCircle, MapPin, Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../../context/AuthContext';
+import { interviewApi } from '../../../services/api/interview.api';
 import {
-  getInterviewSessionById,
   rescheduleInterviewSession,
   cancelInterviewSession,
   toLiveInterview
 } from '../../../services/interviewSession.service';
-import type { InterviewSession } from '../../../types/interviewSession.types';
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
 import { RescheduleModal, CancelInterviewModal } from '../../../components/live-interview/InterviewModals';
 
 const RecruiterInterviewDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
   
-  const [session, setSession] = useState<InterviewSession | undefined>(undefined);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'notes'>('overview');
 
-  const loadSession = () => {
-    if (id) {
-      const found = getInterviewSessionById(id);
-      setSession(found);
-    }
-  };
+  const { data: sessionResponse, isLoading, refetch } = useQuery({
+    queryKey: ['session', id],
+    queryFn: () => interviewApi.getSessionById(companyId as string, id as string),
+    enabled: !!id && !!companyId,
+  });
 
-  useEffect(() => {
-    loadSession();
-  }, [id]);
+  const session = sessionResponse as any;
+
+  // Extract participants from the session data
+  const candidates = session?.participants
+    ?.filter((p: any) => p.participantType === 'CANDIDATE')
+    ?.map((p: any) => ({
+      id: p.id,
+      name: p.assignment?.application?.candidate?.fullName || 'Candidate',
+      email: p.assignment?.application?.candidate?.user?.email || 'No email',
+      avatar: (p.assignment?.application?.candidate?.fullName || 'C').charAt(0).toUpperCase()
+    })) || [];
+
+  const interviewers = session?.participants
+    ?.filter((p: any) => p.participantType === 'INTERVIEWER')
+    ?.map((p: any) => ({
+      id: p.id,
+      name: p.companyMember?.user?.fullName || 'Interviewer',
+      role: p.companyMember?.role || 'Staff',
+      department: p.companyMember?.department || 'Recruitment',
+      initials: (p.companyMember?.user?.fullName || 'I').charAt(0).toUpperCase(),
+      avatarColor: 'from-slate-400 to-slate-600'
+    })) || [];
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <RefreshCw className="w-8 h-8 text-slate-400 animate-spin" />
+        <p className="text-slate-500 text-sm mt-4">Loading session details...</p>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -60,14 +89,14 @@ const RecruiterInterviewDetailPage: React.FC = () => {
     rescheduleInterviewSession(session.id, newISO);
     toast.success('Interview rescheduled!');
     setRescheduleOpen(false);
-    loadSession();
+    refetch();
   };
 
   const handleCancelConfirm = () => {
     cancelInterviewSession(session.id);
     toast.error('Interview cancelled.');
     setCancelOpen(false);
-    loadSession();
+    refetch();
   };
 
   return (
@@ -187,10 +216,10 @@ const RecruiterInterviewDetailPage: React.FC = () => {
             <div className="card p-5">
               <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Users className="w-4 h-4 text-slate-400" />
-                Candidates ({session.candidates?.length || 0})
+                Candidates ({candidates.length})
               </h3>
               <div className="space-y-4">
-                {session.candidates?.map((cand) => (
+                {candidates.map((cand: any) => (
                   <div key={cand.id} className="flex items-start gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <div
                       className={`w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold flex-shrink-0`}
@@ -207,7 +236,7 @@ const RecruiterInterviewDetailPage: React.FC = () => {
                     </button>
                   </div>
                 ))}
-                {(!session.candidates || session.candidates.length === 0) && (
+                {candidates.length === 0 && (
                   <p className="text-xs text-slate-400">No candidates are currently assigned to this session.</p>
                 )}
               </div>
@@ -217,10 +246,10 @@ const RecruiterInterviewDetailPage: React.FC = () => {
             <div className="card p-5">
               <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
                 <Users className="w-4 h-4 text-slate-400" />
-                Interview Panel ({session.interviewers?.length || 0})
+                Interview Panel ({interviewers.length})
               </h3>
               <div className="space-y-3">
-                {session.interviewers?.map((r) => (
+                {interviewers.map((r: any) => (
                   <div key={r.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
                     <div
                       className={`w-9 h-9 rounded-full bg-gradient-to-br ${r.avatarColor || 'from-slate-400 to-slate-600'} flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}

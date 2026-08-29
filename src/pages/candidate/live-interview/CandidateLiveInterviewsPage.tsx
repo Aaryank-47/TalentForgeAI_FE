@@ -2,45 +2,81 @@
 // TalentForge AI — Candidate Live Interviews Page (Phase 6)
 // Upcoming + history for the candidate
 // ─────────────────────────────────────────────────────────────
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Calendar, Clock, Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { getInterviewSessions, toLiveInterview } from '../../../services/interviewSession.service';
 import { mockCandidateNotifications } from '../../../constants/notifications.mock';
 import { LiveInterviewCard } from '../../../components/live-interview/LiveInterviewCard';
 import { NotificationCard } from '../../../components/live-interview/InterviewUIComponents';
 import { InterviewEmptyState } from '../../../components/live-interview/InterviewUIComponents';
 import type { LiveInterview } from '../../../types/interview.types';
 
-// Logged in candidate matches Karan Malhotra in scheduleMockData
-const MY_CANDIDATE_ID = 'can-1';
+import { useQuery } from '@tanstack/react-query';
+import { interviewApi } from '../../../services/api/interview.api';
 
 const CandidateLiveInterviewsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'upcoming' | 'history'>('upcoming');
-  const [upcomingList, setUpcomingList] = useState<LiveInterview[]>([]);
-  const [pastList, setPastList] = useState<LiveInterview[]>([]);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const sessions = getInterviewSessions();
+  const { data: interviewsResponse, isLoading } = useQuery({
+    queryKey: ['candidateInterviews'],
+    queryFn: () => interviewApi.getCandidateInterviews({ type: 'NORMAL' }),
+  });
+
+  const toCandidateLiveInterview = (dto: any): LiveInterview => ({
+    id: dto.sessionId || dto.id,
+    title: dto.role || 'Interview',
+    type: dto.interviewType?.includes('AI') ? 'Technical' : 'Technical',
+    status: dto.status === 'EXPIRED' ? 'Missed' : dto.status === 'COMPLETED' ? 'Completed' : 'Scheduled',
+    meetingType: 'video',
+    jobId: dto.id,
+    jobTitle: dto.role,
+    company: dto.company || 'Company',
+    companyLogo: dto.companyLogo || 'C',
+    companyColor: dto.companyColor || 'bg-primary-600',
+    candidateId: 'me',
+    candidateName: 'Me',
+    candidateInitials: 'ME',
+    candidateAvatarColor: 'from-blue-500 to-blue-700',
+    candidateEmail: '',
+    recruiterIds: [],
+    date: dto.assignedDate || new Date().toLocaleDateString(),
+    dateISO: new Date().toISOString(),
+    timeStart: '10:00 AM', // Generic time since DTO lacks specific time
+    timeEnd: '11:00 AM',
+    duration: `${dto.durationMinutes || 45} min` as any,
+    timezone: 'IST',
+    settings: {
+      allowCamera: true,
+      allowMicrophone: true,
+      allowScreenShare: true,
+      instructions: ''
+    },
+    createdAt: new Date().toISOString(),
+    createdBy: '',
+    recordingEnabled: true,
+    roomId: dto.sessionId,
+    aiScore: dto.aiScore || null,
+    recommendation: dto.recommendation,
+  });
+
+  const upcomingList = React.useMemo(() => {
+    const response = interviewsResponse as any;
+    const rawData = response?.data || response;
+    if (!rawData) return [];
     
-    // Filter sessions where this candidate is participating
-    const mySessions = sessions.filter((sess) =>
-      sess.candidates?.some((c) => c.id === MY_CANDIDATE_ID)
-    );
+    const pendingArray = rawData.pending || [];
+    return pendingArray.map(toCandidateLiveInterview);
+  }, [interviewsResponse]);
 
-    const mapped = mySessions.map(toLiveInterview);
-
-    const upcoming = mapped.filter((iv) =>
-      ['Scheduled', 'Upcoming', 'Today', 'Live', 'Waiting'].includes(iv.status)
-    );
-    const history = mapped.filter((iv) =>
-      ['Completed', 'Cancelled', 'Missed', 'Rescheduled'].includes(iv.status)
-    );
-
-    setUpcomingList(upcoming);
-    setPastList(history);
-  }, []);
+  const pastList = React.useMemo(() => {
+    const response = interviewsResponse as any;
+    const rawData = response?.data || response;
+    if (!rawData) return [];
+    
+    const completedArray = rawData.completed || [];
+    return completedArray.map(toCandidateLiveInterview);
+  }, [interviewsResponse]);
 
   const liveNow = upcomingList.filter((iv) => iv.status === 'Live');
 
@@ -140,7 +176,6 @@ const CandidateLiveInterviewsPage: React.FC = () => {
                     key={iv.id}
                     interview={iv}
                     mode="candidate"
-                    compact
                     onViewDetails={(id) => navigate(`/candidate/live-interviews/${id}`)}
                   />
                 ))

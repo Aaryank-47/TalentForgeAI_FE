@@ -67,6 +67,9 @@ export const interviewApi = {
 
   deleteAssignment: (companyId: string, interviewId: string, assignmentId: string) =>
     api.delete(`/interviews/${companyId}/interviews/${interviewId}/assignments/${assignmentId}`),
+    
+  getEligibleCandidates: (companyId: string) =>
+    api.get(`/interviews/${companyId}/eligible-candidates`),
 
   // ── 3. Sessions & Participants ────────────────────────────────
   createSession: (companyId: string, interviewId: string, payload: CreateSessionPayload) =>
@@ -74,6 +77,9 @@ export const interviewApi = {
 
   getSessions: (companyId: string, interviewId: string) =>
     api.get(`/interviews/${companyId}/interviews/${interviewId}/sessions`),
+
+  getAllSessions: (companyId: string) =>
+    api.get(`/interviews/${companyId}/interview-sessions`),
 
   getSessionById: (companyId: string, sessionId: string) =>
     api.get(`/interviews/${companyId}/interview-sessions/${sessionId}`),
@@ -92,8 +98,8 @@ export const interviewApi = {
     api.get(`/interviews/ai/${companyId}/interview-sessions/${sessionId}/ai-result`),
 
   // ── 5. Candidate-Facing Interview Endpoints ──────────────────
-  getCandidateInterviews: () =>
-    api.get('/interviews/candidate/my-interviews'),
+  getCandidateInterviews: (params?: { type?: 'AI' | 'NORMAL' }) =>
+    api.get('/interviews/candidate/my-interviews', { params }),
 
   getCandidateSessionDetails: (sessionId: string) =>
     api.get(`/interviews/candidate/sessions/${sessionId}`),

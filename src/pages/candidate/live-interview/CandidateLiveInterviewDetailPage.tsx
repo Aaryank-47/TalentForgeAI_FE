@@ -1,30 +1,36 @@
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Candidate Interview Detail Page (Phase 6)
 // ─────────────────────────────────────────────────────────────
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Clock, Video, Users, CheckCircle,
   XCircle, MapPin, Info, Play,
 } from 'lucide-react';
-import {
-  getInterviewSessionById,
-  toLiveInterview
-} from '../../../services/interviewSession.service';
-import type { InterviewSession } from '../../../types/interviewSession.types';
+import { useQuery } from '@tanstack/react-query';
+import { interviewApi } from '../../../services/api/interview.api';
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
+import { RefreshCw } from 'lucide-react';
 
 const CandidateLiveInterviewDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [session, setSession] = useState<InterviewSession | undefined>(undefined);
+  const { data: sessionResponse, isLoading } = useQuery({
+    queryKey: ['candidate-session', id],
+    queryFn: () => interviewApi.getCandidateSessionDetails(id as string),
+    enabled: !!id,
+  });
 
-  useEffect(() => {
-    if (id) {
-      const found = getInterviewSessionById(id);
-      setSession(found);
-    }
-  }, [id]);
+  const session = sessionResponse as any;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <RefreshCw className="w-8 h-8 text-slate-400 animate-spin" />
+        <p className="text-slate-500 text-sm mt-4">Loading session details...</p>
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -37,9 +43,16 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
     );
   }
 
-  const mappedInterview = toLiveInterview(session);
   const isJoinable = ['SCHEDULED', 'IN_PROGRESS', 'Upcoming', 'Live', 'Today'].includes(session.status);
   const isCompleted = session.status === 'COMPLETED';
+
+  const title = session.role || 'Interview Session';
+  const subtitle = `${session.department || 'Engineering'} · ${session.interviewType || 'Video'} Session`;
+  const displayStatus = session.status === 'EXPIRED' ? 'Missed' : session.status === 'COMPLETED' ? 'Completed' : 'Scheduled';
+  const date = session.startedAt ? new Date(session.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStart = session.startedAt ? new Date(session.startedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '10:00 AM';
+  const timeEnd = '11:00 AM';
+  const timezone = 'IST';
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -62,19 +75,19 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap mb-1">
-              <h1 className="text-xl font-display font-bold text-slate-900">{mappedInterview.title}</h1>
-              <LiveInterviewStatusBadge status={mappedInterview.status} size="md" />
+              <h1 className="text-xl font-display font-bold text-slate-900">{title}</h1>
+              <LiveInterviewStatusBadge status={displayStatus} size="md" />
             </div>
-            <p className="text-sm text-slate-500">{session.job?.title} · {session.interview?.mode} Session</p>
+            <p className="text-sm text-slate-500">{subtitle}</p>
 
             <div className="flex flex-wrap items-center gap-4 mt-4">
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                {mappedInterview.date}
+                {date}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                {mappedInterview.timeStart} – {mappedInterview.timeEnd}
+                {timeStart} – {timeEnd}
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Video className="w-3.5 h-3.5 text-slate-400" />
@@ -82,7 +95,7 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                {mappedInterview.timezone}
+                {timezone}
               </div>
             </div>
           </div>
@@ -92,7 +105,7 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
         <div className="flex gap-3 mt-6 flex-wrap">
           {isJoinable && (
             <button
-              onClick={() => navigate(`/candidate/live-interviews/${session.id}/room`)}
+              onClick={() => navigate(`/candidate/live-interviews/${session.sessionId || session.id}/room`)}
               id="join-interview-btn"
               className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-colors ${
                 session.status === 'IN_PROGRESS'
@@ -109,7 +122,7 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
           )}
           {isCompleted && (
             <button
-              onClick={() => navigate(`/candidate/live-interviews/${session.id}/feedback`)}
+              onClick={() => navigate(`/candidate/live-interviews/${session.sessionId || session.id}/feedback`)}
               className="btn-primary text-sm"
             >
               Submit Feedback
@@ -125,7 +138,7 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
           Your Interview Panel
         </h3>
         <div className="space-y-3">
-          {session.interviewers?.map((r) => (
+          {session.interviewers?.map((r: any) => (
             <div key={r.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
               <div
                 className={`w-10 h-10 rounded-full bg-gradient-to-br ${r.avatarColor || 'from-slate-400 to-slate-600'} flex items-center justify-center text-white text-sm font-bold flex-shrink-0`}

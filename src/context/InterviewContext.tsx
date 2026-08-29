@@ -67,10 +67,19 @@ interface InterviewContextState {
   setCurrentNoteContent: (content: string) => void;
   saveNote: () => void;
 
+  // Collaborative Code Editor
+  code: string;
+  language: string;
+  setCode: (code: string) => void;
+  setLanguage: (language: string) => void;
+  sendCodeChange: (code: string) => void;
+  sendLanguageChange: (language: string) => void;
+
   // Room lifecycle
   isRoomJoined: boolean;
   joinRoom: () => void;
   leaveRoom: () => void;
+  startInterview: () => void;
   endInterview: () => void;
 }
 
@@ -106,6 +115,10 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
   const [isRecording] = useState(interview?.recordingEnabled ?? false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRoomJoined, setIsRoomJoined] = useState(false);
+
+  // Collaborative Code Editor States
+  const [code, setCode] = useState<string>('// Collaborative Live Code Workspace\nconsole.log("Welcome to TalentForge Technical Interview");\n');
+  const [language, setLanguage] = useState<string>('javascript');
 
   // UI States
   const [activeSidebarTab, setActiveSidebarTab] = useState('resume');
@@ -151,10 +164,11 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         const body = await res.json();
         const user = body.data?.user || body.user;
         if (user) {
+          const resolvedName = user.fullName || body.data?.candidate?.fullName || body.data?.profile?.fullName || user.name || 'User';
           setCurrentUser({
             id: user.id,
-            name: user.fullName || user.name || 'User',
-            initials: (user.fullName || user.name || 'U').split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
+            name: resolvedName,
+            initials: resolvedName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase(),
             role: user.role.toLowerCase() === 'employer' ? 'recruiter' : 'candidate',
             title: user.role,
             avatarColor: 'from-blue-500 to-blue-700',
@@ -317,6 +331,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
 
   const joinRoom = useCallback(async () => {
     if (!currentInterview) return;
+    if (socketRef.current) return; // Prevent multiple joins
     
     try {
       // 1. Get Local Media Stream
@@ -356,7 +371,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         const channel = new BroadcastChannel(`tf-room-${currentInterview.id}`);
         
         channel.onmessage = async (event) => {
-          const { type, from, to, offer, answer, candidate } = event.data;
+          const { type, from, to, offer, answer, candidate, user: remoteUser } = event.data;
           
           // Only handle messages meant for us
           if (to && to !== currentUser?.id) return;
@@ -366,53 +381,57 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
           switch (type) {
             case 'ping':
               // Send pong back
-              channel.postMessage({ type: 'pong', from: currentUser?.id, to: from });
+              channel.postMessage({ type: 'pong', from: currentUser?.id, to: from, user: currentUser });
               
               // Add peer to participants list
-              setParticipants((prev) => {
-                if (prev.some((p) => p.id === from)) return prev;
-                return [
-                  ...prev,
-                  {
-                    id: from,
-                    name: from.includes('rec') ? 'Lamine Yamal' : 'Aaryan Singh',
-                    initials: from.includes('rec') ? 'LY' : 'AS',
-                    role: from.includes('rec') ? 'recruiter' : 'candidate',
-                    avatarColor: from.includes('rec') ? 'from-blue-500 to-blue-700' : 'from-purple-500 to-purple-700',
-                    title: from.includes('rec') ? 'Recruiter' : 'Candidate',
-                    email: '',
-                    isMicOn: true,
-                    isCameraOn: true,
-                    isSpeaking: false,
-                    isScreenSharing: false,
-                    connectionStatus: 'good'
-                  }
-                ];
-              });
+              if (remoteUser) {
+                setParticipants((prev) => {
+                  if (prev.some((p) => p.id === from)) return prev;
+                  return [
+                    ...prev,
+                    {
+                      id: from,
+                      name: remoteUser.name || 'Participant',
+                      initials: remoteUser.initials || 'P',
+                      role: remoteUser.role || 'candidate',
+                      avatarColor: remoteUser.avatarColor || 'from-slate-500 to-slate-700',
+                      title: remoteUser.title || '',
+                      email: remoteUser.email || '',
+                      isMicOn: true,
+                      isCameraOn: true,
+                      isSpeaking: false,
+                      isScreenSharing: false,
+                      connectionStatus: 'good'
+                    }
+                  ];
+                });
+              }
               break;
 
             case 'pong':
               // Discovered peer replied to our ping, add and start connection
-              setParticipants((prev) => {
-                if (prev.some((p) => p.id === from)) return prev;
-                return [
-                  ...prev,
-                  {
-                    id: from,
-                    name: from.includes('rec') ? 'Lamine Yamal' : 'Aaryan Singh',
-                    initials: from.includes('rec') ? 'LY' : 'AS',
-                    role: from.includes('rec') ? 'recruiter' : 'candidate',
-                    avatarColor: from.includes('rec') ? 'from-blue-500 to-blue-700' : 'from-purple-500 to-purple-700',
-                    title: from.includes('rec') ? 'Recruiter' : 'Candidate',
-                    email: '',
-                    isMicOn: true,
-                    isCameraOn: true,
-                    isSpeaking: false,
-                    isScreenSharing: false,
-                    connectionStatus: 'good'
-                  }
-                ];
-              });
+              if (remoteUser) {
+                setParticipants((prev) => {
+                  if (prev.some((p) => p.id === from)) return prev;
+                  return [
+                    ...prev,
+                    {
+                      id: from,
+                      name: remoteUser.name || 'Participant',
+                      initials: remoteUser.initials || 'P',
+                      role: remoteUser.role || 'candidate',
+                      avatarColor: remoteUser.avatarColor || 'from-slate-500 to-slate-700',
+                      title: remoteUser.title || '',
+                      email: remoteUser.email || '',
+                      isMicOn: true,
+                      isCameraOn: true,
+                      isSpeaking: false,
+                      isScreenSharing: false,
+                      connectionStatus: 'good'
+                    }
+                  ];
+                });
+              }
 
               // Initiate peer connection
               createPeerConnection(from, true, channel);
@@ -421,7 +440,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
             case 'join-room':
               // Tell the new peer we are here
               console.log(`[BroadcastChannel Send] room-users to ${from}`);
-              channel.postMessage({ type: 'room-users', from: currentUser?.id, to: from });
+              channel.postMessage({ type: 'room-users', from: currentUser?.id, to: from, user: currentUser });
               
               // We are the initiator of the connection
               createPeerConnection(from, true, channel);
@@ -429,26 +448,28 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
               
             case 'room-users':
               // Existing peer discovered
-              setParticipants((prev) => {
-                if (prev.some((p) => p.id === from)) return prev;
-                return [
-                  ...prev,
-                  {
-                    id: from,
-                    name: from.includes('rec') ? 'Lamine Yamal' : 'Aaryan Singh',
-                    initials: from.includes('rec') ? 'LY' : 'AS',
-                    role: from.includes('rec') ? 'recruiter' : 'candidate',
-                    avatarColor: from.includes('rec') ? 'from-blue-500 to-blue-700' : 'from-purple-500 to-purple-700',
-                    title: from.includes('rec') ? 'Recruiter' : 'Candidate',
-                    email: '',
-                    isMicOn: true,
-                    isCameraOn: true,
-                    isSpeaking: false,
-                    isScreenSharing: false,
-                    connectionStatus: 'good'
-                  }
-                ];
-              });
+              if (remoteUser) {
+                setParticipants((prev) => {
+                  if (prev.some((p) => p.id === from)) return prev;
+                  return [
+                    ...prev,
+                    {
+                      id: from,
+                      name: remoteUser.name || 'Participant',
+                      initials: remoteUser.initials || 'P',
+                      role: remoteUser.role || 'candidate',
+                      avatarColor: remoteUser.avatarColor || 'from-slate-500 to-slate-700',
+                      title: remoteUser.title || '',
+                      email: remoteUser.email || '',
+                      isMicOn: true,
+                      isCameraOn: true,
+                      isSpeaking: false,
+                      isScreenSharing: false,
+                      connectionStatus: 'good'
+                    }
+                  ];
+                });
+              }
               // We wait for the existing peer to offer
               createPeerConnection(from, false, channel);
               break;
@@ -503,7 +524,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         const pingInterval = setInterval(() => {
           if (currentUser?.id) {
             console.log(`[BroadcastChannel Send] ping from ${currentUser?.id}`);
-            channel.postMessage({ type: 'ping', from: currentUser?.id });
+            channel.postMessage({ type: 'ping', from: currentUser?.id, user: currentUser });
           }
         }, 1000);
         
@@ -539,12 +560,12 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         triggerBroadcastChannelFallback();
       });
 
-      socket.on('room-users', (users: { id: string; name: string; role: string; initials: string; avatarColor: string }[]) => {
+      socket.on('room-users', (users: { userId: string; name: string; role: string; initials: string; avatarColor: string }[]) => {
         // Hydrate participant list from backend presence
         const roomPeers = users
-          .filter((u) => u.id !== currentUser?.id)
+          .filter((u) => u.userId !== currentUser?.id)
           .map((u) => ({
-            id: u.id,
+            id: u.userId,
             name: u.name,
             initials: u.initials,
             role: (u.role.toLowerCase() === 'recruiter' ? 'recruiter' : 'candidate') as any,
@@ -580,18 +601,18 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         ]);
       });
 
-      socket.on('user-joined', (user: { id: string; name: string; role: string; initials: string; avatarColor: string }) => {
-        if (user.id === currentUser?.id) return;
+      socket.on('user-joined', (user: { userId: string; name: string; role: string; initials: string; avatarColor: string }) => {
+        if (user.userId === currentUser?.id) return;
         
         toast.success(`${user.name} joined the room.`);
         
         // Add user to participants list
         setParticipants((prev) => {
-          if (prev.some((p) => p.id === user.id)) return prev;
+          if (prev.some((p) => p.id === user.userId)) return prev;
           return [
             ...prev,
             {
-              id: user.id,
+              id: user.userId,
               name: user.name,
               initials: user.initials,
               role: (user.role.toLowerCase() === 'recruiter' ? 'recruiter' : 'candidate') as any,
@@ -608,7 +629,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         });
 
         // Instantiate peer connection (wait for negotiation)
-        createPeerConnection(user.id, false);
+        createPeerConnection(user.userId, false);
       });
 
       socket.on('user-left', (peerId: string) => {
@@ -668,6 +689,34 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         }
       });
 
+
+      socket.on('interview-started', (data: { sessionId: string; startedAt: string; status: string }) => {
+        toast.success('The interview has officially started!');
+        setCurrentInterview((prev) => prev ? { ...prev, status: 'Live' } : null);
+      });
+
+      socket.on('interview-ended', (data: { sessionId: string; endedAt: string; status: string }) => {
+        toast.success('The interview has ended.');
+        setCurrentInterview((prev) => prev ? { ...prev, status: 'Completed' } : null);
+      });
+
+      socket.on('code-change', (data: { senderId: string; code: string }) => {
+        if (data.code !== undefined) {
+          setCode(data.code);
+        }
+      });
+
+      socket.on('language-change', (data: { senderId: string; language: string }) => {
+        if (data.language !== undefined) {
+          setLanguage(data.language);
+        }
+      });
+
+      socket.on('code-sync', (data: { code: string; language: string }) => {
+        if (data.code !== undefined) setCode(data.code);
+        if (data.language !== undefined) setLanguage(data.language);
+      });
+
       socket.on('new-message', (msg: ChatMessage) => {
         setChatMessages((prev) => [...prev, msg]);
         if (activePanel !== 'chat') {
@@ -696,9 +745,62 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
     setConnectionStatus('disconnected');
   }, [cleanPeers, cleanMedia]);
 
-  const endInterview = useCallback(() => {
+
+  const sendCodeChange = useCallback((newCode: string) => {
+    setCode(newCode);
     if (socketRef.current && currentInterview) {
+      socketRef.current.emit('code-change', {
+        sessionId: currentInterview.id,
+        code: newCode
+      });
+    }
+  }, [currentInterview]);
+
+  const sendLanguageChange = useCallback((newLang: string) => {
+    setLanguage(newLang);
+    if (socketRef.current && currentInterview) {
+      socketRef.current.emit('language-change', {
+        sessionId: currentInterview.id,
+        language: newLang
+      });
+    }
+  }, [currentInterview]);
+
+  const startInterview = useCallback(async () => {
+    if (!currentInterview) return;
+    if (socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('start-interview', { sessionId: currentInterview.id });
+    } else {
+      try {
+        const token = tokenStorage.getAccessToken();
+        const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+        await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${currentInterview.id}/start`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setCurrentInterview((prev) => prev ? { ...prev, status: 'Live' } : null);
+      } catch (e) {
+        console.error('REST startInterview error:', e);
+      }
+    }
+  }, [currentInterview]);
+
+  const endInterview = useCallback(async () => {
+    if (!currentInterview) return;
+    if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('end-interview', { sessionId: currentInterview.id });
+    } else {
+      try {
+        const token = tokenStorage.getAccessToken();
+        const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+        await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${currentInterview.id}/end`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        setCurrentInterview((prev) => prev ? { ...prev, status: 'Completed' } : null);
+      } catch (e) {
+        console.error('REST endInterview error:', e);
+      }
     }
     leaveRoom();
   }, [currentInterview, leaveRoom]);
@@ -889,10 +991,17 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
     notes,
     currentNoteContent,
     setCurrentNoteContent,
+    code,
+    language,
+    setCode,
+    setLanguage,
+    sendCodeChange,
+    sendLanguageChange,
     saveNote,
     isRoomJoined,
     joinRoom,
     leaveRoom,
+    startInterview,
     endInterview,
   };
 

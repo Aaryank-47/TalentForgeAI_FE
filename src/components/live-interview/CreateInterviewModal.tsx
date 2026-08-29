@@ -2,16 +2,15 @@
 // TalentForge AI — Create Interview Modal (Phase 6)
 // Recruiter schedules interview sessions using assignments
 // ─────────────────────────────────────────────────────────────
-import React, { useState, useEffect } from 'react';
-import { X, Calendar, Clock, User, Briefcase, Video, ChevronDown, Check, AlertTriangle, Users } from 'lucide-react';
-import {
-  getInterviews,
-  getInterviewAssignments,
-  createInterviewSession
-} from '../../services/interviewSession.service';
-import { mockCompanyMembers } from '../../constants/interview/scheduleMockData';
-import type { Interview, InterviewAssignment, CompanyMember } from '../../types/interviewSession.types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Calendar, Clock, Check, AlertTriangle, Users } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { interviewApi } from '../../services/api/interview.api';
+import type { Interview, CompanyMember } from '../../types/interviewSession.types';
 import toast from 'react-hot-toast';
+import { companyApi } from '../../services/api/company.api';
+import type { CompanyMemberItem } from '../../services/api/company.api';
+import { useAuth } from '../../context/AuthContext';
 
 interface CreateInterviewModalProps {
   isOpen: boolean;
@@ -19,20 +18,16 @@ interface CreateInterviewModalProps {
   onSubmit: () => void;
 }
 
-const DURATIONS = ['30 min', '45 min', '60 min', '90 min', '120 min'];
-const TIMEZONES = ['IST (UTC+5:30)', 'UTC', 'EST (UTC-5)', 'PST (UTC-8)', 'GMT'];
-
 export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
 }) => {
+  const { user } = useAuth();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Database lists
-  const [interviews, setInterviews] = useState<Interview[]>([]);
-  const [assignedCandidates, setAssignedCandidates] = useState<InterviewAssignment[]>([]);
-  const [interviewers] = useState<CompanyMember[]>(mockCompanyMembers);
+  const [interviewers, setInterviewers] = useState<CompanyMember[]>([]);
 
   // Form State
   const [selectedInterviewId, setSelectedInterviewId] = useState('');
@@ -41,13 +36,10 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   const [mode, setMode] = useState<'INDIVIDUAL' | 'GROUP'>('INDIVIDUAL');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
-  const [duration, setDuration] = useState('60 min');
-  const [timezone, setTimezone] = useState('IST (UTC+5:30)');
 
-  // Load interviews on open
+  // Load backend data on open
   useEffect(() => {
     if (isOpen) {
-      setInterviews(getInterviews());
       setStep(1);
       // Reset state
       setSelectedInterviewId('');
@@ -55,26 +47,93 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
       setSelectedInterviewerIds([]);
       setDate('');
       setTime('');
-    }
-  }, [isOpen]);
 
-  // Load assigned candidates when interview selection changes
+      // Fetch company members dynamically if user belongs to a company
+      const companyId = user?.companyId || user?.companies?.[0]?.companyId;
+      if (companyId) {
+        companyApi.listCompanyMembers(companyId)
+          .then((res) => {
+            const memberItems: CompanyMemberItem[] = Array.isArray(res) ? res : (res as any)?.data || [];
+            const mappedMembers: CompanyMember[] = memberItems.map((m) => {
+              const name = m.user?.employer?.fullName || m.user?.candidate?.fullName || m.user?.email.split('@')[0] || 'Team Member';
+              const initials = name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) || 'TM';
+              return {
+                id: m.id || m.userId,
+                userId: m.userId,
+                companyId: m.companyId,
+                name,
+                role: m.role,
+                avatar: initials,
+                department: m.role === 'OWNER' || m.role === 'ADMIN' ? 'Management' : 'Recruitment',
+                email: m.user?.email || '',
+                initials,
+                avatarColor: 'from-blue-500 to-blue-700',
+                status: m.status === 'ACTIVE' ? 'ACTIVE' : 'INVITED'
+              };
+            });
+            if (mappedMembers.length > 0) {
+              setInterviewers(mappedMembers);
+            } else {
+              setInterviewers([]);
+            }
+          })
+          .catch(() => {
+            setInterviewers([]);
+          });
+      } else {
+        setInterviewers([]);
+      }
+    }
+  }, [isOpen, user]);
+
+  const queryClient = useQueryClient();
+  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
+
+  const { data: interviewsResponse } = useQuery({
+    queryKey: ['company-interviews', companyId],
+    queryFn: () => interviewApi.getCompanyInterviews(companyId as string, { limit: 50 }),
+    enabled: !!companyId && isOpen,
+  });
+  
+  const interviewsData = (interviewsResponse as any)?.data || interviewsResponse;
+  const interviews = useMemo(() => {
+    const rawInterviews: Interview[] = Array.isArray(interviewsData) 
+      ? interviewsData 
+      : interviewsData?.items || interviewsData?.interviews || [];
+    return rawInterviews.filter(interview => interview.type === 'NORMAL');
+  }, [interviewsData]);
+
+  const { data: eligibleCandidatesResponse } = useQuery({
+    queryKey: ['eligible-candidates', companyId],
+    queryFn: () => interviewApi.getEligibleCandidates(companyId as string),
+    enabled: !!companyId && isOpen,
+  });
+  const assignedCandidates = useMemo(() => {
+    const eligibleCandidatesData = (eligibleCandidatesResponse as any)?.data || eligibleCandidatesResponse || [];
+    return (Array.isArray(eligibleCandidatesData) ? eligibleCandidatesData : eligibleCandidatesData?.items || []).map((app: any) => ({
+      id: app.id,
+      candidate: {
+        name: app.candidate?.fullName || 'Unknown Candidate',
+        title: app.job?.title || 'Unknown Job',
+        experience: app.candidate?.user?.email || '',
+        avatarColor: 'from-blue-400 to-blue-600',
+        initials: (app.candidate?.fullName || 'U').charAt(0).toUpperCase()
+      }
+    }));
+  }, [eligibleCandidatesResponse]);
+
+  // Default the mode based on the interview definition
   useEffect(() => {
     if (selectedInterviewId) {
-      const candidates = getInterviewAssignments(selectedInterviewId);
-      setAssignedCandidates(candidates);
       setSelectedCandidateIds([]);
-      // Default the mode based on the interview definition
       const selectedInt = interviews.find(i => i.id === selectedInterviewId);
       if (selectedInt) {
         setMode(selectedInt.mode);
       }
-    } else {
-      setAssignedCandidates([]);
     }
   }, [selectedInterviewId, interviews]);
 
-  if (!isOpen) return null;
+
 
   const selectedInterview = interviews.find((i) => i.id === selectedInterviewId);
 
@@ -98,6 +157,17 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
     setStep((prev) => (prev - 1) as never);
   };
 
+  const createSessionMutation = useMutation({
+    mutationFn: (payload: any) => interviewApi.createSession(companyId as string, selectedInterviewId, payload),
+    onSuccess: () => {
+      toast.success('Interview session scheduled successfully!');
+      queryClient.invalidateQueries({ queryKey: ['sessions', companyId] });
+      onSubmit();
+      onClose();
+    },
+    onError: () => toast.error('Failed to schedule session.')
+  });
+
   const handleSchedule = () => {
     if (!date || !time) {
       toast.error('Please fill in the date and time.');
@@ -106,42 +176,23 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
 
     const scheduledISO = new Date(`${date}T${time}`).toISOString();
 
-    const participants = [
-      ...selectedInterviewerIds.map((id) => ({ type: 'INTERVIEWER' as const, id })),
-    ];
-
     if (mode === 'GROUP') {
       // Group mode: all selected candidates join one session
-      createInterviewSession({
-        interviewId: selectedInterviewId,
+      createSessionMutation.mutate({
         scheduledAt: scheduledISO,
-        participantIds: [
-          ...selectedCandidateIds.map((id) => ({ type: 'CANDIDATE' as const, id })),
-          ...participants,
-        ],
+        applicationIds: selectedCandidateIds,
+        companyMemberIds: selectedInterviewerIds,
       });
-      toast.success('Group interview session scheduled successfully!');
     } else {
       // Individual mode: create a separate session for each candidate
       selectedCandidateIds.forEach((candId) => {
-        createInterviewSession({
-          interviewId: selectedInterviewId,
+        createSessionMutation.mutate({
           scheduledAt: scheduledISO,
-          participantIds: [
-            { type: 'CANDIDATE', id: candId },
-            ...participants,
-          ],
+          applicationIds: [candId],
+          companyMemberIds: selectedInterviewerIds,
         });
       });
-      toast.success(
-        selectedCandidateIds.length > 1
-          ? `Scheduled ${selectedCandidateIds.length} separate interview sessions!`
-          : 'Interview session scheduled successfully!'
-      );
     }
-
-    onSubmit();
-    onClose();
   };
 
   const toggleCandidate = (id: string) => {

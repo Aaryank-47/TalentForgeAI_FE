@@ -121,12 +121,14 @@ function App() {
               <Route path="/candidate/assessments/:id/live" element={<LiveMachineCodingPage />} />
               {/* BACKEND DEPENDENCY: Live Interview backend not yet implemented */}
               <Route path="/candidate/interviews/:id/room" element={<CandidateLiveRoomPage />} />
+              <Route path="/candidate/live-interviews/:id/room" element={<CandidateLiveRoomPage />} />
             </Route>
 
             {/* Recruiter-only fullscreen routes */}
             <Route element={<RoleRoute allowedRoles={['EMPLOYER']} redirectTo="/candidate/home" />}>
               {/* BACKEND DEPENDENCY: Live Interview backend not yet implemented */}
               <Route path="/recruiter/interviews/:id/room" element={<RecruiterLiveRoomPage />} />
+              <Route path="/recruiter/live-interviews/:id/room" element={<RecruiterLiveRoomPage />} />
             </Route>
 
             {/* Candidate AI Interview flow — within CandidateLayout */}
@@ -152,7 +154,7 @@ function App() {
               <Route path="/candidate/applications" element={<MyApplicationsPage />} />
               <Route path="/candidate/assessments" element={<CandidateAssessmentsPage />} />
               <Route path="/candidate/assessments/:id/submit" element={<ProjectSubmissionPage />} />
-              <Route path="/candidate/interviews" element={<CandidateInterviewsPage />} />
+              <Route path="/candidate/interviews" element={<CandidateLiveInterviewsPage />} />
               {/* BACKEND DEPENDENCY: Live Interview module not yet implemented */}
               <Route path="/candidate/live-interviews" element={<CandidateLiveInterviewsPage />} />
               <Route path="/candidate/live-interviews/history" element={<CandidateLiveInterviewHistoryPage />} />
@@ -183,7 +185,7 @@ function App() {
               <Route path="/recruiter/assessments/create" element={<CreateAssessmentPage />} />
               <Route path="/recruiter/assessments/:id/edit" element={<EditAssessmentPage />} />
               <Route path="/recruiter/assessments/edit/:id" element={<EditAssessmentPage />} />
-              <Route path="/recruiter/interviews" element={<InterviewsPage />} />
+              <Route path="/recruiter/interviews" element={<RecruiterLiveInterviewsPage />} />
               {/* BACKEND DEPENDENCY: Live Interview module not yet implemented */}
               <Route path="/recruiter/live-interviews" element={<RecruiterLiveInterviewsPage />} />
               <Route path="/recruiter/live-interviews/calendar" element={<RecruiterInterviewCalendarPage />} />

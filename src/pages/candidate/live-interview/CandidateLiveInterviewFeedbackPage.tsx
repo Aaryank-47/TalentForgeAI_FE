@@ -9,12 +9,46 @@ import { getInterviewById } from '../../../constants/interview.mock';
 import { getRecruiterById } from '../../../constants/participants.mock';
 import { FeedbackForm } from '../../../components/live-interview/FeedbackForm';
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
+import type { InterviewStatus } from '../../../types/interview.types';
+
+import { useQuery } from '@tanstack/react-query';
+import { interviewApi } from '../../../services/api/interview.api';
 
 const CandidateLiveInterviewFeedbackPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const interview = getInterviewById(id ?? '');
-  const recruiter = interview ? getRecruiterById(interview.recruiterIds[0]) : null;
+
+  const { data: sessionResponse, isLoading } = useQuery({
+    queryKey: ['candidateSession', id],
+    queryFn: () => interviewApi.getCandidateSessionDetails(id as string),
+    enabled: !!id,
+  });
+
+  const session = (sessionResponse as any)?.data || sessionResponse;
+  
+  const toCandidateLiveInterview = (dto: any) => ({
+    id: dto.sessionId || dto.id,
+    title: dto.role || 'Interview',
+    status: (dto.status === 'EXPIRED' ? 'Missed' : dto.status === 'COMPLETED' ? 'Completed' : 'Scheduled') as InterviewStatus,
+    company: dto.company || 'Company',
+    companyLogo: dto.companyLogo || 'C',
+    companyColor: dto.companyColor || 'bg-primary-600',
+    candidateName: 'Me',
+    recruiterIds: [],
+  });
+
+  const realInterview = session ? toCandidateLiveInterview(session) : null;
+  const mockInterview = getInterviewById(id ?? '');
+  const interview = realInterview || mockInterview;
+  const recruiter = mockInterview ? getRecruiterById(mockInterview.recruiterIds[0]) : null;
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20">
+        <p className="text-slate-500 text-sm">Loading interview...</p>
+      </div>
+    );
+  }
 
   if (!interview) {
     return (

@@ -82,6 +82,23 @@ export interface InterviewSessionParticipant {
   companyMemberId?: string;
   hasJoined?: boolean;
   joinedAt?: string;
+  assignment?: {
+    application: {
+      id: string;
+      jobId: string;
+      job: {
+        title: string;
+      };
+      candidate: {
+        id: string;
+        fullName: string;
+        profilePicture: string | null;
+        user: {
+          email: string;
+        };
+      };
+    };
+  } | null;
 }
 
 export interface InterviewSession {

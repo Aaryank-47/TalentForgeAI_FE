@@ -7,8 +7,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-import { getInterviewSessionById, toLiveInterview } from '../../../services/interviewSession.service';
-import { mockRoomParticipants, mockCurrentUserCandidate } from '../../../constants/participants.mock';
 import { InterviewProvider, useInterview } from '../../../context/InterviewContext';
 import { InterviewTimer, RecordingBadge, ConnectionIndicator } from '../../../components/live-interview/LiveInterviewTimer';
 import { ParticipantGrid } from '../../../components/live-interview/ParticipantGrid';
@@ -16,13 +14,11 @@ import { ControlBar } from '../../../components/live-interview/ControlBar';
 import { CandidateSidebar } from '../../../components/live-interview/CandidateSidebar';
 import { ChatPanel } from '../../../components/live-interview/ChatPanel';
 import type { LiveInterview } from '../../../types/interview.types';
-import type { RoomParticipant } from '../../../types/participant.types';
 
 // ─── Inner room ───────────────────────────────────────────────
 const CandidateRoomInner: React.FC<{
   interview: LiveInterview;
-  participants: RoomParticipant[];
-}> = ({ interview, participants }) => {
+}> = ({ interview }) => {
   const navigate = useNavigate();
   const {
     elapsedSeconds,
@@ -33,7 +29,30 @@ const CandidateRoomInner: React.FC<{
     leaveRoom,
     activePanel,
     isCinemaMode,
+    participants,
+    currentUser,
   } = useInterview();
+
+  const allParticipants = React.useMemo(() => {
+    const list = [...participants];
+    if (currentUser && !list.some(p => p.id === currentUser.id)) {
+      list.unshift({
+        id: currentUser.id,
+        name: currentUser.name,
+        initials: currentUser.initials,
+        role: currentUser.role,
+        title: currentUser.title || 'User',
+        email: '',
+        avatarColor: 'bg-blue-500',
+        isMicOn: currentUser.isMicOn || false,
+        isCameraOn: currentUser.isCameraOn || false,
+        isSpeaking: false,
+        isScreenSharing: currentUser.isScreenSharing || false,
+        connectionStatus: 'excellent'
+      });
+    }
+    return list;
+  }, [participants, currentUser]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -42,6 +61,17 @@ const CandidateRoomInner: React.FC<{
     }, 500);
     return () => clearTimeout(t);
   }, [joinRoom]);
+
+  useEffect(() => {
+    if (useInterview().currentInterview?.status === 'Completed') {
+      toast.success('The interview has ended. Redirecting to feedback...', { duration: 3000 });
+      // add a small delay so they can read the toast
+      const t = setTimeout(() => {
+        handleLeave();
+      }, 1500);
+      return () => clearTimeout(t);
+    }
+  }, [useInterview().currentInterview?.status]);
 
   const handleLeave = () => {
     leaveRoom();
@@ -97,8 +127,8 @@ const CandidateRoomInner: React.FC<{
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 p-3 overflow-hidden">
             <ParticipantGrid
-              participants={participants}
-              localUserId={mockCurrentUserCandidate.id}
+              participants={allParticipants}
+              localUserId={currentUser?.id || ''}
               className="w-full h-full"
             />
           </div>
@@ -114,9 +144,8 @@ const CandidateRoomInner: React.FC<{
         {/* Right Sidebar (Conditionally visible) */}
         {!isCinemaMode && (
           <div
-            className={`transition-all duration-300 ease-in-out border-l border-slate-200 bg-white z-10 flex-shrink-0 ${
-              activePanel ? 'w-80 translate-x-0' : 'w-0 translate-x-full border-l-0'
-            }`}
+            className={`transition-all duration-300 ease-in-out border-l border-slate-200 bg-white z-10 flex-shrink-0 ${activePanel ? 'w-80 translate-x-0' : 'w-0 translate-x-full border-l-0'
+              }`}
           >
             {activePanel && (
               <div className="h-full w-80">
@@ -139,11 +168,66 @@ const CandidateRoomInner: React.FC<{
 };
 
 // ─── Outer ───────────────────────────────────────────────────
+import { useQuery } from '@tanstack/react-query';
+import { interviewApi } from '../../../services/api/interview.api';
+
 const CandidateLiveRoomPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const session = getInterviewSessionById(id ?? '');
-  const interview = session ? toLiveInterview(session) : null;
+
+  const { data: sessionResponse, isLoading } = useQuery({
+    queryKey: ['candidateSession', id],
+    queryFn: () => interviewApi.getCandidateSessionDetails(id as string),
+    enabled: !!id,
+  });
+
+  const toCandidateLiveInterview = (dto: any): LiveInterview => ({
+    id: dto.sessionId || dto.id,
+    title: dto.role || 'Interview',
+    type: dto.interviewType?.includes('AI') ? 'Technical' : 'Technical',
+    status: dto.status === 'EXPIRED' ? 'Missed' : dto.status === 'COMPLETED' ? 'Completed' : 'Scheduled',
+    meetingType: 'video',
+    jobId: dto.id,
+    jobTitle: dto.role,
+    company: dto.company || 'Company',
+    companyLogo: dto.companyLogo || 'C',
+    companyColor: dto.companyColor || 'bg-primary-600',
+    candidateId: 'me',
+    candidateName: 'Me',
+    candidateInitials: 'ME',
+    candidateAvatarColor: 'from-blue-500 to-blue-700',
+    candidateEmail: '',
+    recruiterIds: [],
+    date: dto.assignedDate || new Date().toLocaleDateString(),
+    dateISO: new Date().toISOString(),
+    timeStart: '10:00 AM',
+    timeEnd: '11:00 AM',
+    duration: `${dto.durationMinutes || 45} min` as any,
+    timezone: 'IST',
+    settings: {
+      allowCamera: true,
+      allowMicrophone: true,
+      allowScreenShare: true,
+      instructions: ''
+    },
+    createdAt: new Date().toISOString(),
+    createdBy: '',
+    recordingEnabled: true,
+    roomId: dto.sessionId,
+    aiScore: dto.aiScore || null,
+    recommendation: dto.recommendation,
+  });
+
+  const session = (sessionResponse as any)?.data || sessionResponse;
+  const interview = session ? toCandidateLiveInterview(session) : null;
+
+  if (isLoading) {
+    return (
+      <div className="h-screen bg-slate-50 flex items-center justify-center">
+        <p className="text-slate-500 text-sm">Loading interview...</p>
+      </div>
+    );
+  }
 
   if (!interview) {
     return (
@@ -161,10 +245,8 @@ const CandidateLiveRoomPage: React.FC = () => {
   return (
     <InterviewProvider
       interview={interview}
-      participants={mockRoomParticipants}
-      currentUser={mockCurrentUserCandidate}
     >
-      <CandidateRoomInner interview={interview} participants={mockRoomParticipants} />
+      <CandidateRoomInner interview={interview} />
     </InterviewProvider>
   );
 };

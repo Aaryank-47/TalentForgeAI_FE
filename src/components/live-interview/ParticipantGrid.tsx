@@ -165,7 +165,7 @@ export const ParticipantGrid: React.FC<ParticipantGridProps> = ({
       <div className="flex-1">
         <VideoTile
           participant={mainParticipant}
-          isLocal={mainParticipant.id === localUserId}
+          isLocal={mainParticipant !== undefined && mainParticipant.id === localUserId}
           size="large"
           className="w-full h-full"
         />

@@ -17,7 +17,7 @@ export default function CandidateAIInterviewPage() {
   const { data: interviewData, isLoading } = useQuery({
     queryKey: ['candidate-my-interviews'],
     queryFn: async () => {
-      const res: any = await interviewApi.getCandidateInterviews();
+      const res: any = await interviewApi.getCandidateInterviews({ type: 'AI' });
       return res?.data || res || { pending: [], completed: [] };
     },
   });
