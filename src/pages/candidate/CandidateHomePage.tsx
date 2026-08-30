@@ -1,9 +1,16 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Bookmark, ArrowUpRight, TrendingUp, TrendingDown, ChevronRight, Star, Zap, Activity, MapPin, Globe, FileText, Video, Gift, XCircle, Calendar, Sparkles, Eye } from 'lucide-react';
-import { candidateHomeData, jobsData, interviewsData, assessmentsData, applicationsData, profileData } from '../../constants/candidate_mockData';
+import {
+  Search, Bookmark, ArrowUpRight, TrendingUp, TrendingDown, Star, Zap,
+  Activity, MapPin, Globe, FileText, Video, Gift, XCircle, Calendar, Sparkles,
+  BookmarkCheck, Loader2, AlertCircle, CheckCircle2, Clock
+} from 'lucide-react';
+import { jobsData } from '../../constants/candidate_mockData';
 import { useQuery } from '@tanstack/react-query';
 import { candidateApi } from '../../services/api/candidate.api';
+import { interviewApi } from '../../services/api/interview.api';
+import { assessmentApi } from '../../services/api/assessment.api';
+import { jobApi } from '../../services/api/job.api';
 import { candidateKeys } from '../../constants/queryKeys';
 import { useAuth } from '../../context/AuthContext';
 
@@ -29,48 +36,187 @@ const ProfileRing = ({ pct }: { pct: number }) => {
   );
 };
 
-// ─── Match Score Badge ────────────────────────────────────
-const MatchBadge = ({ pct }: { pct: number }) => {
-  const color = pct >= 90 ? 'bg-emerald-500' : pct >= 80 ? 'bg-blue-500' : 'bg-amber-500';
-  return (
-    <span className={`${color} text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full`}>{pct}% Match</span>
-  );
-};
-
 const CandidateHomePage = () => {
   const { user } = useAuth();
+
+  // 1. Candidate Profile & Completion
   const { data: candidate } = useQuery({
     queryKey: candidateKeys.me,
     queryFn: () => candidateApi.getCandidateProfile(),
   });
+
   const { data: completionData } = useQuery({
     queryKey: candidateKeys.completion,
     queryFn: () => candidateApi.getProfileCompletion(),
   });
 
-  const [savedJobs, setSavedJobs] = useState<string[]>(['job_1', 'job_5']);
+  // 2. Real Candidate Applications
+  const { data: applicationsResponse, isLoading: isLoadingApps } = useQuery({
+    queryKey: candidateKeys.applications({ limit: 100 }),
+    queryFn: () => candidateApi.getMyApplications({ limit: 100 }),
+  });
+
+  const applications: any[] = Array.isArray(applicationsResponse)
+    ? applicationsResponse
+    : Array.isArray(applicationsResponse?.data)
+      ? applicationsResponse.data
+      : Array.isArray((applicationsResponse as any)?.applications)
+        ? (applicationsResponse as any).applications
+        : [];
+
+  // 3. Real Candidate Interviews
+  const {
+    data: interviewsResponse,
+    isLoading: isLoadingInterviews,
+    isError: isErrorInterviews,
+  } = useQuery({
+    queryKey: ['candidateInterviews'],
+    queryFn: () => interviewApi.getCandidateInterviews(),
+  });
+
+  const rawInterviewsData: any = (interviewsResponse as any)?.data || interviewsResponse || {};
+  const pendingInterviews: any[] = Array.isArray(rawInterviewsData?.pending)
+    ? rawInterviewsData.pending
+    : [];
+  const completedInterviews: any[] = Array.isArray(rawInterviewsData?.completed)
+    ? rawInterviewsData.completed
+    : [];
+
+  // 4. Real Candidate Assessment Invitations
+  const {
+    data: invitations = [],
+    isLoading: isLoadingInvites,
+    isError: isErrorInvites,
+  } = useQuery({
+    queryKey: ['candidate', 'assessment-invitations', applications.map((a: any) => a.id).join(',')],
+    queryFn: async () => {
+      if (!applications.length) return [];
+      const results = await Promise.allSettled(
+        applications.map((app: any) => assessmentApi.getAssessmentInvitation(app.id))
+      );
+      return results
+        .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled' && Boolean(res.value))
+        .map(res => res.value);
+    },
+    enabled: applications.length > 0,
+  });
+
+  const pendingAssessments = invitations.filter(
+    (inv: any) => inv.status === 'PENDING' || inv.status === 'IN_PROGRESS'
+  );
+  const completedAssessments = invitations.filter(
+    (inv: any) => inv.status === 'COMPLETED' || inv.status === 'SUBMITTED'
+  );
+
+  // 5. Real Saved Jobs
+  const { data: savedJobsResponse } = useQuery({
+    queryKey: ['savedJobs'],
+    queryFn: () => jobApi.getSavedJobs(),
+  });
+
+  const savedJobsList: any[] = Array.isArray(savedJobsResponse)
+    ? savedJobsResponse
+    : Array.isArray((savedJobsResponse as any)?.data)
+      ? (savedJobsResponse as any).data
+      : [];
+
+  const [localSavedJobs, setLocalSavedJobs] = useState<string[]>(['job_1', 'job_5']);
   const aiJobs = jobsData.slice(0, 3);
-  const upcomingInterviews = interviewsData.upcoming;
-  const pendingAssessments = assessmentsData.pending;
-  const trackerStats = [
-    { label: 'Applied', value: 18 },
-    { label: 'Under Review', value: 6 },
-    { label: 'Interview', value: 3 },
-    { label: 'Offer', value: 1 },
-    { label: 'Rejected', value: 2 },
-  ];
+
+  const toggleSave = (id: string) =>
+    setLocalSavedJobs(prev => prev.includes(id) ? prev.filter(j => j !== id) : [...prev, id]);
 
   const candidateName = candidate?.fullName || user?.fullName || 'Candidate';
   const profileCompletion = completionData?.completion ?? candidate?.profileCompletion ?? 60;
 
-  const toggleSave = (id: string) =>
-    setSavedJobs(prev => prev.includes(id) ? prev.filter(j => j !== id) : [...prev, id]);
+  // ─── Compute Real Analytics & Pipeline Counters ─────────────
+  const now = new Date();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const totalAppsCount = applications.length;
+  const appsThisWeek = applications.filter((a: any) => a.appliedAt && new Date(a.appliedAt) >= sevenDaysAgo).length;
+
+  const inReviewApps = applications.filter((a: any) => {
+    const st = a.status?.toUpperCase();
+    return st === 'INREVIEW' || st === 'IN_REVIEW' || st === 'SHORTLISTED' || (st === 'APPLIED' && a.applicationWorkflow);
+  });
+  const inReviewCount = inReviewApps.length;
+
+  const interviewStageApps = applications.filter((a: any) => {
+    const st = a.status?.toUpperCase();
+    return st === 'INTERVIEW' || (a.interviewAssignments && a.interviewAssignments.length > 0);
+  });
+  const totalInterviewsCount = Math.max(pendingInterviews.length + completedInterviews.length, interviewStageApps.length);
+
+  const offerApps = applications.filter((a: any) => {
+    const st = a.status?.toUpperCase();
+    return st === 'OFFER' || st === 'HIRED';
+  });
+  const offerCount = offerApps.length;
+
+  const rejectedApps = applications.filter((a: any) => {
+    const st = a.status?.toUpperCase();
+    return st === 'REJECTED' || st === 'WITHDRAWN';
+  });
+  const rejectedCount = rejectedApps.length;
+
+  const stats = [
+    {
+      label: 'Applications',
+      value: totalAppsCount,
+      change: appsThisWeek > 0 ? `+${appsThisWeek} this week` : 'Total submitted',
+      trend: appsThisWeek > 0 ? 'up' : 'neutral',
+    },
+    {
+      label: 'Under Review',
+      value: inReviewCount,
+      change: inReviewCount > 0 ? `${inReviewCount} in review` : 'In pipeline',
+      trend: inReviewCount > 0 ? 'up' : 'neutral',
+    },
+    {
+      label: 'Interviews',
+      value: pendingInterviews.length,
+      change: pendingInterviews.length > 0 ? `${pendingInterviews.length} upcoming` : '0 scheduled',
+      trend: pendingInterviews.length > 0 ? 'up' : 'neutral',
+    },
+    {
+      label: 'Offers',
+      value: offerCount,
+      change: offerCount > 0 ? 'Congratulations!' : 'Pending decision',
+      trend: offerCount > 0 ? 'up' : 'neutral',
+    },
+    {
+      label: 'Rejections',
+      value: rejectedCount,
+      change: rejectedCount > 0 ? `${rejectedCount} closed` : '0 rejections',
+      trend: rejectedCount > 0 ? 'down' : 'neutral',
+    },
+    {
+      label: 'Saved Jobs',
+      value: savedJobsList.length,
+      change: `${savedJobsList.length} bookmarked`,
+      trend: 'neutral',
+    },
+  ];
+
+  const trackerStats = [
+    { label: 'Applied', value: totalAppsCount },
+    { label: 'Under Review', value: inReviewCount },
+    { label: 'Interview', value: totalInterviewsCount },
+    { label: 'Offer', value: offerCount },
+    { label: 'Rejected', value: rejectedCount },
+  ];
+
+  // Career Insights real bindings
+  const topSkillLabel = candidate?.skills?.[0]?.name || 'TypeScript';
+  const topRoleLabel = candidate?.headline || candidate?.currentDesignation || (candidate?.skills?.[0]?.name ? `${candidate.skills[0].name} Developer` : 'Software Developer');
+  const profileStrengthLabel = profileCompletion >= 85 ? 'All-Star' : profileCompletion >= 70 ? 'Strong Profile' : profileCompletion >= 40 ? 'Intermediate' : 'Getting Started';
+  const profileStrengthSubtext = profileCompletion >= 80 ? 'Optimal visibility' : 'Add skills & experience';
 
   return (
     <div className="space-y-6 max-w-[1400px]">
       {/* ── Hero Banner ─────────────────────────────────── */}
       <div className="rounded-2xl bg-gradient-to-r from-[#2563EB] via-[#3B82F6] to-[#60A5FA] p-6 flex flex-col lg:flex-row items-stretch gap-6 overflow-hidden relative">
-        {/* Decorative circles */}
         <div className="absolute -right-8 -top-8 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
         <div className="absolute right-32 bottom-0 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
 
@@ -142,30 +288,32 @@ const CandidateHomePage = () => {
 
       {/* ── Stat Cards ──────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {candidateHomeData.stats.map((s) => {
+        {stats.map((s) => {
           const renderHomeStatIcon = () => {
             switch (s.label) {
-              case 'Applications': return <FileText className="w-4 h-4 text-blue-600" />;
-              case 'Under Review': return <Search className="w-4 h-4 text-amber-600" />;
-              case 'Interviews': return <Video className="w-4 h-4 text-violet-600" />;
-              case 'Offers': return <Gift className="w-4 h-4 text-emerald-600" />;
-              case 'Rejections': return <XCircle className="w-4 h-4 text-red-500" />;
-              case 'Profile Views': return <Eye className="w-4 h-4 text-primary-600" />;
-              default: return <Activity className="w-4 h-4" />;
+              case 'Applications': return <FileText className="w-4 h-4 text-primary-600" />;
+              case 'Under Review': return <Search className="w-4 h-4 text-primary-600" />;
+              case 'Interviews': return <Video className="w-4 h-4 text-primary-600" />;
+              case 'Offers': return <Gift className="w-4 h-4 text-primary-600" />;
+              case 'Rejections': return <XCircle className="w-4 h-4 text-primary-600" />;
+              case 'Saved Jobs': return <BookmarkCheck className="w-4 h-4 text-primary-600" />;
+              default: return <Activity className="w-4 h-4 text-primary-600" />;
             }
           };
           return (
-            <div key={s.label} className="card p-4">
+            <div key={s.label} className="card p-4 bg-white border border-[#E5E7EB] hover:border-primary-200 transition-colors">
               <div className="flex items-center justify-between mb-2">
-                <div className={`w-8 h-8 ${s.bg} rounded-lg flex items-center justify-center`}>
+                <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center">
                   {renderHomeStatIcon()}
                 </div>
                 {s.trend === 'up' && <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />}
-                {s.trend === 'down' && <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
+                {s.trend === 'down' && <TrendingDown className="w-3.5 h-3.5 text-red-500" />}
               </div>
-              <p className={`text-2xl font-display font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-2xl font-display font-bold text-slate-900">{s.value}</p>
               <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-tight">{s.label}</p>
-              <p className={`text-[10px] mt-1 leading-tight ${s.trend === 'up' ? 'text-emerald-600' : s.trend === 'down' ? 'text-red-500' : 'text-amber-600'}`}>
+              <p className={`text-[10px] mt-1 leading-tight font-medium ${
+                s.trend === 'up' ? 'text-emerald-600' : s.trend === 'down' ? 'text-red-500' : 'text-slate-400'
+              }`}>
                 {s.change}
               </p>
             </div>
@@ -177,7 +325,7 @@ const CandidateHomePage = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left 2/3 */}
         <div className="xl:col-span-2 space-y-6">
-          {/* AI Matched Jobs */}
+          {/* AI Matched Jobs For You (Kept as requested) */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
@@ -208,7 +356,7 @@ const CandidateHomePage = () => {
                       onClick={() => toggleSave(job.id)}
                       className="p-1 rounded-lg text-slate-300 hover:text-primary-500 transition-colors"
                     >
-                      <Bookmark className={`w-4 h-4 ${savedJobs.includes(job.id) ? 'fill-primary-500 text-primary-500' : ''}`} />
+                      <Bookmark className={`w-4 h-4 ${localSavedJobs.includes(job.id) ? 'fill-primary-500 text-primary-500' : ''}`} />
                     </button>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2">
@@ -253,32 +401,20 @@ const CandidateHomePage = () => {
               {trackerStats.map((s, i) => {
                 const renderTrackerIcon = () => {
                   switch (s.label) {
-                    case 'Applied': return <FileText className="w-5 h-5 text-blue-600" />;
-                    case 'Under Review': return <Search className="w-5 h-5 text-amber-600" />;
-                    case 'Interview': return <Video className="w-5 h-5 text-violet-600" />;
-                    case 'Offer': return <Gift className="w-5 h-5 text-emerald-600" />;
-                    default: return <XCircle className="w-5 h-5 text-red-500" />;
+                    case 'Applied': return <FileText className="w-5 h-5 text-primary-600" />;
+                    case 'Under Review': return <Search className="w-5 h-5 text-primary-600" />;
+                    case 'Interview': return <Video className="w-5 h-5 text-primary-600" />;
+                    case 'Offer': return <Gift className="w-5 h-5 text-primary-600" />;
+                    default: return <XCircle className="w-5 h-5 text-primary-600" />;
                   }
                 };
                 return (
                   <React.Fragment key={s.label}>
                     <div className="flex flex-col items-center gap-2 flex-shrink-0">
-                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                        s.label === 'Applied' ? 'bg-blue-100' :
-                        s.label === 'Under Review' ? 'bg-amber-100' :
-                        s.label === 'Interview' ? 'bg-violet-100' :
-                        s.label === 'Offer' ? 'bg-emerald-100' :
-                        'bg-red-100'
-                      }`}>
+                      <div className="w-12 h-12 rounded-2xl bg-primary-50 border border-primary-100/60 flex items-center justify-center">
                         {renderTrackerIcon()}
                       </div>
-                      <p className={`text-xl font-display font-bold ${
-                        s.label === 'Applied' ? 'text-blue-600' :
-                        s.label === 'Under Review' ? 'text-amber-600' :
-                        s.label === 'Interview' ? 'text-violet-600' :
-                        s.label === 'Offer' ? 'text-emerald-600' :
-                        'text-red-500'
-                      }`}>{s.value}</p>
+                      <p className="text-xl font-display font-bold text-slate-900">{s.value}</p>
                       <p className="text-[10px] text-slate-500 font-medium text-center leading-tight">{s.label}</p>
                     </div>
                     {i < trackerStats.length - 1 && (
@@ -296,43 +432,43 @@ const CandidateHomePage = () => {
               <h2 className="font-display font-bold text-[#0F172A] text-base">Career Insights</h2>
               <span className="text-xs text-slate-400">Based on your profile and job market trends.</span>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {/* In-demand Skill */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-[#E5E7EB]">
+              <div className="bg-white rounded-xl p-4 border border-[#E5E7EB] hover:border-primary-200 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <TrendingUp className="w-4 h-4 text-blue-600" />
+                  <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-primary-600" />
                   </div>
                   <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">In Demand Skill</p>
                 </div>
-                <p className="text-sm font-bold text-slate-900">{candidateHomeData.careerInsights.inDemandSkill.label}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">{candidateHomeData.careerInsights.inDemandSkill.change}</p>
+                <p className="text-sm font-bold text-slate-900 truncate">{topSkillLabel}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">High market demand</p>
               </div>
               {/* Top Role */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-[#E5E7EB]">
+              <div className="bg-white rounded-xl p-4 border border-[#E5E7EB] hover:border-primary-200 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-violet-100 rounded-lg flex items-center justify-center">
-                    <Star className="w-4 h-4 text-violet-600" />
+                  <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center">
+                    <Star className="w-4 h-4 text-primary-600" />
                   </div>
                   <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Top Role For You</p>
                 </div>
-                <p className="text-sm font-bold text-slate-900">{candidateHomeData.careerInsights.topRole.label}</p>
-                <p className="text-[10px] text-slate-400 mt-0.5">{candidateHomeData.careerInsights.topRole.change}</p>
+                <p className="text-sm font-bold text-slate-900 truncate">{topRoleLabel}</p>
+                <p className="text-[10px] text-slate-400 mt-0.5">Based on your experience</p>
               </div>
               {/* Profile Strength */}
-              <div className="bg-slate-50 rounded-xl p-4 border border-[#E5E7EB]">
+              <div className="bg-white rounded-xl p-4 border border-[#E5E7EB] hover:border-primary-200 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center">
-                    <Zap className="w-4 h-4 text-emerald-600" />
+                  <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center">
+                    <Zap className="w-4 h-4 text-primary-600" />
                   </div>
                   <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide">Profile Strength</p>
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-bold text-slate-900">{candidateHomeData.careerInsights.profileStrength.label}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{candidateHomeData.careerInsights.profileStrength.change}</p>
+                    <p className="text-sm font-bold text-slate-900">{profileStrengthLabel}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{profileStrengthSubtext}</p>
                   </div>
-                  <ProfileRing pct={candidateHomeData.careerInsights.profileStrength.pct} />
+                  <ProfileRing pct={profileCompletion} />
                 </div>
               </div>
             </div>
@@ -341,71 +477,219 @@ const CandidateHomePage = () => {
 
         {/* Right 1/3 */}
         <div className="space-y-5">
-          {/* Upcoming Interviews */}
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-display font-bold text-[#0F172A] text-sm">Upcoming Interviews</h3>
-              <Link to="/candidate/interviews" className="text-xs text-primary-600 font-semibold flex items-center gap-0.5">
-                View All <ArrowUpRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {upcomingInterviews.map((iv) => (
-                <div key={iv.id} className="p-3 rounded-xl border border-[#E5E7EB] hover:border-primary-200 hover:bg-slate-50 transition-all cursor-pointer">
-                  <div className="flex items-center gap-3 mb-1.5">
-                    <div className={`w-8 h-8 ${iv.companyColor} rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
-                      {iv.companyLogo}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-900 leading-tight truncate">{iv.jobTitle.split(' – ')[0]}</p>
-                      <p className="text-[10px] text-slate-500">{iv.company}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-slate-400" />
-                      <span>{iv.dateLabel} · {iv.timeStart}</span>
-                    </p>
-                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${iv.typeColor}`}>{iv.type}</span>
-                  </div>
+          {/* Upcoming Interviews Card */}
+          <div className="card p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold text-[#0F172A] text-sm">Upcoming Interviews</h3>
+                <Link to="/candidate/interviews" className="text-xs text-primary-600 font-semibold flex items-center gap-0.5">
+                  View All <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {isLoadingInterviews ? (
+                <div className="py-8 text-center flex flex-col items-center justify-center space-y-2">
+                  <Loader2 className="w-5 h-5 text-primary-600 animate-spin" />
+                  <p className="text-xs text-slate-400">Loading interviews...</p>
                 </div>
-              ))}
+              ) : isErrorInterviews ? (
+                <div className="py-6 px-3 text-center rounded-xl bg-red-50/60 border border-red-100">
+                  <AlertCircle className="w-5 h-5 text-red-500 mx-auto mb-1.5" />
+                  <p className="text-xs font-semibold text-slate-800">Unable to load interviews</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Please refresh or try again later</p>
+                </div>
+              ) : pendingInterviews.length > 0 ? (
+                <div className="space-y-3">
+                  {pendingInterviews.slice(0, 3).map((iv) => {
+                    const formatInterviewTime = (dStr: string) => {
+                      const d = new Date(dStr);
+                      if (isNaN(d.getTime())) return 'Scheduled';
+                      const isToday = d.toDateString() === new Date().toDateString();
+                      const isTomorrow = d.toDateString() === new Date(Date.now() + 86400000).toDateString();
+                      const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                      if (isToday) return `Today · ${time}`;
+                      if (isTomorrow) return `Tomorrow · ${time}`;
+                      return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} · ${time}`;
+                    };
+
+                    return (
+                      <Link
+                        key={iv.id || iv.sessionId}
+                        to="/candidate/interviews"
+                        className="block p-3 rounded-xl border border-[#E5E7EB] hover:border-primary-200 hover:bg-slate-50 transition-all cursor-pointer"
+                      >
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <div className={`w-8 h-8 ${iv.companyColor || 'bg-primary-600'} rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
+                            {iv.companyLogo || (iv.company ? iv.company.slice(0, 2).toUpperCase() : 'TF')}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-900 leading-tight truncate">{iv.role || iv.interviewTitle}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{iv.company}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="text-[10px] text-slate-500 flex items-center gap-1">
+                            <Calendar className="w-3 h-3 text-slate-400" />
+                            <span>{formatInterviewTime(iv.scheduledAt)}</span>
+                          </p>
+                          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                            iv.interviewType?.includes('AI') ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                          }`}>
+                            {iv.interviewType || 'Interview'}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : completedInterviews.length > 0 ? (
+                <div className="py-6 px-4 text-center flex flex-col items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-2.5">
+                    <Clock className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800">No interviews scheduled right now</p>
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-[220px] leading-relaxed">
+                    You have completed {completedInterviews.length} previous interview{completedInterviews.length === 1 ? '' : 's'}. We'll notify you when your next session is booked.
+                  </p>
+                  {completedInterviews[0] && (
+                    <div className="mt-3 w-full p-2.5 rounded-lg bg-slate-50 border border-slate-100 text-left flex items-center justify-between">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Latest Completed</p>
+                        <p className="text-xs font-semibold text-slate-900 truncate mt-0.5">{completedInterviews[0].role || completedInterviews[0].interviewTitle}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full whitespace-nowrap">Completed</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="py-7 px-4 text-center flex flex-col items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center mb-2.5">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800">Your next interview will appear here</p>
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-[210px] leading-relaxed">
+                    Keep applying to find your next opportunity.
+                  </p>
+                  <Link
+                    to="/candidate/jobs"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors mt-3"
+                  >
+                    <Search className="w-3.5 h-3.5" /> Find Jobs
+                  </Link>
+                </div>
+              )}
             </div>
-            <Link to="/candidate/interviews" className="mt-3 w-full block text-center text-xs text-primary-600 hover:text-primary-700 font-semibold py-2">
+
+            <Link
+              to="/candidate/interviews"
+              className="mt-3 w-full block text-center text-xs text-primary-600 hover:text-primary-700 font-semibold py-1.5 border-t border-slate-100 pt-2.5"
+            >
               View All Interviews →
             </Link>
           </div>
 
-          {/* Pending Assessments */}
-          <div className="card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-display font-bold text-[#0F172A] text-sm">Pending Assessments</h3>
-              <Link to="/candidate/assessments" className="text-xs text-primary-600 font-semibold flex items-center gap-0.5">
-                View All <ArrowUpRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="space-y-3">
-              {pendingAssessments.map((a) => (
-                <div key={a.id} className="p-3 rounded-xl border border-[#E5E7EB] hover:border-primary-200 hover:bg-slate-50 transition-all">
-                  <div className="flex items-start gap-2.5 mb-2">
-                    <div className={`w-8 h-8 ${a.companyColor} rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
-                      {a.companyLogo}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-bold text-slate-900 leading-tight">{a.name}</p>
-                      <p className="text-[10px] text-slate-500">{a.company}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="w-full bg-slate-200 rounded-full h-1.5 mr-3">
-                      <div className="bg-primary-600 h-1.5 rounded-full" style={{ width: '0%' }} />
-                    </div>
-                    <span className={`text-[10px] font-bold whitespace-nowrap ${a.dueUrgency === 'urgent' ? 'text-red-600' : a.dueUrgency === 'moderate' ? 'text-amber-600' : 'text-slate-500'}`}>
-                      Due in {a.dueDays} days
-                    </span>
-                  </div>
+          {/* Pending Assessments Card */}
+          <div className="card p-4 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-display font-bold text-[#0F172A] text-sm">Pending Assessments</h3>
+                <Link to="/candidate/assessments" className="text-xs text-primary-600 font-semibold flex items-center gap-0.5">
+                  View All <ArrowUpRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {isLoadingInvites ? (
+                <div className="py-8 text-center flex flex-col items-center justify-center space-y-2">
+                  <Loader2 className="w-5 h-5 text-primary-600 animate-spin" />
+                  <p className="text-xs text-slate-400">Loading assessments...</p>
                 </div>
-              ))}
+              ) : isErrorInvites ? (
+                <div className="py-6 px-3 text-center rounded-xl bg-red-50/60 border border-red-100">
+                  <AlertCircle className="w-5 h-5 text-red-500 mx-auto mb-1.5" />
+                  <p className="text-xs font-semibold text-slate-800">Unable to load assessments</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Please refresh or try again later</p>
+                </div>
+              ) : pendingAssessments.length > 0 ? (
+                <div className="space-y-3">
+                  {pendingAssessments.slice(0, 3).map((a: any) => {
+                    const getDueDays = (expiresAtStr?: string) => {
+                      if (!expiresAtStr) return { text: 'Active', urgency: 'normal', days: 0 };
+                      const diff = new Date(expiresAtStr).getTime() - Date.now();
+                      const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+                      if (days < 0) return { text: 'Expired', urgency: 'expired', days: 0 };
+                      if (days <= 2) return { text: `Due in ${days} day${days === 1 ? '' : 's'}`, urgency: 'urgent', days };
+                      return { text: `Due in ${days} days`, urgency: 'normal', days };
+                    };
+
+                    const dueInfo = getDueDays(a.expiresAt);
+                    const companyName = a.assessment?.company?.companyName || a.companyName || 'TalentForge Partner';
+                    const assessmentTitle = a.assessment?.title || a.title || 'Technical Assessment';
+                    const companyInitials = companyName.slice(0, 2).toUpperCase();
+
+                    const assessmentTargetUrl = a.token && (a.assessmentId || a.assessment?.id)
+                      ? `/candidate/assessments/${a.assessmentId || a.assessment?.id}/preparation?token=${a.token}&applicationId=${a.applicationId}`
+                      : `/candidate/assessments`;
+
+                    return (
+                      <Link
+                        key={a.id || a.invitationId}
+                        to={assessmentTargetUrl}
+                        className="block p-3 rounded-xl border border-[#E5E7EB] hover:border-primary-200 hover:bg-slate-50 transition-all cursor-pointer group"
+                      >
+                        <div className="flex items-start gap-2.5 mb-2">
+                          <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                            {companyInitials}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-bold text-slate-900 leading-tight truncate group-hover:text-primary-600 transition-colors">{assessmentTitle}</p>
+                            <p className="text-[10px] text-slate-500 truncate">{companyName}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="w-full bg-slate-200 rounded-full h-1.5 mr-3">
+                            <div className="bg-primary-600 h-1.5 rounded-full" style={{ width: a.status === 'IN_PROGRESS' ? '50%' : '0%' }} />
+                          </div>
+                          <span className={`text-[10px] font-bold whitespace-nowrap ${dueInfo.urgency === 'urgent' ? 'text-red-600' : 'text-slate-500'}`}>
+                            {dueInfo.text}
+                          </span>
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              ) : completedAssessments.length > 0 ? (
+                <div className="py-7 px-4 text-center flex flex-col items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-2.5">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800">You're all caught up!</p>
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-[220px] leading-relaxed">
+                    No assessments currently need your attention. You have completed {completedAssessments.length} assessment{completedAssessments.length === 1 ? '' : 's'}.
+                  </p>
+                  <Link
+                    to="/candidate/assessments"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors mt-3"
+                  >
+                    View Assessments <ArrowUpRight className="w-3 h-3" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="py-7 px-4 text-center flex flex-col items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center mb-2.5">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800">No assessments yet</p>
+                  <p className="text-[11px] text-slate-500 mt-1 max-w-[220px] leading-relaxed">
+                    Assessments from your applications will appear here when required.
+                  </p>
+                  <Link
+                    to="/candidate/jobs"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-600 bg-primary-50 hover:bg-primary-100 px-3 py-1.5 rounded-lg transition-colors mt-3"
+                  >
+                    <Search className="w-3.5 h-3.5" /> Find Jobs
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         </div>

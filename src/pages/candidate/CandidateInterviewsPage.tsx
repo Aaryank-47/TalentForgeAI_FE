@@ -46,7 +46,6 @@ const ScoreRing = ({ score }: { score: number }) => {
 };
 
 const CandidateInterviewsPage = () => {
-  const [activeTab, setActiveTab] = useState<'All' | 'Upcoming' | 'Completed' | 'AI Interviews'>('All');
   const [selectedUpcoming, setSelectedUpcoming] = useState<SelectedInterview>(interviewsData.upcoming[0] || null);
   const [detailTab, setDetailTab] = useState<'Overview' | 'Instructions & Prep' | 'About the Role' | 'Company'>('Overview');
   const navigate = useNavigate();
