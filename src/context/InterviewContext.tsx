@@ -544,6 +544,16 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
               }
               break;
 
+            case 'toggle-screen-share':
+              setParticipants((prev) =>
+                prev.map((p) =>
+                  p.id === from || p.id === event.data?.userId
+                    ? { ...p, isScreenSharing: !!event.data.isScreenSharing }
+                    : p
+                )
+              );
+              break;
+
             case 'user-left': {
               const leavingUserId = from || event.data?.userId;
               if (leavingUserId) {
@@ -734,6 +744,16 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
             console.error('Error setting WebRTC answer:', err);
           }
         }
+      });
+
+      socket.on('toggle-screen-share', (data: { userId: string; isScreenSharing: boolean }) => {
+        setParticipants((prev) =>
+          prev.map((p) =>
+            p.id === data.userId
+              ? { ...p, isScreenSharing: !!data.isScreenSharing }
+              : p
+          )
+        );
       });
 
       socket.on('webrtc-candidate', async ({ from, candidate }: { from: string; candidate: RTCIceCandidateInit }) => {
@@ -970,6 +990,22 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         });
       }
       setIsScreenSharing(false);
+
+      if (socketRef.current && (socketRef.current as any).emit) {
+        socketRef.current.emit('toggle-screen-share', {
+          sessionId: currentInterview?.id,
+          userId: currentUser?.id,
+          isScreenSharing: false,
+        });
+      }
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'toggle-screen-share',
+          from: currentUser?.id,
+          userId: currentUser?.id,
+          isScreenSharing: false,
+        });
+      }
     } else {
       try {
         const screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true });
@@ -982,7 +1018,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
           }
         });
 
-        screenTrack.onended = () => {
+        const handleEnded = () => {
           // Fallback when user stops sharing via browser bar
           const stream = localStreamRef.current;
           const cameraTrack = stream?.getVideoTracks()[0];
@@ -993,14 +1029,48 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
             }
           });
           setIsScreenSharing(false);
+
+          if (socketRef.current && (socketRef.current as any).emit) {
+            socketRef.current.emit('toggle-screen-share', {
+              sessionId: currentInterview?.id,
+              userId: currentUser?.id,
+              isScreenSharing: false,
+            });
+          }
+          if (broadcastChannelRef.current) {
+            broadcastChannelRef.current.postMessage({
+              type: 'toggle-screen-share',
+              from: currentUser?.id,
+              userId: currentUser?.id,
+              isScreenSharing: false,
+            });
+          }
         };
 
+        screenTrack.onended = handleEnded;
+
         setIsScreenSharing(true);
+
+        if (socketRef.current && (socketRef.current as any).emit) {
+          socketRef.current.emit('toggle-screen-share', {
+            sessionId: currentInterview?.id,
+            userId: currentUser?.id,
+            isScreenSharing: true,
+          });
+        }
+        if (broadcastChannelRef.current) {
+          broadcastChannelRef.current.postMessage({
+            type: 'toggle-screen-share',
+            from: currentUser?.id,
+            userId: currentUser?.id,
+            isScreenSharing: true,
+          });
+        }
       } catch (err) {
         console.error('Screen sharing canceled or failed:', err);
       }
     }
-  }, [isScreenSharing]);
+  }, [isScreenSharing, currentInterview, currentUser]);
 
   const sendChatMessage = useCallback((text: string) => {
     if (!text.trim() || !currentUser || !currentInterview) return;

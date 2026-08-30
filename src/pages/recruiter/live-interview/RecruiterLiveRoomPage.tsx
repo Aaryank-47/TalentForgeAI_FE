@@ -41,6 +41,9 @@ const RoomInner: React.FC<{
     participants,
     currentUser,
     currentInterview,
+    isMicOn: localIsMicOn,
+    isCameraOn: localIsCameraOn,
+    isScreenSharing: localIsScreenSharing,
   } = useInterview();
 
   const allParticipants = React.useMemo(() => {
@@ -54,15 +57,22 @@ const RoomInner: React.FC<{
         avatarColor: currentUser.avatarColor || 'from-blue-500 to-blue-700',
         title: currentUser.title || 'User',
         email: '',
-        isMicOn: currentUser.isMicOn || false,
-        isCameraOn: currentUser.isCameraOn || false,
+        isMicOn: localIsMicOn,
+        isCameraOn: localIsCameraOn,
         isSpeaking: false,
-        isScreenSharing: currentUser.isScreenSharing || false,
+        isScreenSharing: localIsScreenSharing,
         connectionStatus: 'excellent'
       });
+    } else if (currentUser) {
+      return list.map(p => p.id === currentUser.id ? {
+        ...p,
+        isMicOn: localIsMicOn,
+        isCameraOn: localIsCameraOn,
+        isScreenSharing: localIsScreenSharing
+      } : p);
     }
     return list;
-  }, [participants, currentUser]);
+  }, [participants, currentUser, localIsMicOn, localIsCameraOn, localIsScreenSharing]);
 
   useEffect(() => {
     // Auto-join and start session on mount for recruiter

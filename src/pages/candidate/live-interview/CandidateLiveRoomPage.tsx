@@ -32,6 +32,9 @@ const CandidateRoomInner: React.FC<{
     participants,
     currentUser,
     currentInterview,
+    isMicOn: localIsMicOn,
+    isCameraOn: localIsCameraOn,
+    isScreenSharing: localIsScreenSharing,
   } = useInterview();
 
   const allParticipants = React.useMemo(() => {
@@ -44,16 +47,23 @@ const CandidateRoomInner: React.FC<{
         role: currentUser.role,
         title: currentUser.title || 'User',
         email: '',
-        avatarColor: 'bg-blue-500',
-        isMicOn: currentUser.isMicOn || false,
-        isCameraOn: currentUser.isCameraOn || false,
+        avatarColor: currentUser.avatarColor || 'bg-blue-500',
+        isMicOn: localIsMicOn,
+        isCameraOn: localIsCameraOn,
         isSpeaking: false,
-        isScreenSharing: currentUser.isScreenSharing || false,
+        isScreenSharing: localIsScreenSharing,
         connectionStatus: 'excellent'
       });
+    } else if (currentUser) {
+      return list.map(p => p.id === currentUser.id ? {
+        ...p,
+        isMicOn: localIsMicOn,
+        isCameraOn: localIsCameraOn,
+        isScreenSharing: localIsScreenSharing
+      } : p);
     }
     return list;
-  }, [participants, currentUser]);
+  }, [participants, currentUser, localIsMicOn, localIsCameraOn, localIsScreenSharing]);
 
   useEffect(() => {
     const t = setTimeout(() => {

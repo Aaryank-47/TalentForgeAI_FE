@@ -13,6 +13,9 @@ interface VideoTileProps {
   isLocal?: boolean;
   size?: 'large' | 'medium' | 'small';
   className?: string;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
+  isScreenShareView?: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -51,13 +54,16 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   isLocal = false,
   size = 'medium',
   className = '',
+  isPinned = false,
+  onTogglePin,
+  isScreenShareView = false,
 }) => {
   const { localStream, remoteStreams, isCameraOn: localCameraOn, isMicOn: localMicOn } = useInterview();
 
   const activeStream = isLocal ? localStream : remoteStreams[participant?.id];
   const isCameraActive = isLocal ? localCameraOn : participant?.isCameraOn;
   const isMicActive = isLocal ? localMicOn : participant?.isMicOn;
-  const hasVideoFeed = isCameraActive && !!activeStream;
+  const hasVideoFeed = (isCameraActive || isScreenShareView) && !!activeStream;
 
   const sizeClasses = {
     large: 'rounded-2xl',
@@ -79,8 +85,8 @@ export const VideoTile: React.FC<VideoTileProps> = ({
 
   return (
     <div
-      className={`relative bg-slate-800 overflow-hidden flex items-center justify-center ${sizeClasses} ${className} ${
-        participant?.isSpeaking ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-50' : ''
+      className={`group relative bg-slate-900 overflow-hidden flex items-center justify-center ${sizeClasses} ${className} ${
+        participant?.isSpeaking ? 'ring-2 ring-emerald-400 ring-offset-2 ring-offset-slate-900' : ''
       }`}
     >
       {/* Video stream rendering */}
@@ -90,7 +96,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         /* Avatar fallback when camera is off */
         <div className="flex flex-col items-center gap-2 z-10">
           <div
-            className={`rounded-full bg-gradient-to-br ${participant?.avatarColor} flex items-center justify-center text-white font-bold flex-shrink-0 ${avatarSize}`}
+            className={`rounded-full bg-gradient-to-br ${participant?.avatarColor || 'from-blue-500 to-blue-700'} flex items-center justify-center text-white font-bold flex-shrink-0 ${avatarSize}`}
           >
             {participant?.initials}
           </div>
@@ -108,35 +114,52 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         </div>
       )}
 
-      {/* Screen sharing badge */}
-      {participant && participant.isScreenSharing && (
-        <div className="absolute top-2 left-2 flex items-center gap-1 bg-blue-600 text-white text-[9px] font-bold px-2 py-1 rounded-full z-10">
-          <Monitor className="w-3 h-3" />
-          Sharing
-        </div>
-      )}
+      {/* Badges container (Top Left) */}
+      <div className="absolute top-2 left-2 flex items-center gap-1.5 z-20">
+        {/* Screen sharing badge */}
+        {(participant?.isScreenSharing || isScreenShareView) && (
+          <div className="flex items-center gap-1 bg-blue-600/90 backdrop-blur-sm text-white text-[9px] font-bold px-2 py-0.5 rounded-full shadow">
+            <Monitor className="w-3 h-3" />
+            <span>{isScreenShareView ? 'Screen Share' : 'Sharing'}</span>
+          </div>
+        )}
 
-      {/* Pin badge */}
-      {participant && participant.isPinned && (
-        <div className="absolute top-2 left-2 bg-white/20 text-white p-1 rounded-full z-10">
-          <Pin className="w-3 h-3" />
-        </div>
-      )}
+        {/* Hand raised */}
+        {participant?.isHandRaised && (
+          <div className="bg-amber-500 text-white p-1 rounded-full shadow">
+            <Hand className="w-3 h-3" />
+          </div>
+        )}
+      </div>
 
-      {/* Hand raised */}
-      {participant && participant.isHandRaised && (
-        <div className="absolute top-2 right-10 bg-amber-500 text-white p-1 rounded-full z-10">
-          <Hand className="w-3 h-3" />
-        </div>
+      {/* Pin / Unpin interactive button (Top Right) */}
+      {onTogglePin && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePin();
+          }}
+          title={isPinned ? 'Unpin from main view' : 'Pin to enlarge'}
+          className={`absolute top-2 right-2 p-1.5 rounded-lg text-xs font-semibold backdrop-blur-md transition-all z-20 flex items-center gap-1 ${
+            isPinned
+              ? 'bg-primary-600 text-white shadow-md'
+              : 'bg-black/50 hover:bg-black/80 text-white/80 hover:text-white opacity-0 group-hover:opacity-100'
+          }`}
+        >
+          <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
+          {isPinned && <span className="text-[10px] pr-0.5 hidden sm:inline">Pinned</span>}
+        </button>
       )}
 
       {/* Bottom overlay bar */}
-      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent px-3 py-2 z-10">
+      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent px-3 py-2 z-10 pointer-events-none">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={`text-white font-semibold truncate ${nameSize}`}>
               {participant && participant.name}
               {isLocal && <span className="text-white/60 ml-1">(You)</span>}
+              {isScreenShareView && <span className="text-blue-300 ml-1 text-[10px]">· Shared Screen</span>}
             </span>
           </div>
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -144,7 +167,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
               {participant && ROLE_LABELS[participant.role]}
             </span>
             <ConnectionIndicator status={participant?.connectionStatus} className="opacity-80" />
-            {!isMicActive && (
+            {!isMicActive && !isScreenShareView && (
               <div className="bg-red-500 p-0.5 rounded-full">
                 <MicOff className="w-3 h-3 text-white" />
               </div>
