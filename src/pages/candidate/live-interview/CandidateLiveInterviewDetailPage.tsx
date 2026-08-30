@@ -5,12 +5,11 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Calendar, Clock, Video, Users, CheckCircle,
-  XCircle, MapPin, Info, Play,
+  XCircle, MapPin, Info, Play, Settings, RefreshCw,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { interviewApi } from '../../../services/api/interview.api';
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
-import { RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const CandidateLiveInterviewDetailPage: React.FC = () => {
@@ -250,7 +249,10 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
 
       {/* Tech check reminder */}
       <div className="bg-blue-50 border border-blue-100 rounded-2xl p-5">
-        <h3 className="text-sm font-bold text-blue-900 mb-2">⚙️ Before You Join</h3>
+        <h3 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-1.5">
+          <Settings className="w-4 h-4 text-blue-700" />
+          <span>Before You Join</span>
+        </h3>
         <ul className="space-y-1.5 text-xs text-blue-700">
           {[
             'Test your microphone and camera in browser settings',

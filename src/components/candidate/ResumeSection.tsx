@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   FileText, Upload, Trash2, RefreshCw, CheckCircle, AlertCircle, Loader2,
-  ExternalLink, Sparkles, Clock, ArrowRight, X
+  ExternalLink, Sparkles, Clock, ArrowRight, X, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { candidateApi, type CandidateResume } from '../../services/api/candidate.api';
@@ -255,7 +255,7 @@ export const ResumeSection: React.FC = () => {
                         : 'bg-slate-200 text-slate-500'
                     }`}
                   >
-                    {isPast ? '✓' : idx + 1}
+                    {isPast ? <Check className="w-3 h-3 text-white" /> : idx + 1}
                   </div>
                   <span
                     className={`text-[9px] mt-1 font-medium truncate max-w-full ${

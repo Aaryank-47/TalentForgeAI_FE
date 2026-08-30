@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Lock, Bell, Shield, Trash2, Eye, EyeOff, ChevronRight, Loader2 } from 'lucide-react';
+import { Lock, Shield, Trash2, Eye, EyeOff, Loader2, Globe } from 'lucide-react';
+import { FaGithub, FaLinkedin } from 'react-icons/fa6';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { candidateApi, type UpdateCandidateProfileDto } from '../../services/api/candidate.api';
 import { authApi } from '../../services/api/auth.api';
@@ -450,24 +451,29 @@ const CandidateSettingsPage = () => {
                 <h2 className="font-display font-bold text-[#0F172A] text-base mb-4">Connected Accounts</h2>
                 <div className="space-y-3">
                   {[
-                    { name: 'Google', connected: true, icon: '🔵' },
-                    { name: 'LinkedIn', connected: false, icon: '🔷' },
-                    { name: 'GitHub', connected: true, icon: '⚫' },
-                  ].map(acc => (
-                    <div key={acc.name} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E7EB] bg-slate-50">
-                      <div className="flex items-center gap-3">
-                        <span className="text-xl">{acc.icon}</span>
-                        <div>
-                          <p className="text-sm font-semibold text-slate-900">{acc.name}</p>
-                          <p className="text-xs text-slate-500">{acc.connected ? 'Connected' : 'Not connected'}</p>
+                    { name: 'Google', connected: true, icon: Globe, color: 'text-blue-500 bg-blue-50' },
+                    { name: 'LinkedIn', connected: false, icon: FaLinkedin, color: 'text-sky-600 bg-sky-50' },
+                    { name: 'GitHub', connected: true, icon: FaGithub, color: 'text-slate-800 bg-slate-100' },
+                  ].map(acc => {
+                    const Icon = acc.icon;
+                    return (
+                      <div key={acc.name} className="flex items-center justify-between p-3.5 rounded-xl border border-[#E5E7EB] bg-slate-50">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${acc.color}`}>
+                            <Icon className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-slate-900">{acc.name}</p>
+                            <p className="text-xs text-slate-500">{acc.connected ? 'Connected' : 'Not connected'}</p>
+                          </div>
                         </div>
+                        <button className={`text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors ${acc.connected ? 'text-red-600 border border-red-200 hover:bg-red-50' : 'text-primary-600 border border-primary-200 hover:bg-primary-50'
+                          }`}>
+                          {acc.connected ? 'Disconnect' : 'Connect'}
+                        </button>
                       </div>
-                      <button className={`text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors ${acc.connected ? 'text-red-600 border border-red-200 hover:bg-red-50' : 'text-primary-600 border border-primary-200 hover:bg-primary-50'
-                        }`}>
-                        {acc.connected ? 'Disconnect' : 'Connect'}
-                      </button>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 

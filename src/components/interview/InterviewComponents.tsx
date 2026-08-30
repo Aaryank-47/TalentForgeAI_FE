@@ -3,7 +3,7 @@
  * All components are mock/simulation UI — no real camera/mic/AI
  */
 import React from 'react';
-import { Check, Clock, AlertTriangle, Shield, Volume2, Eye, Monitor } from 'lucide-react';
+import { Check, Clock, AlertTriangle, Shield, Volume2, Eye, Monitor, Bot, User } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
 // InterviewStepper
@@ -191,7 +191,7 @@ export const AIInterviewerCard: React.FC<AIInterviewerCardProps> = ({ state, nam
       <div className="flex flex-col items-center gap-3 mb-4">
         <div className="relative">
           <div className={`${compact ? 'w-14 h-14' : 'w-20 h-20'} rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center shadow-lg shadow-primary-900/40`}>
-            <span className={compact ? 'text-2xl' : 'text-3xl'}>🤖</span>
+            <Bot className={compact ? 'w-7 h-7 text-white' : 'w-10 h-10 text-white'} />
           </div>
           {/* State pulse ring */}
           {(state === 'speaking') && (
@@ -335,15 +335,15 @@ export const TimelineCard: React.FC<{
   label: string;
   detail: string;
   status: TimelineStatus;
-  icon: string;
+  icon: React.ReactNode;
   isLast?: boolean;
 }> = ({ label, detail, status, icon, isLast }) => {
-  const dotStyle = status === 'done' ? 'bg-emerald-500 border-emerald-200' : status === 'active' ? 'bg-primary-600 border-primary-200 animate-mic-pulse' : 'bg-slate-300 border-slate-200';
+  const dotStyle = status === 'done' ? 'bg-emerald-500 text-white border-emerald-200' : status === 'active' ? 'bg-primary-600 text-white border-primary-200 animate-mic-pulse' : 'bg-slate-100 text-slate-400 border-slate-200';
   const lineStyle = status === 'done' ? 'bg-emerald-200' : 'bg-slate-200';
   return (
     <div className="flex gap-4">
       <div className="flex flex-col items-center">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 text-base flex-shrink-0 ${dotStyle} ${status !== 'pending' ? 'shadow-sm' : ''}`}>
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 text-sm flex-shrink-0 ${dotStyle} ${status !== 'pending' ? 'shadow-sm' : ''}`}>
           {icon}
         </div>
         {!isLast && <div className={`w-0.5 flex-1 min-h-[24px] mt-1 ${lineStyle}`} />}
@@ -371,7 +371,7 @@ export const TimelineCard: React.FC<{
 // ─────────────────────────────────────────────────────────────
 type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
 export const UploaderCard: React.FC<{
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   detail: string;
   status: UploadStatus;
@@ -387,7 +387,7 @@ export const UploaderCard: React.FC<{
   return (
     <div className={`card p-4 transition-all ${status === 'done' ? 'border-emerald-200 bg-emerald-50/50' : status === 'uploading' ? 'border-primary-200 bg-primary-50/50' : ''}`}>
       <div className="flex items-center gap-3">
-        <div className="text-2xl flex-shrink-0">{icon}</div>
+        <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 flex-shrink-0">{icon}</div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between mb-1">
             <p className="text-sm font-semibold text-slate-800">{label}</p>
@@ -505,8 +505,8 @@ export const ConversationMessage: React.FC<{
     <div className={`flex flex-col ${isAI ? 'items-start' : 'items-end'} gap-1 animate-fade-in-up`}>
       {/* Speaker label */}
       <div className={`flex items-center gap-2 px-1 ${isAI ? 'flex-row' : 'flex-row-reverse'}`}>
-        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-black flex-shrink-0 ${isAI ? 'bg-primary-600 text-white' : 'bg-slate-300 text-slate-700'}`}>
-          {isAI ? '🤖' : '👤'}
+        <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${isAI ? 'bg-primary-600 text-white' : 'bg-slate-300 text-slate-700'}`}>
+          {isAI ? <Bot className="w-3 h-3" /> : <User className="w-3 h-3" />}
         </div>
         <span className="text-[10px] font-semibold text-slate-400">
           {isAI ? 'AI Interviewer' : 'You'}

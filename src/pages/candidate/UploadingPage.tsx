@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { Bot, Video, FileText, BarChart2 } from 'lucide-react';
 import { aiInterviewData } from '../../constants/candidate_mockData';
 import { UploaderCard } from '../../components/interview/InterviewComponents';
 
@@ -12,6 +13,13 @@ interface UploadStep {
   detail: string;
   status: UploadStatus;
 }
+
+const STEP_ICONS: Record<string, React.ReactNode> = {
+  recording: <Video className="w-4 h-4 text-blue-600" />,
+  transcript: <FileText className="w-4 h-4 text-amber-600" />,
+  analysis: <Bot className="w-4 h-4 text-violet-600" />,
+  report: <BarChart2 className="w-4 h-4 text-emerald-600" />,
+};
 
 export default function UploadingPage() {
   const { id } = useParams();
@@ -50,7 +58,7 @@ export default function UploadingPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-br from-primary-500 to-primary-700 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-primary-200">
-            <span className="text-4xl">🤖</span>
+            <Bot className="w-10 h-10 text-white" />
           </div>
           <h1 className="text-2xl font-display font-bold text-slate-900">
             {done ? 'Processing Complete!' : 'Submitting Your Interview'}
@@ -65,7 +73,7 @@ export default function UploadingPage() {
           {steps.map(step => (
             <UploaderCard
               key={step.id}
-              icon={step.icon}
+              icon={STEP_ICONS[step.id] || <FileText className="w-4 h-4 text-slate-600" />}
               label={step.label}
               detail={step.detail}
               status={step.status}

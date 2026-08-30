@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { ChevronRight, ArrowLeft, ShieldAlert } from 'lucide-react';
 import { InterviewStepper } from '../../components/interview/InterviewComponents';
 import SystemCheck from '../../modules/shared/system-check/SystemCheck';
 
@@ -26,7 +26,7 @@ export default function SystemCheckPage() {
       </div>
 
       <div>
-        <h1 className="text-xl font-display font-bold text-slate-900">System Check</h1>
+        <h1 className="text-xl font-display font-bold text-slate-900">System & Environment Check</h1>
         <p className="text-sm text-slate-500 mt-1">Verifying your setup before the interview begins. All checks must pass.</p>
       </div>
 
@@ -38,7 +38,10 @@ export default function SystemCheckPage() {
 
       {/* Note about monitoring */}
       <div className="card p-4 border-amber-200 bg-amber-50">
-        <p className="text-xs text-amber-700 font-semibold mb-1">📋 Monitoring Notice</p>
+        <p className="text-xs text-amber-700 font-semibold mb-1 flex items-center gap-1.5">
+          <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+          <span>Monitoring Notice</span>
+        </p>
         <p className="text-xs text-amber-600">
           Tab switches, face visibility, and background noise are monitored throughout the interview.
           This data is shared with the recruiter. Final decisions remain with the recruiter.

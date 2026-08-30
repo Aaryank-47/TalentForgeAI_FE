@@ -13,7 +13,7 @@
  */
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Flag, Lightbulb, Monitor, Clock, Mic, MicOff, RotateCcw, Volume2, VolumeX, Send, RefreshCw } from 'lucide-react';
+import { Flag, Lightbulb, Monitor, Clock, Mic, MicOff, RotateCcw, Volume2, VolumeX, Send, RefreshCw, Check, Bot } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -307,7 +307,7 @@ export default function InterviewRoomPage() {
     if (aiState !== 'waiting') return;
     if (!stt.isSupported) {
       toast.error(
-        '🎙 Speech recognition is not supported in this browser. Try Chrome or Edge.',
+        'Speech recognition is not supported in this browser. Try Chrome or Edge.',
         { duration: 6000 }
       );
       return;
@@ -440,7 +440,7 @@ export default function InterviewRoomPage() {
                     className={`flex items-center gap-2.5 p-2 rounded-lg text-xs transition-all ${isCurrent ? 'bg-primary-50 border border-primary-200' : isAnswered ? 'bg-emerald-50 border border-emerald-200' : 'opacity-60 bg-slate-50 border border-slate-100'}`}
                   >
                     <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold flex-shrink-0 ${isCurrent ? 'bg-primary-600 text-white' : isAnswered ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                      {isAnswered ? '✓' : i + 1}
+                      {isAnswered ? <Check className="w-3 h-3 text-white" /> : i + 1}
                     </div>
                     <span className={`truncate ${isCurrent ? 'text-primary-800 font-semibold' : isAnswered ? 'text-emerald-700' : 'text-slate-500'}`}>
                       {isCurrent ? currentCategory : isAnswered ? `Question ${i + 1} (Submitted)` : `Question ${i + 1}`}
@@ -512,8 +512,8 @@ export default function InterviewRoomPage() {
           <div className="flex-1 flex flex-col overflow-hidden px-6 pt-4">
             {messages.length === 0 && !liveMessage && (
               <div className="flex flex-col items-center justify-center flex-1 gap-3 text-slate-400">
-                <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center text-2xl animate-gentle-spin">
-                  🤖
+                <div className="w-12 h-12 rounded-2xl bg-primary-100 flex items-center justify-center text-primary-600">
+                  <Bot className="w-6 h-6 animate-gentle-spin" />
                 </div>
                 <p className="text-sm font-medium">Connecting to AI Interview room…</p>
               </div>

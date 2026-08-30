@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Clock, Home, Bot, ArrowUpRight } from 'lucide-react';
+import { Clock, Home, Bot, ArrowUpRight, CheckCircle2, User, Target, Mail } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { interviewApi } from '../../services/api/interview.api';
 import { TimelineCard, InterviewStatusBadge } from '../../components/interview/InterviewComponents';
@@ -45,28 +45,28 @@ export default function InterviewStatusPage() {
       label: 'Interview Submitted',
       detail: submittedDate,
       status: 'done' as const,
-      icon: '✅',
+      icon: <CheckCircle2 className="w-5 h-5" />,
     },
     {
       id: 'ai_eval',
       label: 'AI Evaluation & Scoring',
       detail: status === 'COMPLETED' ? 'Evaluation scores and transcript generated' : 'Analyzing responses...',
       status: 'done' as const,
-      icon: '🤖',
+      icon: <Bot className="w-5 h-5" />,
     },
     {
       id: 'review',
       label: 'Recruiter Review',
       detail: 'Hiring team is reviewing your scorecard',
       status: 'active' as const,
-      icon: '👤',
+      icon: <User className="w-5 h-5" />,
     },
     {
       id: 'decision',
       label: 'Decision Notification',
       detail: 'Will be notified via registered email',
       status: 'pending' as const,
-      icon: '🎯',
+      icon: <Target className="w-5 h-5" />,
     },
   ];
 
@@ -157,7 +157,7 @@ export default function InterviewStatusPage() {
 
       {/* Notification note */}
       <div className="card p-4 border-blue-200 bg-blue-50 flex items-start gap-3">
-        <span className="text-xl flex-shrink-0">📧</span>
+        <Mail className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-sm font-bold text-blue-800">Email Notification Enabled</p>
           <p className="text-xs text-blue-600 mt-0.5">

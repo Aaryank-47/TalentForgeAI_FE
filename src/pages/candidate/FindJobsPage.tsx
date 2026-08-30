@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, MapPin, X, Bookmark, CheckCircle,
-  Briefcase, Building, Globe, Loader2, FileText, AlertCircle
+  Briefcase, Building, Globe, Loader2, FileText, AlertCircle, Building2, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -29,7 +29,7 @@ const JobCard = ({
     >
       <div className="flex items-start gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
-          {(job as any).company?.companyName?.charAt(0) || '🏢'}
+          {(job as any).company?.companyName?.charAt(0) || <Building2 className="w-5 h-5" />}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2">
@@ -58,7 +58,7 @@ const JobCard = ({
           <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1.5">
             <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{job.location || job.workplaceType}</span>
             <span>·</span>
-            <span>🌐 {job.employmentType?.replace('_', ' ')}</span>
+            <span className="flex items-center gap-1"><Globe className="w-3 h-3" />{job.employmentType?.replace('_', ' ')}</span>
             <span>·</span>
             <span className="font-semibold text-slate-700">
               {job.hideSalary
@@ -98,7 +98,7 @@ const CompanyCard = ({
       <img src={company.logo} alt={company.companyName} className="w-10 h-10 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
     ) : (
       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
-        {company.companyName?.charAt(0) || '🏢'}
+        {company.companyName?.charAt(0) || <Building2 className="w-5 h-5" />}
       </div>
     )}
     <div className="flex-1 min-w-0">
@@ -223,7 +223,7 @@ const JobDetailPanel = ({
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold text-lg shadow-sm">
-              {company?.companyName?.charAt(0) || '🏢'}
+              {company?.companyName?.charAt(0) || <Building2 className="w-6 h-6" />}
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
@@ -352,8 +352,9 @@ const JobDetailPanel = ({
             <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wide">Perks & Benefits</h4>
             <div className="flex flex-wrap gap-2">
               {(job.benefits || []).map((b, i) => (
-                <span key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium px-3 py-1.5 rounded-full">
-                  ✓ {b.benefit || (b as any)}
+                <span key={i} className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-medium px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                  <Check className="w-3 h-3 text-emerald-600" />
+                  <span>{b.benefit || (b as any)}</span>
                 </span>
               ))}
             </div>
@@ -363,7 +364,7 @@ const JobDetailPanel = ({
           <div>
             <div className="flex items-center gap-2 mb-3">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold">
-                {company?.companyName?.charAt(0) || '🏢'}
+                {company?.companyName?.charAt(0) || <Building2 className="w-5 h-5" />}
               </div>
               <div>
                 <p className="font-bold text-slate-900">{company?.companyName || 'TalentForge Employer'}</p>
@@ -396,7 +397,7 @@ const CompanyDetailPanel = ({ company, onClose }: { company: CompanyDetails; onC
             <img src={company.logo} alt={company.companyName} className="w-14 h-14 rounded-2xl object-cover border-4 border-white shadow-md bg-white" />
           ) : (
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-700 to-indigo-800 flex items-center justify-center text-white font-bold text-2xl border-4 border-white shadow-md">
-              {company.companyName?.charAt(0) || '🏢'}
+              {company.companyName?.charAt(0) || <Building2 className="w-7 h-7" />}
             </div>
           )}
         </div>

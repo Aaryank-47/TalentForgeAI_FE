@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronRight, ArrowLeft, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronRight, ArrowLeft, Check, ChevronDown, ChevronUp, Mic, Eye, Clock, BookOpen, VolumeX, Wifi, Lightbulb, Info } from 'lucide-react';
 import { aiInterviewData } from '../../constants/candidate_mockData';
 import { InterviewStepper } from '../../components/interview/InterviewComponents';
 
@@ -12,6 +12,14 @@ const STEPS = [
   { label: 'Waiting Room' },
   { label: 'Interview' },
 ];
+
+const TIP_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  mic: Mic,
+  eye: Eye,
+  clock: Clock,
+  book: BookOpen,
+  'volume-x': VolumeX,
+};
 
 export default function PreparationCenterPage() {
   const { id } = useParams();
@@ -43,15 +51,22 @@ export default function PreparationCenterPage() {
       <div className="card p-5">
         <h3 className="font-bold text-slate-900 mb-4">Interview Tips</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {preparation.tips.map(tip => (
-            <div key={tip.title} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <div className="text-2xl mb-2">{tip.icon}</div>
-              <p className="text-sm font-semibold text-slate-800 mb-1">{tip.title}</p>
-              <p className="text-xs text-slate-500 leading-relaxed">{tip.desc}</p>
-            </div>
-          ))}
+          {preparation.tips.map(tip => {
+            const Icon = TIP_ICON_MAP[tip.icon] || Info;
+            return (
+              <div key={tip.title} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center mb-2">
+                  <Icon className="w-4 h-4" />
+                </div>
+                <p className="text-sm font-semibold text-slate-800 mb-1">{tip.title}</p>
+                <p className="text-xs text-slate-500 leading-relaxed">{tip.desc}</p>
+              </div>
+            );
+          })}
           <div className="bg-primary-50 border border-primary-200 rounded-xl p-4">
-            <div className="text-2xl mb-2">🌐</div>
+            <div className="w-8 h-8 rounded-lg bg-primary-100 text-primary-700 flex items-center justify-center mb-2">
+              <Wifi className="w-4 h-4" />
+            </div>
             <p className="text-sm font-semibold text-primary-800 mb-1">Stable Internet</p>
             <p className="text-xs text-primary-600 leading-relaxed">Use a stable Wi-Fi connection. Avoid switching networks during the interview.</p>
           </div>
@@ -105,7 +120,10 @@ export default function PreparationCenterPage() {
               {expandedPractice === i && (
                 <div className="px-4 pb-4 bg-slate-50 border-t border-slate-200">
                   <div className="mt-3 p-3 bg-primary-50 rounded-xl border border-primary-100">
-                    <p className="text-xs text-primary-700 font-semibold mb-1">💡 Tip: Use the STAR method</p>
+                    <p className="text-xs text-primary-700 font-semibold mb-1 flex items-center gap-1.5">
+                      <Lightbulb className="w-3.5 h-3.5 text-primary-600" />
+                      <span>Tip: Use the STAR method</span>
+                    </p>
                     <p className="text-xs text-primary-600">Structure your answer: <strong>S</strong>ituation → <strong>T</strong>ask → <strong>A</strong>ction → <strong>R</strong>esult</p>
                   </div>
                 </div>
@@ -117,7 +135,10 @@ export default function PreparationCenterPage() {
 
       {/* About this interview */}
       <div className="card p-4 bg-blue-50 border-blue-200">
-        <p className="text-xs text-blue-700 font-semibold mb-1">📋 About Your Interview</p>
+        <p className="text-xs text-blue-700 font-semibold mb-1 flex items-center gap-1.5">
+          <Info className="w-3.5 h-3.5 text-blue-600" />
+          <span>About Your Interview</span>
+        </p>
         <p className="text-xs text-blue-600">
           You will be answering {interviewDetail.questionCount} questions in approximately {interviewDetail.estimatedDuration}.
           The AI interviewer will ask each question verbally. Wait for it to finish before responding.

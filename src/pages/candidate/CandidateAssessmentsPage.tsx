@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Clock, ChevronRight, MoreVertical, Play, CheckCircle, AlertCircle, Loader2, Sparkles, Building, ExternalLink } from 'lucide-react';
+import { Clock, ChevronRight, MoreVertical, Play, CheckCircle, AlertCircle, Loader2, Sparkles, Building, ExternalLink, Building2, Mail, FileText, BarChart2 } from 'lucide-react';
 import { assessmentApi } from '../../services/api/assessment.api';
 import { candidateApi } from '../../services/api/candidate.api';
 import { candidateKeys } from '../../constants/queryKeys';
@@ -136,7 +136,7 @@ const AssessmentsPage = () => {
                                   <img src={company.logo} alt="" className="w-11 h-11 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
                                 ) : (
                                   <div className="w-11 h-11 bg-gradient-to-br from-primary-600 to-indigo-700 rounded-xl flex items-center justify-center text-white font-bold text-base flex-shrink-0">
-                                    {company?.companyName?.charAt(0) || '🏢'}
+                                    {company?.companyName?.charAt(0) || <Building2 className="w-5 h-5" />}
                                   </div>
                                 )}
                                 <div>
@@ -211,7 +211,7 @@ const AssessmentsPage = () => {
                                 <td className="px-4 py-3.5">
                                   <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-indigo-700 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                                      {company?.companyName?.charAt(0) || '🏢'}
+                                      {company?.companyName?.charAt(0) || <Building2 className="w-4 h-4" />}
                                     </div>
                                     <div>
                                       <p className="text-xs font-bold text-slate-900">{a.assessment?.title}</p>
@@ -260,18 +260,23 @@ const AssessmentsPage = () => {
           <h3 className="text-sm font-bold text-slate-900 mb-3">How Assessments Work</h3>
           <div className="space-y-3">
             {[
-              { step: '1', icon: '📨', title: 'Accept Invitation', desc: "You'll receive an assessment invitation from the hiring company." },
-              { step: '2', icon: '📝', title: 'Take Assessment', desc: 'Complete the test within the given time limit. Stay focused!' },
-              { step: '3', icon: '📊', title: 'Get Results', desc: 'Results are automatically evaluated and sent to the recruiter.' },
-            ].map(s => (
-              <div key={s.step} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-[#E5E7EB]">
-                <span className="text-2xl flex-shrink-0">{s.icon}</span>
-                <div>
-                  <p className="text-xs font-bold text-slate-900">{s.title}</p>
-                  <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">{s.desc}</p>
+              { step: '1', icon: Mail, title: 'Accept Invitation', desc: "You'll receive an assessment invitation from the hiring company." },
+              { step: '2', icon: FileText, title: 'Take Assessment', desc: 'Complete the test within the given time limit. Stay focused!' },
+              { step: '3', icon: BarChart2, title: 'Get Results', desc: 'Results are automatically evaluated and sent to the recruiter.' },
+            ].map(s => {
+              const Icon = s.icon;
+              return (
+                <div key={s.step} className="flex items-start gap-3 p-3 bg-slate-50 rounded-xl border border-[#E5E7EB]">
+                  <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center flex-shrink-0">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">{s.title}</p>
+                    <p className="text-[10px] text-slate-500 leading-relaxed mt-0.5">{s.desc}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

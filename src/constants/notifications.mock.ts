@@ -15,7 +15,7 @@ export const mockInterviewNotifications: InterviewNotification[] = [
     time: 'Just now',
     timestamp: '2026-06-28T11:00:00Z',
     isRead: false,
-    icon: '🟢',
+    icon: 'radio',
   },
   {
     id: 'notif_002',
@@ -29,7 +29,7 @@ export const mockInterviewNotifications: InterviewNotification[] = [
     time: '1h ago',
     timestamp: '2026-06-28T10:00:00Z',
     isRead: false,
-    icon: '📅',
+    icon: 'calendar',
   },
   {
     id: 'notif_003',
@@ -41,7 +41,7 @@ export const mockInterviewNotifications: InterviewNotification[] = [
     time: '2h ago',
     timestamp: '2026-06-28T09:00:00Z',
     isRead: false,
-    icon: '⏰',
+    icon: 'clock',
   },
   {
     id: 'notif_004',
@@ -53,7 +53,7 @@ export const mockInterviewNotifications: InterviewNotification[] = [
     time: '1d ago',
     timestamp: '2026-06-20T12:00:00Z',
     isRead: true,
-    icon: '✅',
+    icon: 'check',
   },
   {
     id: 'notif_005',
@@ -65,7 +65,7 @@ export const mockInterviewNotifications: InterviewNotification[] = [
     time: '1d ago',
     timestamp: '2026-06-20T13:00:00Z',
     isRead: true,
-    icon: '💬',
+    icon: 'message-square',
   },
   {
     id: 'notif_006',
@@ -77,7 +77,7 @@ export const mockInterviewNotifications: InterviewNotification[] = [
     time: '2d ago',
     timestamp: '2026-06-15T10:00:00Z',
     isRead: true,
-    icon: '❌',
+    icon: 'x-circle',
   },
   {
     id: 'notif_007',
@@ -89,7 +89,7 @@ export const mockInterviewNotifications: InterviewNotification[] = [
     time: '3d ago',
     timestamp: '2026-06-14T08:00:00Z',
     isRead: true,
-    icon: '🔄',
+    icon: 'refresh-cw',
   },
 ];
 
@@ -106,7 +106,7 @@ export const mockCandidateNotifications: InterviewNotification[] = [
     time: 'Just now',
     timestamp: '2026-06-28T11:00:00Z',
     isRead: false,
-    icon: '🟢',
+    icon: 'radio',
   },
   {
     id: 'cnotif_002',
@@ -119,7 +119,7 @@ export const mockCandidateNotifications: InterviewNotification[] = [
     time: '8d ago',
     timestamp: '2026-06-20T09:00:00Z',
     isRead: true,
-    icon: '📅',
+    icon: 'calendar',
   },
   {
     id: 'cnotif_003',
@@ -131,7 +131,7 @@ export const mockCandidateNotifications: InterviewNotification[] = [
     time: '30m ago',
     timestamp: '2026-06-28T10:30:00Z',
     isRead: false,
-    icon: '⏰',
+    icon: 'clock',
   },
 ];
 

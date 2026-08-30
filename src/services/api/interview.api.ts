@@ -99,6 +99,9 @@ export const interviewApi = {
   submitEvaluation: (companyId: string, sessionId: string, payload: any) =>
     api.post(`/interviews/${companyId}/interview-sessions/${sessionId}/evaluation`, payload),
 
+  submitRecruiterEvaluation: (companyId: string, sessionId: string, payload: any) =>
+    api.post(`/interviews/${companyId}/interview-sessions/${sessionId}/evaluation`, payload),
+
   getEvaluations: (companyId: string, sessionId: string) =>
     api.get(`/interviews/${companyId}/interview-sessions/${sessionId}/evaluation`),
 

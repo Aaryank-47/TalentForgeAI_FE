@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, X, Briefcase, Loader2, FileText, XCircle, Check
+  Search, X, Briefcase, Loader2, FileText, XCircle, Check, Building2, MapPin, Globe, AlertTriangle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -30,7 +30,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 
   return (
     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getBadgeStyle()}`}>
-      {status || 'APPLIED'}
+      {status?.replace('_', ' ') || 'APPLIED'}
     </span>
   );
 };
@@ -76,7 +76,7 @@ const ApplicationDetailPanel = ({
               <img src={company.logo} alt={company.companyName} className="w-11 h-11 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
             ) : (
               <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold text-base flex-shrink-0 shadow-2xs">
-                {company?.companyName?.charAt(0) || '🏢'}
+                {company?.companyName?.charAt(0) || <Building2 className="w-5 h-5" />}
               </div>
             )}
             <div>
@@ -85,11 +85,17 @@ const ApplicationDetailPanel = ({
                 <StatusBadge status={app.status} />
               </div>
               <p className="text-xs text-slate-500 mt-0.5">{company?.companyName || 'TalentForge Employer'}</p>
-              <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
-                <span>📍 {job?.location || job?.workplaceType}</span>
+              <div className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-2">
+                <span className="flex items-center gap-1">
+                  <MapPin className="w-3 h-3 text-slate-400" />
+                  {job?.location || job?.workplaceType}
+                </span>
                 <span>·</span>
-                <span>🌐 {job?.employmentType?.replace('_', ' ')}</span>
-              </p>
+                <span className="flex items-center gap-1">
+                  <Globe className="w-3 h-3 text-slate-400" />
+                  {job?.employmentType?.replace('_', ' ')}
+                </span>
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
@@ -272,7 +278,10 @@ const ApplicationDetailPanel = ({
             </div>
 
             <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl space-y-1">
-              <p className="text-xs font-bold text-red-800">⚠️ Irreversible Action</p>
+              <p className="text-xs font-bold text-red-800 flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 text-red-600" />
+                <span>Irreversible Action</span>
+              </p>
               <p className="text-xs text-red-700 leading-relaxed">
                 Once you withdraw this application, <strong>you cannot apply for this job posting again</strong>. Your application status will be permanently marked as withdrawn.
               </p>
@@ -464,7 +473,7 @@ const MyApplicationsPage = () => {
                       <img src={app.job.company.logo} alt="" className="w-10 h-10 rounded-xl object-cover border border-slate-200 flex-shrink-0" />
                     ) : (
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-600 to-indigo-700 flex items-center justify-center text-white font-bold flex-shrink-0 shadow-2xs">
-                        {app.job?.company?.companyName?.charAt(0) || '🏢'}
+                        {app.job?.company?.companyName?.charAt(0) || <Building2 className="w-4 h-4" />}
                       </div>
                     )}
                     <div className="flex-1 min-w-0">

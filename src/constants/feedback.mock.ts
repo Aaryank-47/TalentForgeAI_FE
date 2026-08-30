@@ -93,6 +93,8 @@ export const mockRecruiterEvaluations: RecruiterEvaluation[] = [
   },
 ];
 
+import { MessageSquare, Code, Brain, Users, Sparkles } from 'lucide-react';
+
 // ─── Rating Labels ────────────────────────────────────────────
 export const ratingLabels: Record<FeedbackRating, string> = {
   1: 'Poor',
@@ -103,18 +105,18 @@ export const ratingLabels: Record<FeedbackRating, string> = {
 };
 
 export const ratingEmojis: Record<FeedbackRating, string> = {
-  1: '😞',
-  2: '😕',
-  3: '😐',
-  4: '🙂',
-  5: '😄',
+  1: '★☆☆☆☆',
+  2: '★★☆☆☆',
+  3: '★★★☆☆',
+  4: '★★★★☆',
+  5: '★★★★★',
 };
 
 // ─── Evaluation dimension labels ─────────────────────────────
 export const evaluationDimensions = [
-  { key: 'communication', label: 'Communication', icon: '💬', color: 'bg-blue-500' },
-  { key: 'technical', label: 'Technical Skills', icon: '⚙️', color: 'bg-violet-500' },
-  { key: 'problemSolving', label: 'Problem Solving', icon: '🧠', color: 'bg-amber-500' },
-  { key: 'behaviour', label: 'Behaviour', icon: '🤝', color: 'bg-emerald-500' },
-  { key: 'cultureFit', label: 'Culture Fit', icon: '🌟', color: 'bg-pink-500' },
+  { key: 'communication', label: 'Communication', icon: MessageSquare, color: 'bg-blue-500' },
+  { key: 'technical', label: 'Technical Skills', icon: Code, color: 'bg-violet-500' },
+  { key: 'problemSolving', label: 'Problem Solving', icon: Brain, color: 'bg-amber-500' },
+  { key: 'behaviour', label: 'Behaviour', icon: Users, color: 'bg-emerald-500' },
+  { key: 'cultureFit', label: 'Culture Fit', icon: Sparkles, color: 'bg-pink-500' },
 ] as const;

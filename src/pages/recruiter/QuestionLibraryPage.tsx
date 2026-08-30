@@ -32,6 +32,7 @@ import {
   Terminal,
   ChevronRight,
   Filter,
+  Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -601,13 +602,14 @@ export default function QuestionLibraryPage() {
                         {q.mcqDetail.options.map((opt, i) => (
                           <span
                             key={i}
-                            className={`text-[11px] px-2 py-0.5 rounded-md border ${
+                            className={`text-[11px] px-2 py-0.5 rounded-md border flex items-center gap-1 ${
                               opt.isCorrect
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold'
                                 : 'bg-slate-50 text-slate-600 border-slate-200'
                             }`}
                           >
-                            {opt.isCorrect ? '✓ ' : ''}{opt.optionText}
+                            {opt.isCorrect && <Check className="w-3 h-3 text-emerald-600 flex-shrink-0" />}
+                            <span>{opt.optionText}</span>
                           </span>
                         ))}
                       </div>

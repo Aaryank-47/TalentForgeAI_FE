@@ -568,7 +568,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
                   return updated;
                 });
                 setParticipants((prev) => prev.filter((p) => p.id !== leavingUserId));
-                toast('Participant left the interview.', { icon: '👋' });
+                toast('Participant left the interview.');
               }
               break;
             }
@@ -715,7 +715,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         });
 
         setParticipants((prev) => prev.filter((p) => p.id !== peerId));
-        toast(`Participant left the interview.`, { icon: '👋' });
+        toast(`Participant left the interview.`);
       });
 
       // signaling events

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Clock, Calendar, CheckCircle, AlertTriangle, XCircle, Upload,
+  Clock, CheckCircle, AlertTriangle, XCircle, Upload,
   GitBranch, Globe, FileText, Video, StickyNote, FileDown, Timer
 } from 'lucide-react';
 import SubmissionPanel from '../../components/assessment/SubmissionPanel';
@@ -216,8 +216,9 @@ const ProjectSubmissionPage: React.FC = () => {
               {formatTime(timeLeft)}
             </p>
             {timeLeft < 86400 && (
-              <p className="text-xs text-red-600 mt-2 font-medium animate-recording-pulse">
-                ⚠ Less than 24 hours remaining!
+              <p className="text-xs text-red-600 mt-2 font-medium animate-recording-pulse flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Less than 24 hours remaining!</span>
               </p>
             )}
           </div>

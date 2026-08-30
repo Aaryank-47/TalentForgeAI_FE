@@ -1,8 +1,5 @@
-// ─────────────────────────────────────────────────────────────
-// TalentForge AI — Reschedule Modal
-// ─────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
-import { X, Calendar, Clock, RefreshCw } from 'lucide-react';
+import { X, Calendar, Clock, RefreshCw, Mail } from 'lucide-react';
 import type { LiveInterview } from '../../types/interview.types';
 
 interface RescheduleModalProps {
@@ -117,8 +114,9 @@ export const RescheduleModal: React.FC<RescheduleModalProps> = ({
             />
           </div>
 
-          <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-xl p-3">
-            📧 The candidate will be notified automatically via email.
+          <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+            <span>The candidate will be notified automatically via email.</span>
           </p>
         </div>
 
@@ -216,8 +214,9 @@ export const CancelInterviewModal: React.FC<CancelInterviewModalProps> = ({
             />
           </div>
 
-          <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-xl p-3">
-            📧 The candidate will be notified automatically via email.
+          <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded-xl p-3 flex items-center gap-1.5">
+            <Mail className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+            <span>The candidate will be notified automatically via email.</span>
           </p>
         </div>
 

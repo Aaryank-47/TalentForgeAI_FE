@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Play, Pause, SkipForward, Download, Search, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Play, Pause, SkipForward, Download, Search, AlertTriangle, ClipboardList, Video, FileText, Bot, ShieldAlert, Edit3, CheckCircle, Scale } from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -26,13 +26,13 @@ import {
 
 type Tab = 'overview' | 'recording' | 'transcript' | 'ai-report' | 'integrity' | 'feedback';
 
-const TABS: { key: Tab; label: string; icon: string }[] = [
-  { key: 'overview', label: 'Overview', icon: '📋' },
-  { key: 'recording', label: 'Recording', icon: '🎥' },
-  { key: 'transcript', label: 'Transcript', icon: '📝' },
-  { key: 'ai-report', label: 'AI Report', icon: '🤖' },
-  { key: 'integrity', label: 'Integrity', icon: '🔒' },
-  { key: 'feedback', label: 'Feedback', icon: '✍️' },
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: 'overview', label: 'Overview', icon: ClipboardList },
+  { key: 'recording', label: 'Recording', icon: Video },
+  { key: 'transcript', label: 'Transcript', icon: FileText },
+  { key: 'ai-report', label: 'AI Report', icon: Bot },
+  { key: 'integrity', label: 'Integrity', icon: ShieldAlert },
+  { key: 'feedback', label: 'Feedback', icon: Edit3 },
 ];
 
 const FEEDBACK_OPTIONS = ['Strong Hire', 'Hire', 'Consider', 'Reject'];
@@ -155,18 +155,21 @@ export default function AIInterviewDetailPage() {
       {/* Tabs */}
       <div className="border-b border-slate-200">
         <div className="flex items-center gap-0 overflow-x-auto">
-          {TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
-                activeTab === tab.key ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              <span>{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
+          {TABS.map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                  activeTab === tab.key ? 'border-primary-600 text-primary-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -181,7 +184,6 @@ export default function AIInterviewDetailPage() {
                 {report.dimensions.map(d => (
                   <div key={d.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                     <div className="flex items-center gap-1.5 mb-2">
-                      <span className="text-base">{d.icon}</span>
                       <span className="text-xs text-slate-600 font-medium">{d.label}</span>
                     </div>
                     <p className="text-xl font-black text-slate-900">{d.score}</p>
@@ -197,7 +199,10 @@ export default function AIInterviewDetailPage() {
               <p className="text-sm text-slate-700 leading-relaxed">{report.aiSummary}</p>
               <div className="grid grid-cols-2 gap-4 mt-4">
                 <div>
-                  <p className="text-xs font-semibold text-emerald-700 mb-2">✅ Strengths</p>
+                  <p className="text-xs font-semibold text-emerald-700 mb-2 flex items-center gap-1.5">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Strengths</span>
+                  </p>
                   <ul className="space-y-1">
                     {report.strengths.map(s => (
                       <li key={s} className="text-xs text-slate-600 flex items-start gap-1.5">
@@ -207,7 +212,10 @@ export default function AIInterviewDetailPage() {
                   </ul>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-amber-700 mb-2">⚠️ Areas to Improve</p>
+                  <p className="text-xs font-semibold text-amber-700 mb-2 flex items-center gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Areas to Improve</span>
+                  </p>
                   <ul className="space-y-1">
                     {report.areasForImprovement.map(s => (
                       <li key={s} className="text-xs text-slate-600 flex items-start gap-1.5">
@@ -548,7 +556,10 @@ export default function AIInterviewDetailPage() {
           )}
 
           <div className="card p-4 border-slate-200 bg-slate-50">
-            <p className="text-xs text-slate-500 font-semibold mb-1">⚖️ Recruiter Discretion</p>
+            <p className="text-xs text-slate-700 font-semibold mb-1 flex items-center gap-1.5">
+              <Scale className="w-3.5 h-3.5 text-slate-500" />
+              <span>Recruiter Discretion</span>
+            </p>
             <p className="text-xs text-slate-500 leading-relaxed">
               All integrity data is provided for informational purposes only. The final hiring decision
               remains entirely with the recruiter. Tab switches and noise events may have innocent explanations.
@@ -608,7 +619,10 @@ export default function AIInterviewDetailPage() {
 
           {/* AI Recommendation for reference */}
           <div className="card p-4 bg-violet-50 border-violet-200">
-            <p className="text-xs text-violet-700 font-semibold mb-1">🤖 AI Recommendation (for reference)</p>
+            <p className="text-xs text-violet-700 font-semibold mb-1 flex items-center gap-1.5">
+              <Bot className="w-3.5 h-3.5 text-violet-600" />
+              <span>AI Recommendation (for reference)</span>
+            </p>
             <p className="text-sm font-bold text-violet-900">{report.recommendation}</p>
             <p className="text-xs text-violet-600 mt-1">AI Score: {report.overallScore}/100 · {report.evaluatedAt}</p>
           </div>

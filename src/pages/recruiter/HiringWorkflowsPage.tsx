@@ -6,7 +6,7 @@ import { workflowApi } from '../../services/api/workflow.api';
 import { workflowKeys } from '../../constants/queryKeys';
 import { Badge } from '../../components/ui/Badge';
 import {
-  Plus, GitBranch, Search, Loader2, Trash2, Star, MoreVertical, Pencil,
+  Plus, GitBranch, Search, Loader2, Trash2, Star, MoreVertical, Pencil, X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -303,7 +303,7 @@ export default function HiringWorkflowsPage() {
                 onClick={() => setShowCreateModal(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -348,7 +348,7 @@ export default function HiringWorkflowsPage() {
                         onClick={() => handleRemoveStage(idx)}
                         className="text-slate-400 hover:text-red-500 ml-0.5"
                       >
-                        ✕
+                        <X className="w-3 h-3" />
                       </button>
                     </span>
                   ))}

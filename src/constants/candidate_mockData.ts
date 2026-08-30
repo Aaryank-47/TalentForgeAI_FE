@@ -34,7 +34,7 @@ export const profileData = {
       duration: 'Jan 2022 – Present',
       location: 'Bangalore, India',
       description: 'Led frontend development for enterprise SaaS products. Built scalable component libraries using React and TypeScript. Improved core web vitals by 40%.',
-      logo: '🟦',
+      logo: '',
     },
     {
       id: 'exp_2',
@@ -43,7 +43,7 @@ export const profileData = {
       duration: 'Jun 2020 – Dec 2021',
       location: 'Pune, India',
       description: 'Developed responsive web applications for banking clients. Collaborated with UX designers and backend engineers.',
-      logo: '🟠',
+      logo: '',
     },
   ],
   education: [
@@ -490,9 +490,9 @@ export const applicationsData = [
       { event: 'Offer', date: 'Pending', done: false },
     ],
     notifications: [
-      { type: 'interview', text: 'Your interview has been scheduled', sub: 'Technical Interview on May 16, 2024 at 11:00 AM', date: 'May 14, 2024', icon: '📅', color: 'bg-blue-100 text-blue-700' },
-      { type: 'aiinterview', text: 'AI Interview completed', sub: "Congrats! You've cleared the AI Interview round.", date: 'May 13, 2024', icon: '🤖', color: 'bg-violet-100 text-violet-700' },
-      { type: 'application', text: 'Application received', sub: 'We have received your application.', date: 'May 12, 2024', icon: '✅', color: 'bg-emerald-100 text-emerald-700' },
+      { type: 'interview', text: 'Your interview has been scheduled', sub: 'Technical Interview on May 16, 2024 at 11:00 AM', date: 'May 14, 2024', icon: 'calendar', color: 'bg-blue-100 text-blue-700' },
+      { type: 'aiinterview', text: 'AI Interview completed', sub: "Congrats! You've cleared the AI Interview round.", date: 'May 13, 2024', icon: 'bot', color: 'bg-violet-100 text-violet-700' },
+      { type: 'application', text: 'Application received', sub: 'We have received your application.', date: 'May 12, 2024', icon: 'check', color: 'bg-emerald-100 text-emerald-700' },
     ],
   },
   {
@@ -806,6 +806,7 @@ export const interviewsData = {
       countdownHrs: 20,
       countdownMins: 15,
       countdownSecs: 30,
+      format: 'AI-conducted technical interview (60 min) with real-time evaluation and adaptive questions.',
       instructions: [
         { text: 'The interview will be AI-conducted and recorded. Ensure you are in a quiet place with a stable internet connection.' },
         { text: 'Duration: 60 minutes. The interview includes a mix of technical and behavioral questions.' },
@@ -834,6 +835,7 @@ export const interviewsData = {
       countdownHrs: 45,
       countdownMins: 30,
       countdownSecs: 0,
+      format: '1:1 Technical Portfolio & Design System live evaluation round (60 min).',
       instructions: [],
       aboutRole: '',
       skillsNeeded: [],
@@ -857,6 +859,7 @@ export const interviewsData = {
       countdownHrs: 68,
       countdownMins: 0,
       countdownSecs: 0,
+      format: '1:1 HR & Cultural Fit discussion with Talent Acquisition team (30 min).',
       instructions: [],
       aboutRole: '',
       skillsNeeded: [],
@@ -950,12 +953,12 @@ export const interviewsData = {
 // ── Home Page Data ─────────────────────────────────────────
 export const candidateHomeData = {
   stats: [
-    { label: 'Applications', value: 18, change: '+12% this week', trend: 'up', icon: '📋', color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: 'Under Review', value: 6, change: '+8% this week', trend: 'up', icon: '🔍', color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Interviews', value: 3, change: '+50% this week', trend: 'up', icon: '🎤', color: 'text-violet-600', bg: 'bg-violet-50' },
-    { label: 'Offers', value: 1, change: '🎉 Great going!', trend: 'neutral', icon: '🎁', color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Rejections', value: 2, change: '-20% this week', trend: 'down', icon: '✕', color: 'text-red-500', bg: 'bg-red-50' },
-    { label: 'Profile Views', value: 47, change: '+18% this week', trend: 'up', icon: '👁', color: 'text-primary-600', bg: 'bg-primary-50' },
+    { label: 'Applications', value: 18, change: '+12% this week', trend: 'up', icon: 'file-text', color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Under Review', value: 6, change: '+8% this week', trend: 'up', icon: 'search', color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Interviews', value: 3, change: '+50% this week', trend: 'up', icon: 'video', color: 'text-violet-600', bg: 'bg-violet-50' },
+    { label: 'Offers', value: 1, change: 'Great going!', trend: 'neutral', icon: 'gift', color: 'text-emerald-600', bg: 'bg-emerald-50' },
+    { label: 'Rejections', value: 2, change: '-20% this week', trend: 'down', icon: 'x-circle', color: 'text-red-500', bg: 'bg-red-50' },
+    { label: 'Profile Views', value: 47, change: '+18% this week', trend: 'up', icon: 'eye', color: 'text-primary-600', bg: 'bg-primary-50' },
   ],
   careerInsights: {
     inDemandSkill: { label: 'TypeScript', change: 'High demand • +32% this month' },
@@ -1072,11 +1075,11 @@ export const aiInterviewData = {
       'Where do you see yourself in 5 years?',
     ],
     tips: [
-      { icon: '🎤', title: 'Speak Clearly', desc: 'Enunciate words clearly. Avoid filler words like "um" and "uh".' },
-      { icon: '👁', title: 'Eye Contact', desc: 'Look at the camera, not at your own video feed, for natural eye contact.' },
-      { icon: '⏱', title: 'Pace Yourself', desc: 'Take a breath before answering. 2–3 minutes is plenty of time.' },
-      { icon: '📖', title: 'Use STAR Method', desc: 'Structure answers: Situation, Task, Action, Result.' },
-      { icon: '🔇', title: 'Reduce Noise', desc: 'Close windows, notify others not to disturb, silence notifications.' },
+      { icon: 'mic', title: 'Speak Clearly', desc: 'Enunciate words clearly. Avoid filler words like "um" and "uh".' },
+      { icon: 'eye', title: 'Eye Contact', desc: 'Look at the camera, not at your own video feed, for natural eye contact.' },
+      { icon: 'clock', title: 'Pace Yourself', desc: 'Take a breath before answering. 2–3 minutes is plenty of time.' },
+      { icon: 'book', title: 'Use STAR Method', desc: 'Structure answers: Situation, Task, Action, Result.' },
+      { icon: 'volume-x', title: 'Reduce Noise', desc: 'Close windows, notify others not to disturb, silence notifications.' },
     ],
   },
 
@@ -1150,10 +1153,10 @@ export const aiInterviewData = {
 
   // Uploading screen steps
   uploadSteps: [
-    { id: 'recording', label: 'Uploading Interview Recording', icon: '🎥', detail: 'Securely transmitting your video responses' },
-    { id: 'transcript', label: 'Processing Transcript', icon: '📝', detail: 'Generating text transcript from audio' },
-    { id: 'analysis', label: 'Analyzing Responses', icon: '🤖', detail: 'AI evaluating communication, clarity and content' },
-    { id: 'report', label: 'Generating Evaluation Report', icon: '📊', detail: 'Compiling scores and recommendations' },
+    { id: 'recording', label: 'Uploading Interview Recording', icon: 'video', detail: 'Securely transmitting your video responses' },
+    { id: 'transcript', label: 'Processing Transcript', icon: 'file-text', detail: 'Generating text transcript from audio' },
+    { id: 'analysis', label: 'Analyzing Responses', icon: 'bot', detail: 'AI evaluating communication, clarity and content' },
+    { id: 'report', label: 'Generating Evaluation Report', icon: 'bar-chart-2', detail: 'Compiling scores and recommendations' },
   ],
 
   // Interview submission data
@@ -1171,11 +1174,11 @@ export const aiInterviewData = {
 
   // Status timeline
   statusTimeline: [
-    { id: 'submitted', label: 'Interview Submitted', detail: 'Jun 26, 2026 at 11:58 AM', status: 'done', icon: '✅' },
-    { id: 'ai_review', label: 'Under AI Evaluation', detail: 'Analyzing responses…', status: 'active', icon: '🤖' },
-    { id: 'completed', label: 'Evaluation Complete', detail: 'Expected within 24 hours', status: 'pending', icon: '📊' },
-    { id: 'recruiter', label: 'Recruiter Review', detail: 'Pending evaluation', status: 'pending', icon: '👤' },
-    { id: 'decision', label: 'Decision Ready', detail: 'Will be notified by email', status: 'pending', icon: '🎯' },
+    { id: 'submitted', label: 'Interview Submitted', detail: 'Jun 26, 2026 at 11:58 AM', status: 'done', icon: 'check-circle' },
+    { id: 'ai_review', label: 'Under AI Evaluation', detail: 'Analyzing responses…', status: 'active', icon: 'bot' },
+    { id: 'completed', label: 'Evaluation Complete', detail: 'Expected within 24 hours', status: 'pending', icon: 'bar-chart-2' },
+    { id: 'recruiter', label: 'Recruiter Review', detail: 'Pending evaluation', status: 'pending', icon: 'user' },
+    { id: 'decision', label: 'Decision Ready', detail: 'Will be notified by email', status: 'pending', icon: 'target' },
   ],
 };
 

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
+  ArrowUpRight,
   Star,
   Calendar,
   TrendingUp,
@@ -397,9 +398,15 @@ export const CandidateFeatures = () => {
                 <div className="h-full w-[87%] bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full animate-score-fill" />
               </div>
               <div className="flex gap-2">
-                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Skills ✓</span>
-                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium">Experience ✓</span>
-                <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium">Portfolio ↗</span>
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Check className="w-2.5 h-2.5 text-emerald-600" /> Skills
+                </span>
+                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Check className="w-2.5 h-2.5 text-emerald-600" /> Experience
+                </span>
+                <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <ArrowUpRight className="w-2.5 h-2.5 text-amber-600" /> Portfolio
+                </span>
               </div>
             </div>
           </div>
@@ -967,9 +974,9 @@ const TestimonialCard = ({ r }: { r: Review }) => (
 
     {/* Metric badge */}
     <div className="mb-3 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 rounded-[10px] px-3 py-2 border border-blue-100/50 group-hover:border-blue-200/70 group-hover:from-blue-50/90 group-hover:to-indigo-50/90 transition-all duration-300 min-h-[40px] flex items-center">
-      <span className="font-bold text-[#2563EB] text-[12px] flex items-center gap-1">
-        <span className="inline-block group-hover:scale-110 transition-transform duration-300">📈</span>
-        {r.metric}
+      <span className="font-bold text-[#2563EB] text-[12px] flex items-center gap-1.5">
+        <TrendingUp className="w-3.5 h-3.5 group-hover:scale-110 transition-transform duration-300 flex-shrink-0" />
+        <span>{r.metric}</span>
       </span>
     </div>
 

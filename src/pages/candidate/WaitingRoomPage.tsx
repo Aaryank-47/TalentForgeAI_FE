@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Play, Clock, Wifi, Shield } from 'lucide-react';
+import { Play, Clock, Wifi, Shield, Mic, Camera, Brain, BookOpen, CheckCircle2 } from 'lucide-react';
 import { interviewApi } from '../../services/api/interview.api';
 import { aiInterviewData } from '../../constants/candidate_mockData';
 import { InterviewStepper, AIInterviewerCard, InterviewSummaryCard } from '../../components/interview/InterviewComponents';
@@ -18,10 +18,10 @@ const STEPS = [
 ];
 
 const TIPS_CAROUSEL = [
-  { icon: '🎤', title: 'Speak Clearly', body: 'Speak at a natural, comfortable pace. You have 2–3 minutes per question — there\'s no need to rush.' },
-  { icon: '👀', title: 'Look at the Camera', body: 'Position yourself so your face is centered. Look at the camera to create natural eye contact.' },
-  { icon: '🧠', title: 'Think Before You Speak', body: 'It\'s okay to pause briefly. Taking a moment to structure your thought leads to better answers.' },
-  { icon: '📖', title: 'Use the STAR Method', body: 'For behavioral questions: Situation → Task → Action → Result. Keep answers focused and concrete.' },
+  { icon: Mic, title: 'Speak Clearly', body: 'Speak at a natural, comfortable pace. You have 2–3 minutes per question — there\'s no need to rush.' },
+  { icon: Camera, title: 'Look at the Camera', body: 'Position yourself so your face is centered. Look at the camera to create natural eye contact.' },
+  { icon: Brain, title: 'Think Before You Speak', body: 'It\'s okay to pause briefly. Taking a moment to structure your thought leads to better answers.' },
+  { icon: BookOpen, title: 'Use the STAR Method', body: 'For behavioral questions: Situation → Task → Action → Result. Keep answers focused and concrete.' },
 ];
 
 export default function WaitingRoomPage() {
@@ -142,7 +142,10 @@ export default function WaitingRoomPage() {
               </>
             ) : (
               <>
-                <p className="text-sm font-bold text-emerald-700 mb-3">✅ Ready to begin!</p>
+                <p className="text-sm font-bold text-emerald-700 mb-3 flex items-center justify-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Ready to begin!</span>
+                </p>
                 <button
                   onClick={() => navigate(`/candidate/ai-interview/${id}/room`)}
                   className="btn-primary w-full text-base py-3 flex items-center justify-center gap-2"
@@ -159,7 +162,14 @@ export default function WaitingRoomPage() {
             <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide mb-3">Quick Tip</p>
             <div key={tipIdx} className="animate-fade-in-up">
               <div className="flex items-start gap-3">
-                <span className="text-2xl">{TIPS_CAROUSEL[tipIdx].icon}</span>
+                {(() => {
+                  const TipIcon = TIPS_CAROUSEL[tipIdx].icon;
+                  return (
+                    <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center flex-shrink-0">
+                      <TipIcon className="w-4 h-4" />
+                    </div>
+                  );
+                })()}
                 <div>
                   <p className="text-sm font-bold text-slate-800 mb-1">{TIPS_CAROUSEL[tipIdx].title}</p>
                   <p className="text-xs text-slate-600 leading-relaxed">{TIPS_CAROUSEL[tipIdx].body}</p>

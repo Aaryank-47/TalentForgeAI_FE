@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Bookmark, ArrowUpRight, TrendingUp, TrendingDown, ChevronRight, Star, Zap, Activity } from 'lucide-react';
+import { Search, Bookmark, ArrowUpRight, TrendingUp, TrendingDown, ChevronRight, Star, Zap, Activity, MapPin, Globe, FileText, Video, Gift, XCircle, Calendar, Sparkles, Eye } from 'lucide-react';
 import { candidateHomeData, jobsData, interviewsData, assessmentsData, applicationsData, profileData } from '../../constants/candidate_mockData';
 import { useQuery } from '@tanstack/react-query';
 import { candidateApi } from '../../services/api/candidate.api';
@@ -77,8 +77,9 @@ const CandidateHomePage = () => {
         {/* Welcome text */}
         <div className="flex-1 min-w-0 z-10">
           <p className="text-blue-100 text-sm font-medium mb-1">Welcome back,</p>
-          <h1 className="text-3xl font-display font-bold text-white mb-1">
-            {candidateName} <span className="text-yellow-300">👋</span>
+          <h1 className="text-3xl font-display font-bold text-white mb-1 flex items-center gap-2">
+            <span>{candidateName}</span>
+            <Sparkles className="w-6 h-6 text-yellow-300 inline-block" />
           </h1>
           <p className="text-blue-200 text-sm mb-5">Let's find the right opportunity for you.</p>
           <div className="flex gap-3 flex-wrap">
@@ -141,22 +142,35 @@ const CandidateHomePage = () => {
 
       {/* ── Stat Cards ──────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {candidateHomeData.stats.map((s) => (
-          <div key={s.label} className="card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className={`w-8 h-8 ${s.bg} rounded-lg flex items-center justify-center text-base`}>
-                {s.icon}
+        {candidateHomeData.stats.map((s) => {
+          const renderHomeStatIcon = () => {
+            switch (s.label) {
+              case 'Applications': return <FileText className="w-4 h-4 text-blue-600" />;
+              case 'Under Review': return <Search className="w-4 h-4 text-amber-600" />;
+              case 'Interviews': return <Video className="w-4 h-4 text-violet-600" />;
+              case 'Offers': return <Gift className="w-4 h-4 text-emerald-600" />;
+              case 'Rejections': return <XCircle className="w-4 h-4 text-red-500" />;
+              case 'Profile Views': return <Eye className="w-4 h-4 text-primary-600" />;
+              default: return <Activity className="w-4 h-4" />;
+            }
+          };
+          return (
+            <div key={s.label} className="card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className={`w-8 h-8 ${s.bg} rounded-lg flex items-center justify-center`}>
+                  {renderHomeStatIcon()}
+                </div>
+                {s.trend === 'up' && <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />}
+                {s.trend === 'down' && <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
               </div>
-              {s.trend === 'up' && <TrendingUp className="w-3.5 h-3.5 text-emerald-500" />}
-              {s.trend === 'down' && <TrendingDown className="w-3.5 h-3.5 text-red-400" />}
+              <p className={`text-2xl font-display font-bold ${s.color}`}>{s.value}</p>
+              <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-tight">{s.label}</p>
+              <p className={`text-[10px] mt-1 leading-tight ${s.trend === 'up' ? 'text-emerald-600' : s.trend === 'down' ? 'text-red-500' : 'text-amber-600'}`}>
+                {s.change}
+              </p>
             </div>
-            <p className={`text-2xl font-display font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5 leading-tight">{s.label}</p>
-            <p className={`text-[10px] mt-1 leading-tight ${s.trend === 'up' ? 'text-emerald-600' : s.trend === 'down' ? 'text-red-500' : 'text-amber-600'}`}>
-              {s.change}
-            </p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* ── Main grid ───────────────────────────────────── */}
@@ -198,9 +212,9 @@ const CandidateHomePage = () => {
                     </button>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2">
-                    <span>📍 {job.location}</span>
+                    <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 text-slate-400" />{job.location}</span>
                     <span>·</span>
-                    <span>🌐 {job.type}</span>
+                    <span className="flex items-center gap-0.5"><Globe className="w-3 h-3 text-slate-400" />{job.type}</span>
                   </div>
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xs font-semibold text-emerald-600">{job.match}% Match</span>
@@ -236,32 +250,43 @@ const CandidateHomePage = () => {
             </div>
             {/* Pipeline */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2">
-              {trackerStats.map((s, i) => (
-                <React.Fragment key={s.label}>
-                  <div className="flex flex-col items-center gap-2 flex-shrink-0">
-                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg ${
-                      s.label === 'Applied' ? 'bg-blue-100' :
-                      s.label === 'Under Review' ? 'bg-amber-100' :
-                      s.label === 'Interview' ? 'bg-violet-100' :
-                      s.label === 'Offer' ? 'bg-emerald-100' :
-                      'bg-red-100'
-                    }`}>
-                      {s.label === 'Applied' ? '📋' : s.label === 'Under Review' ? '🔍' : s.label === 'Interview' ? '🎤' : s.label === 'Offer' ? '🎁' : '✕'}
+              {trackerStats.map((s, i) => {
+                const renderTrackerIcon = () => {
+                  switch (s.label) {
+                    case 'Applied': return <FileText className="w-5 h-5 text-blue-600" />;
+                    case 'Under Review': return <Search className="w-5 h-5 text-amber-600" />;
+                    case 'Interview': return <Video className="w-5 h-5 text-violet-600" />;
+                    case 'Offer': return <Gift className="w-5 h-5 text-emerald-600" />;
+                    default: return <XCircle className="w-5 h-5 text-red-500" />;
+                  }
+                };
+                return (
+                  <React.Fragment key={s.label}>
+                    <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
+                        s.label === 'Applied' ? 'bg-blue-100' :
+                        s.label === 'Under Review' ? 'bg-amber-100' :
+                        s.label === 'Interview' ? 'bg-violet-100' :
+                        s.label === 'Offer' ? 'bg-emerald-100' :
+                        'bg-red-100'
+                      }`}>
+                        {renderTrackerIcon()}
+                      </div>
+                      <p className={`text-xl font-display font-bold ${
+                        s.label === 'Applied' ? 'text-blue-600' :
+                        s.label === 'Under Review' ? 'text-amber-600' :
+                        s.label === 'Interview' ? 'text-violet-600' :
+                        s.label === 'Offer' ? 'text-emerald-600' :
+                        'text-red-500'
+                      }`}>{s.value}</p>
+                      <p className="text-[10px] text-slate-500 font-medium text-center leading-tight">{s.label}</p>
                     </div>
-                    <p className={`text-xl font-display font-bold ${
-                      s.label === 'Applied' ? 'text-blue-600' :
-                      s.label === 'Under Review' ? 'text-amber-600' :
-                      s.label === 'Interview' ? 'text-violet-600' :
-                      s.label === 'Offer' ? 'text-emerald-600' :
-                      'text-red-500'
-                    }`}>{s.value}</p>
-                    <p className="text-[10px] text-slate-500 font-medium text-center leading-tight">{s.label}</p>
-                  </div>
-                  {i < trackerStats.length - 1 && (
-                    <div className="flex-1 h-0.5 bg-slate-200 rounded-full min-w-[24px] flex-shrink-0" />
-                  )}
-                </React.Fragment>
-              ))}
+                    {i < trackerStats.length - 1 && (
+                      <div className="flex-1 h-0.5 bg-slate-200 rounded-full min-w-[24px] flex-shrink-0" />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
 
@@ -338,7 +363,8 @@ const CandidateHomePage = () => {
                   </div>
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] text-slate-500 flex items-center gap-1">
-                      📅 {iv.dateLabel} · {iv.timeStart}
+                      <Calendar className="w-3 h-3 text-slate-400" />
+                      <span>{iv.dateLabel} · {iv.timeStart}</span>
                     </p>
                     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${iv.typeColor}`}>{iv.type}</span>
                   </div>

@@ -1,10 +1,5 @@
-// ─────────────────────────────────────────────────────────────
-// TalentForge AI — Interview Utility Components
-// NotificationCard + ReminderBanner + InterviewEmptyState
-// (Tightly related small UI pieces — kept in one file per Rule 6)
-// ─────────────────────────────────────────────────────────────
 import React from 'react';
-import { Bell, Clock, Calendar, Video } from 'lucide-react';
+import { Bell, Clock, Calendar, Video, Radio, CheckCircle2, MessageSquare, XCircle, RefreshCw } from 'lucide-react';
 import type { InterviewNotification, InterviewReminder } from '../../types/interview.types';
 
 // ─── Notification Card ────────────────────────────────────────
@@ -12,6 +7,19 @@ interface NotificationCardProps {
   notification: InterviewNotification;
   onClick?: () => void;
 }
+
+const getNotificationIcon = (notif: InterviewNotification) => {
+  switch (notif.type) {
+    case 'started': return <Radio className="w-4 h-4 text-emerald-500 animate-pulse" />;
+    case 'scheduled': return <Calendar className="w-4 h-4 text-blue-500" />;
+    case 'reminder': return <Clock className="w-4 h-4 text-amber-500" />;
+    case 'completed': return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
+    case 'feedback_request': return <MessageSquare className="w-4 h-4 text-primary-500" />;
+    case 'cancelled': return <XCircle className="w-4 h-4 text-red-500" />;
+    case 'rescheduled': return <RefreshCw className="w-4 h-4 text-violet-500" />;
+    default: return <Bell className="w-4 h-4 text-slate-500" />;
+  }
+};
 
 export const NotificationCard: React.FC<NotificationCardProps> = ({
   notification,
@@ -24,7 +32,9 @@ export const NotificationCard: React.FC<NotificationCardProps> = ({
         !notification.isRead ? 'bg-primary-50/30' : ''
       }`}
     >
-      <span className="text-xl flex-shrink-0 mt-0.5">{notification.icon}</span>
+      <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+        {getNotificationIcon(notification)}
+      </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs text-slate-700 leading-relaxed">{notification.message}</p>
         {notification.candidateName && (

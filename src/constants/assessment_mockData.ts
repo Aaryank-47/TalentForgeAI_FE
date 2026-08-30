@@ -506,27 +506,27 @@ export const mockAssessmentTemplates: AssessmentTemplate[] = [
   {
     id: 'tpl-1', name: 'Frontend Developer MCQ', type: 'mcq',
     description: 'Standard MCQ assessment covering HTML, CSS, JavaScript, and React fundamentals.',
-    icon: '📋', tags: ['Frontend', 'React', 'JavaScript'], estimatedDuration: '45 min', questionCount: 30, difficulty: 'Medium',
+    icon: 'file-text', tags: ['Frontend', 'React', 'JavaScript'], estimatedDuration: '45 min', questionCount: 30, difficulty: 'Medium',
   },
   {
     id: 'tpl-2', name: 'DSA Fundamentals', type: 'dsa',
     description: 'Classic DSA problems testing arrays, strings, and basic data structures.',
-    icon: '🧩', tags: ['DSA', 'Arrays', 'Strings'], estimatedDuration: '60 min', questionCount: 3, difficulty: 'Easy',
+    icon: 'puzzle', tags: ['DSA', 'Arrays', 'Strings'], estimatedDuration: '60 min', questionCount: 3, difficulty: 'Easy',
   },
   {
     id: 'tpl-3', name: 'Full Stack Assessment', type: 'mixed',
     description: 'Combined MCQ + DSA covering both theoretical knowledge and coding ability.',
-    icon: '⚡', tags: ['Full Stack', 'MCQ', 'DSA'], estimatedDuration: '90 min', questionCount: 35, difficulty: 'Medium',
+    icon: 'zap', tags: ['Full Stack', 'MCQ', 'DSA'], estimatedDuration: '90 min', questionCount: 35, difficulty: 'Medium',
   },
   {
     id: 'tpl-4', name: 'Live Coding Interview', type: 'live_machine_coding',
     description: 'Real-time collaborative coding session with the recruiter.',
-    icon: '💻', tags: ['Live', 'Coding', 'Interview'], estimatedDuration: '60 min', questionCount: 1, difficulty: 'Medium',
+    icon: 'terminal', tags: ['Live', 'Coding', 'Interview'], estimatedDuration: '60 min', questionCount: 1, difficulty: 'Medium',
   },
   {
     id: 'tpl-5', name: 'Take-Home Project', type: 'project',
     description: 'A comprehensive take-home assignment with a 3-day deadline.',
-    icon: '🏗️', tags: ['Project', 'Assignment', 'Portfolio'], estimatedDuration: '3 days', questionCount: 1, difficulty: 'Hard',
+    icon: 'folder-git2', tags: ['Project', 'Assignment', 'Portfolio'], estimatedDuration: '3 days', questionCount: 1, difficulty: 'Hard',
   },
 ];
 

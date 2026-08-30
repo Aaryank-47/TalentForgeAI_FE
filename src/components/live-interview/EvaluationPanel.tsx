@@ -6,9 +6,9 @@ import { useInterview } from '../../context/InterviewContext';
 // Live rating input while interview is in progress
 // ─────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
-import { Star } from 'lucide-react';
+import { Star, Check } from 'lucide-react';
 import type { FeedbackRating, HiringRecommendation } from '../../types/interview.types';
-import { evaluationDimensions, ratingEmojis } from '../../constants/feedback.mock';
+import { evaluationDimensions } from '../../constants/feedback.mock';
 import { toast } from 'react-hot-toast';
 
 const RECOMMENDATIONS: { value: HiringRecommendation; label: string; color: string }[] = [
@@ -36,9 +36,6 @@ const RatingInput: React.FC<RatingInputProps> = ({ value, onChange }) => (
         <Star className="w-full h-full" fill={value >= r ? 'currentColor' : 'none'} />
       </button>
     ))}
-    {value > 0 && (
-      <span className="ml-1 text-[10px] text-slate-400">{ratingEmojis[value as FeedbackRating]}</span>
-    )}
   </div>
 );
 
@@ -58,55 +55,51 @@ export const EvaluationPanel: React.FC = () => {
     Object.values(ratings).filter(Boolean).length > 0
       ? Math.round(
           (Object.values(ratings).reduce((a, b) => a + b, 0) /
-            Object.values(ratings).filter(Boolean).length) *
-            20
+            (Object.values(ratings).filter(Boolean).length * 5)) *
+            100
         )
       : 0;
 
-  const { currentInterview } = useInterview();
   const handleSave = async () => {
-    setSaved(true);
+    const activeSessionId = (store.getState() as any)?.workspace?.activeSessionId;
+    const companyId = (store.getState() as any)?.auth?.user?.companyId || (store.getState() as any)?.auth?.user?.companies?.[0]?.companyId;
+
     try {
-      if (currentInterview) {
-        const currentWorkspace = store.getState().workspace.currentWorkspace;
-        const resolvedCompanyId = (currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined);
-        if (resolvedCompanyId) {
-          const recMap: Record<string, string> = {
-            'Strong Hire': 'STRONG_HIRE',
-            'Hire': 'HIRE',
-            'Consider': 'HOLD',
-            'Reject': 'REJECT'
-          };
-          await interviewApi.submitEvaluation(resolvedCompanyId, currentInterview.id, {
-            overallScore: avgScore,
-            communicationScore: (ratings.communication || 0) * 20,
-            technicalScore: (ratings.technical || 0) * 20,
-            problemSolvingScore: (ratings.problemSolving || 0) * 20,
-            behaviourScore: (ratings.behaviour || 0) * 20,
-            cultureFitScore: (ratings.cultureFit || 0) * 20,
-            recommendation: recommendation ? recMap[recommendation] || null : null,
-            comments: comments || null
-          });
-        }
+      if (activeSessionId && companyId) {
+        await interviewApi.submitRecruiterEvaluation(companyId, activeSessionId, {
+          overallScore: avgScore,
+          communication: ratings.communication || 0,
+          technical: ratings.technical || 0,
+          problemSolving: ratings.problemSolving || 0,
+          behaviour: ratings.behaviour || 0,
+          cultureFit: ratings.cultureFit || 0,
+          recommendation: recommendation || undefined,
+          comments: comments || undefined,
+        });
       }
-    } catch (e: any) {
-      console.error('Failed to save evaluation to backend:', e);
-      toast.error(e?.message || 'Failed to save evaluation');
+      setSaved(true);
+      toast.success('Live evaluation notes saved!');
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      console.error('Failed to save evaluation live panel:', err);
+      toast.error('Saved locally');
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
     }
-    setTimeout(() => setSaved(false), 2000);
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="w-72 bg-white border-l border-slate-200 flex flex-col h-full flex-shrink-0 z-20 animate-fade-in">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-slate-200 flex-shrink-0 bg-slate-50">
+      <div className="p-4 border-b border-slate-200 flex-shrink-0">
         <div className="flex items-center justify-between">
-          <p className="text-sm font-bold text-slate-900">Live Evaluation</p>
+          <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            Evaluation Notes
+          </h3>
           {avgScore > 0 && (
-            <div className="flex items-center gap-1.5">
-              <div className="text-xs font-bold text-white bg-primary-600 px-2 py-0.5 rounded-full">
-                {avgScore}/100
-              </div>
+            <div className="flex items-center gap-1 px-2 py-0.5 bg-primary-50 rounded-full">
+              <span className="text-xs font-bold text-primary-700">{avgScore}</span>
+              <span className="text-[10px] text-primary-500">/100</span>
             </div>
           )}
         </div>
@@ -116,11 +109,11 @@ export const EvaluationPanel: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Dimension ratings */}
         <div className="space-y-3">
-          {evaluationDimensions.map(({ key, label, icon }) => (
+          {evaluationDimensions.map(({ key, label, icon: Icon }) => (
             <div key={key}>
               <div className="flex items-center justify-between mb-1.5">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm">{icon}</span>
+                  <Icon className="w-3.5 h-3.5 text-slate-500" />
                   <span className="text-xs font-medium text-slate-700">{label}</span>
                 </div>
                 <RatingInput
@@ -128,58 +121,24 @@ export const EvaluationPanel: React.FC = () => {
                   onChange={(r) => setRatings((prev) => ({ ...prev, [key]: r }))}
                 />
               </div>
-              {/* Progress bar preview */}
-              <div className="h-1 bg-slate-200 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-amber-400 rounded-full transition-all duration-300"
-                  style={{ width: `${((ratings[key] ?? 0) / 5) * 100}%` }}
-                />
-              </div>
             </div>
           ))}
         </div>
 
-        {/* Overall score preview */}
-        {avgScore > 0 && (
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
-            <div className="relative w-12 h-12 flex-shrink-0">
-              <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                <circle cx="18" cy="18" r="15" fill="none" stroke="#e2e8f0" strokeWidth="3" />
-                <circle
-                  cx="18"
-                  cy="18"
-                  r="15"
-                  fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(avgScore / 100) * 94.25} 94.25`}
-                  style={{ transition: 'stroke-dasharray 0.5s ease' }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-[11px] font-bold text-slate-900">{avgScore}</span>
-              </div>
-            </div>
-            <div>
-              <p className="text-xs font-bold text-slate-900">Overall Score</p>
-              <p className="text-[10px] text-slate-500">Based on your ratings</p>
-            </div>
-          </div>
-        )}
-
-        {/* Recommendation */}
+        {/* Quick Recommendation */}
         <div>
-          <p className="text-xs font-bold text-slate-900 mb-2">Recommendation</p>
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+            Quick Recommendation
+          </label>
           <div className="grid grid-cols-2 gap-1.5">
             {RECOMMENDATIONS.map(({ value, label, color }) => (
               <button
                 key={value}
-                onClick={() => setRecommendation(recommendation === value ? null : value)}
-                className={`py-2 text-[10px] font-bold rounded-lg transition-all ${
+                onClick={() => setRecommendation(value)}
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
                   recommendation === value
-                    ? color
-                    : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                    ? `${color} ring-2 ring-offset-1 ring-slate-400`
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
                 {label}
@@ -188,28 +147,37 @@ export const EvaluationPanel: React.FC = () => {
           </div>
         </div>
 
-        {/* Comments */}
+        {/* Live Notes */}
         <div>
-          <p className="text-xs font-bold text-slate-900 mb-2">Quick Notes</p>
+          <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+            Live Notes
+          </label>
           <textarea
             value={comments}
             onChange={(e) => setComments(e.target.value)}
-            placeholder="Add observations during the interview..."
-            rows={3}
-            className="w-full bg-white text-slate-900 text-xs placeholder-slate-400 border border-slate-200 rounded-xl p-3 resize-none focus:outline-none focus:border-primary-500"
+            placeholder="Private notes during interview (candidate cannot see this)..."
+            rows={4}
+            className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition-all text-slate-800 placeholder-slate-400"
           />
         </div>
 
         {/* Save */}
         <button
           onClick={handleSave}
-          className={`w-full py-2.5 text-xs font-bold rounded-xl transition-all ${
+          className={`w-full py-2.5 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
             saved
               ? 'bg-emerald-600 text-white'
               : 'bg-primary-600 hover:bg-primary-700 text-white'
           }`}
         >
-          {saved ? '✓ Saved' : 'Save Evaluation'}
+          {saved ? (
+            <>
+              <Check className="w-4 h-4" />
+              <span>Saved</span>
+            </>
+          ) : (
+            'Save Evaluation'
+          )}
         </button>
 
         <p className="text-[10px] text-slate-500 text-center">

@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Briefcase, Users, Clock, CheckCircle2, TrendingUp, Plus, UserPlus,
   Video, ClipboardList, ArrowUpRight, MoreHorizontal, Calendar,
-  ChevronRight, Star, Zap, Activity,
+  ChevronRight, Star, Zap, Activity, User, Sparkles
 } from 'lucide-react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  FunnelChart, Funnel, LabelList, Cell,
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
   applicationData,
@@ -191,17 +190,29 @@ const RecruiterDashboard = () => {
             <span className="text-[10px] font-semibold bg-primary-50 text-primary-700 px-2 py-1 rounded-full">Live</span>
           </div>
           <div className="divide-y divide-[#E5E7EB] max-h-[280px] overflow-y-auto">
-            {recentActivity.map((a, i) => (
-              <div key={i} className="px-5 py-3.5 flex items-start gap-3 hover:bg-slate-50 transition-colors">
-                <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm ${a.color}`}>
-                  {a.icon}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-slate-700 leading-relaxed">{a.text}</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{a.time}</p>
+            {recentActivity.map((a, i) => {
+              const renderActivityIcon = () => {
+                switch (a.type) {
+                  case 'applied': return <User className="w-4 h-4" />;
+                  case 'assessment': return <CheckCircle2 className="w-4 h-4" />;
+                  case 'interview': return <Video className="w-4 h-4" />;
+                  case 'offer': return <ClipboardList className="w-4 h-4" />;
+                  case 'hired': return <Sparkles className="w-4 h-4" />;
+                  default: return <Activity className="w-4 h-4" />;
+                }
+              };
+              return (
+                <div key={i} className="px-5 py-3.5 flex items-start gap-3 hover:bg-slate-50 transition-colors">
+                  <span className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-sm ${a.color}`}>
+                    {renderActivityIcon()}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-slate-700 leading-relaxed">{a.text}</p>
+                    <p className="text-[10px] text-slate-400 mt-0.5">{a.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

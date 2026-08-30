@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Camera, Mic, Monitor, Phone, Maximize2, Minimize2,
   StickyNote, Code2, Folder, Terminal, ChevronRight, ChevronDown,
-  FileCode, FolderOpen, Plus
+  FileCode, FolderOpen, Plus, MessageSquare, FileText
 } from 'lucide-react';
 import MonacoEditorWrapper from '../../components/assessment/MonacoEditorWrapper';
 import LanguageSelector from '../../components/assessment/LanguageSelector';
@@ -294,7 +294,11 @@ const LiveMachineCodingPage: React.FC = () => {
                     : 'border-transparent text-slate-500 hover:text-slate-300'
                 }`}
               >
-                {tab === 'chat' ? '💬 Chat' : '📝 Notes'}
+                {tab === 'chat' ? (
+                  <span className="flex items-center justify-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> Chat</span>
+                ) : (
+                  <span className="flex items-center justify-center gap-1.5"><FileText className="w-3.5 h-3.5" /> Notes</span>
+                )}
               </button>
             ))}
           </div>

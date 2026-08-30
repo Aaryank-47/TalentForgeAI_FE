@@ -6,7 +6,7 @@ import { WorkspaceSwitcher } from '../workspace/WorkspaceSwitcher';
 import {
   Home, Briefcase, FileText, ClipboardList, Video, MessageSquare,
   Bookmark, User, FileText as Resume, Settings, Bell, Search,
-  Menu, X, ChevronDown, Zap, LogOut, ChevronRight, Bot,
+  Menu, X, ChevronDown, Zap, LogOut, ChevronRight, Bot, Calendar, Sparkles,
 } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
 
@@ -29,10 +29,10 @@ const secondaryNav = [
 ];
 
 const notifications = [
-  { icon: '📅', text: 'Interview scheduled: Google Frontend Developer — May 16, 11:00 AM', time: '2h ago', unread: true },
-  { icon: '🤖', text: "AI Interview complete — You've cleared Infosys round", time: '5h ago', unread: true },
-  { icon: '📋', text: 'Assessment assigned by TechNova: React Developer Test', time: '1d ago', unread: false },
-  { icon: '🎉', text: 'Offer extended by Flipkart — View and respond', time: '2d ago', unread: false },
+  { icon: Calendar, text: 'Interview scheduled: Google Frontend Developer — May 16, 11:00 AM', time: '2h ago', unread: true, color: 'text-blue-600 bg-blue-50' },
+  { icon: Bot, text: "AI Interview complete — You've cleared Infosys round", time: '5h ago', unread: true, color: 'text-violet-600 bg-violet-50' },
+  { icon: ClipboardList, text: 'Assessment assigned by TechNova: React Developer Test', time: '1d ago', unread: false, color: 'text-amber-600 bg-amber-50' },
+  { icon: Sparkles, text: 'Offer extended by Flipkart — View and respond', time: '2d ago', unread: false, color: 'text-emerald-600 bg-emerald-50' },
 ];
 
 interface NavItemProps {
@@ -230,16 +230,21 @@ const CandidateLayout: React.FC = () => {
                     <h3 className="font-semibold text-slate-900 text-sm">Notifications</h3>
                     <button className="text-xs text-primary-600 hover:text-primary-700 font-medium">Mark all read</button>
                   </div>
-                  {notifications.map((n, i) => (
-                    <div key={i} className={`px-4 py-3 flex items-start gap-3 hover:bg-slate-50 cursor-pointer transition-colors border-b border-[#E5E7EB] last:border-0 ${n.unread ? 'bg-primary-50/30' : ''}`}>
-                      <span className="text-lg flex-shrink-0">{n.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-slate-700 leading-relaxed">{n.text}</p>
-                        <p className="text-[10px] text-slate-400 mt-1">{n.time}</p>
+                  {notifications.map((n, i) => {
+                    const Icon = n.icon;
+                    return (
+                      <div key={i} className={`px-4 py-3 flex items-start gap-3 hover:bg-slate-50 cursor-pointer transition-colors border-b border-[#E5E7EB] last:border-0 ${n.unread ? 'bg-primary-50/30' : ''}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${n.color}`}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-slate-700 leading-relaxed">{n.text}</p>
+                          <p className="text-[10px] text-slate-400 mt-1">{n.time}</p>
+                        </div>
+                        {n.unread && <span className="w-2 h-2 bg-primary-600 rounded-full flex-shrink-0 mt-1" />}
                       </div>
-                      {n.unread && <span className="w-2 h-2 bg-primary-600 rounded-full flex-shrink-0 mt-1" />}
-                    </div>
-                  ))}
+                    );
+                  })}
                   <div className="px-4 py-3">
                     <button className="w-full text-xs text-center text-primary-600 hover:text-primary-700 font-medium">View all notifications</button>
                   </div>

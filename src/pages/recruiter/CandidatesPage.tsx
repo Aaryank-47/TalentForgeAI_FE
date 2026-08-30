@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, MapPin, X, Briefcase, Mail, Globe, Tag, Loader2, User, FileText, Bot, Sparkles, Calendar, AlertCircle
+  Search, MapPin, X, Briefcase, Mail, Globe, Tag, Loader2, User, FileText, Bot, Sparkles, Calendar, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -460,8 +460,9 @@ const CandidatesPage = () => {
                           /* Only show AI interview controls when candidate is in AI Interview stage */
                           <div className="space-y-2.5">
                             <div className="bg-violet-50 border border-violet-100 rounded-lg p-2.5">
-                              <p className="text-[11px] text-violet-800 leading-relaxed font-medium">
-                                ✓ Candidate has reached the <strong>AI Interview</strong> stage and is eligible to be assigned.
+                              <p className="text-[11px] text-violet-800 leading-relaxed font-medium flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-violet-600 flex-shrink-0" />
+                                <span>Candidate has reached the <strong>AI Interview</strong> stage and is eligible to be assigned.</span>
                               </p>
                             </div>
 
@@ -507,8 +508,9 @@ const CandidatesPage = () => {
                           /* Only show Interview round controls when candidate is in Interview stage */
                           <div className="space-y-2.5">
                             <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-2.5">
-                              <p className="text-[11px] text-indigo-800 leading-relaxed font-medium">
-                                ✓ Candidate has reached the <strong>Interview</strong> stage. Schedule a live interview round.
+                              <p className="text-[11px] text-indigo-800 leading-relaxed font-medium flex items-center gap-1.5">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                                <span>Candidate has reached the <strong>Interview</strong> stage. Schedule a live interview round.</span>
                               </p>
                             </div>
                             <button

@@ -1109,7 +1109,8 @@ const AssessmentTakePage: React.FC = () => {
                                       : 'bg-red-500/10 border-red-500/20 text-red-400'
                                   }`}
                                 >
-                                  Testcase {idx + 1} {isPassed ? '✓' : '✗'}
+                                  <span>Testcase {idx + 1}</span>
+                                  {isPassed ? <CheckCircle className="w-3 h-3 text-emerald-400" /> : <XCircle className="w-3 h-3 text-red-400" />}
                                 </span>
                               );
                             })}

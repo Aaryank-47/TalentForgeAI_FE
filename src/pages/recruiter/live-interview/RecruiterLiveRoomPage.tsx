@@ -86,7 +86,7 @@ const RoomInner: React.FC<{
 
   const handleLeave = () => {
     leaveRoom();
-    toast('You left the interview.', { icon: '👋' });
+    toast('You left the interview.');
     navigate(`/recruiter/live-interviews/${interview.id}`);
   };
 

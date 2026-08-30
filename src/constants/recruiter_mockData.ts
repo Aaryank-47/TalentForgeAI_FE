@@ -18,12 +18,12 @@ export const pipelineStagesDashboard = [
 ];
 
 export const recentActivity = [
-  { type: 'applied', icon: '👤', text: 'Rahul Sharma applied for Senior Frontend Developer', time: '2 min ago', color: 'bg-blue-100 text-blue-700' },
-  { type: 'assessment', icon: '✅', text: 'Ananya Joshi completed Frontend Assessment (88%)', time: '18 min ago', color: 'bg-green-100 text-green-700' },
-  { type: 'interview', icon: '🎥', text: 'AI Interview completed — Vikram Iyer (92 score)', time: '1h ago', color: 'bg-purple-100 text-purple-700' },
-  { type: 'offer', icon: '📋', text: 'Offer sent to Tanmay Joshi for Backend Engineer', time: '2h ago', color: 'bg-amber-100 text-amber-700' },
-  { type: 'hired', icon: '🎉', text: 'Saurabh Mishra joined as Product Designer', time: '1d ago', color: 'bg-emerald-100 text-emerald-700' },
-  { type: 'applied', icon: '👤', text: 'Priya Singh applied for UX Researcher', time: '1d ago', color: 'bg-blue-100 text-blue-700' },
+  { type: 'applied', icon: 'user', text: 'Rahul Sharma applied for Senior Frontend Developer', time: '2 min ago', color: 'bg-blue-100 text-blue-700' },
+  { type: 'assessment', icon: 'check-circle-2', text: 'Ananya Joshi completed Frontend Assessment (88%)', time: '18 min ago', color: 'bg-green-100 text-green-700' },
+  { type: 'interview', icon: 'video', text: 'AI Interview completed — Vikram Iyer (92 score)', time: '1h ago', color: 'bg-purple-100 text-purple-700' },
+  { type: 'offer', icon: 'clipboard-list', text: 'Offer sent to Tanmay Joshi for Backend Engineer', time: '2h ago', color: 'bg-amber-100 text-amber-700' },
+  { type: 'hired', icon: 'sparkles', text: 'Saurabh Mishra joined as Product Designer', time: '1d ago', color: 'bg-emerald-100 text-emerald-700' },
+  { type: 'applied', icon: 'user', text: 'Priya Singh applied for UX Researcher', time: '1d ago', color: 'bg-blue-100 text-blue-700' },
 ];
 
 export const upcomingInterviewsDashboard = [
@@ -492,13 +492,13 @@ export const aiEvaluationReport = {
   recommendation: 'Hire',
   evaluatedAt: 'Jun 20, 2026 at 12:45 PM',
   dimensions: [
-    { label: 'Communication', score: 86, color: 'bg-blue-500', icon: '💬' },
-    { label: 'Confidence', score: 82, color: 'bg-violet-500', icon: '🎯' },
-    { label: 'Technical Knowledge', score: 90, color: 'bg-indigo-500', icon: '⚙️' },
-    { label: 'Problem Solving', score: 85, color: 'bg-emerald-500', icon: '🧠' },
-    { label: 'Behavior & Culture', score: 88, color: 'bg-amber-500', icon: '🤝' },
-    { label: 'Grammar & Vocabulary', score: 84, color: 'bg-pink-500', icon: '📖' },
-    { label: 'Response Quality', score: 91, color: 'bg-teal-500', icon: '✨' },
+    { label: 'Communication', score: 86, color: 'bg-blue-500', icon: 'message-square' },
+    { label: 'Confidence', score: 82, color: 'bg-violet-500', icon: 'target' },
+    { label: 'Technical Knowledge', score: 90, color: 'bg-indigo-500', icon: 'settings' },
+    { label: 'Problem Solving', score: 85, color: 'bg-emerald-500', icon: 'brain' },
+    { label: 'Behavior & Culture', score: 88, color: 'bg-amber-500', icon: 'users' },
+    { label: 'Grammar & Vocabulary', score: 84, color: 'bg-pink-500', icon: 'book-open' },
+    { label: 'Response Quality', score: 91, color: 'bg-teal-500', icon: 'sparkles' },
   ],
   radarData: [
     { subject: 'Communication', score: 86, fullMark: 100 },

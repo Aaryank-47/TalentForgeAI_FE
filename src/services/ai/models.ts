@@ -1,7 +1,7 @@
 /**
  * TalentForge AI — OpenRouter Client Configuration
  *
- * ⚠️  SECURITY WARNING ⚠️
+ * [SECURITY WARNING]
  * This file configures a direct browser-to-OpenRouter connection.
  * This is a TEMPORARY development configuration ONLY.
  *

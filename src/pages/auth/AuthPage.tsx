@@ -38,11 +38,11 @@ const IllustrationPanel = ({ mode, role }: { mode: AuthMode; role?: UIRole }) =>
 
       <h2 className="text-[36px] font-display font-extrabold text-white leading-tight mb-4">
         {mode === 'login' ? (
-          <>Welcome<br />back. 👋</>
+          <>Welcome<br />back.</>
         ) : role === 'candidate' ? (
-          <>Land your dream.<br />Grow faster. 🚀</>
+          <>Land your dream.<br />Grow faster.</>
         ) : (
-          <>Hire smarter.<br />Grow faster. 🚀</>
+          <>Hire smarter.<br />Grow faster.</>
         )}
       </h2>
       <p className="text-blue-100/80 text-[15px] leading-relaxed mb-10 max-w-xs">

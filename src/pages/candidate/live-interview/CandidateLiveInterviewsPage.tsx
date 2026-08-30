@@ -3,7 +3,7 @@
 // Upcoming + history for the candidate
 // ─────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
-import { Calendar, Clock, Bell } from 'lucide-react';
+import { Calendar, Clock, Bell, Lightbulb } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { mockCandidateNotifications } from '../../../constants/notifications.mock';
 import { LiveInterviewCard } from '../../../components/live-interview/LiveInterviewCard';
@@ -232,7 +232,10 @@ const CandidateLiveInterviewsPage: React.FC = () => {
 
           {/* Quick tips card */}
           <div className="bg-gradient-to-br from-primary-600 to-primary-800 rounded-2xl p-5 text-white">
-            <p className="text-xs font-bold uppercase tracking-wide opacity-80 mb-2">💡 Interview Tips</p>
+            <p className="text-xs font-bold uppercase tracking-wide opacity-80 mb-2 flex items-center gap-1.5">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-300" />
+              <span>Interview Tips</span>
+            </p>
             <ul className="space-y-2 text-xs opacity-90">
               {[
                 'Test your mic & camera 15 min before',

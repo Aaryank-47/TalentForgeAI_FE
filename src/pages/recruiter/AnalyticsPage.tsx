@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Calendar, TrendingUp, TrendingDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Download, Calendar, TrendingUp, TrendingDown, ArrowUp, ArrowDown, Clock, Briefcase, Sparkles, CheckCircle2, Target } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area, FunnelChart, Funnel, LabelList,
@@ -34,7 +34,10 @@ const AnalyticsPage = () => {
               onChange={e => setPeriod(e.target.value)}
               className="pl-9 pr-4 py-2 text-sm border border-[#E5E7EB] rounded-lg bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
-              {['Last 30 Days', 'Last 6 Months', 'This Year', 'Last Year'].map(o => <option key={o}>{o}</option>)}
+              <option>Last 30 Days</option>
+              <option>Last 3 Months</option>
+              <option>Last 6 Months</option>
+              <option>This Year</option>
             </select>
           </div>
           <button className="btn-secondary text-sm flex items-center gap-2">
@@ -47,24 +50,29 @@ const AnalyticsPage = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         {[
-          { label: 'Time To Hire', value: '28 Days', trend: '-15%', positive: true, icon: '⏱' },
-          { label: 'Open Jobs', value: '18', trend: '+3', positive: false, icon: '💼' },
-          { label: 'Total Hires', value: '42', trend: '+32%', positive: true, icon: '🎉' },
-          { label: 'Offer Acceptance', value: '84%', trend: '+2%', positive: true, icon: '✅' },
-          { label: 'Interview Success', value: '76%', trend: '+5%', positive: true, icon: '🎯' },
-        ].map(k => (
-          <div key={k.label} className="card p-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-lg">{k.icon}</span>
-              <span className={`text-xs font-bold flex items-center gap-0.5 ${k.positive ? 'text-emerald-600' : 'text-red-500'}`}>
-                {k.positive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                {k.trend}
-              </span>
+          { label: 'Time To Hire', value: '28 Days', trend: '-15%', positive: true, icon: Clock, color: 'text-blue-600 bg-blue-50' },
+          { label: 'Open Jobs', value: '18', trend: '+3', positive: false, icon: Briefcase, color: 'text-indigo-600 bg-indigo-50' },
+          { label: 'Total Hires', value: '42', trend: '+32%', positive: true, icon: Sparkles, color: 'text-amber-600 bg-amber-50' },
+          { label: 'Offer Acceptance', value: '84%', trend: '+2%', positive: true, icon: CheckCircle2, color: 'text-emerald-600 bg-emerald-50' },
+          { label: 'Interview Success', value: '76%', trend: '+5%', positive: true, icon: Target, color: 'text-purple-600 bg-purple-50' },
+        ].map(k => {
+          const Icon = k.icon;
+          return (
+            <div key={k.label} className="card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${k.color}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <span className={`text-xs font-bold flex items-center gap-0.5 ${k.positive ? 'text-emerald-600' : 'text-red-500'}`}>
+                  {k.positive ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+                  {k.trend}
+                </span>
+              </div>
+              <p className="text-2xl font-display font-bold text-[#0F172A]">{k.value}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{k.label}</p>
             </div>
-            <p className="text-2xl font-display font-bold text-[#0F172A]">{k.value}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{k.label}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Charts Row 1 */}

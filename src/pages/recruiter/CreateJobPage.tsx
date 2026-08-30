@@ -1079,8 +1079,9 @@ const CreateJobPage = () => {
 
                 <div className="flex gap-3 pt-4 border-t border-[#E5E7EB]">
                   {isPublishedJob ? (
-                    <div className="flex-1 py-2.5 px-4 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-semibold text-center border border-emerald-200">
-                      ✓ Published & Active
+                    <div className="flex-1 py-2.5 px-4 bg-emerald-50 text-emerald-700 rounded-lg text-sm font-semibold text-center border border-emerald-200 flex items-center justify-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-600" />
+                      <span>Published & Active</span>
                     </div>
                   ) : (
                     <>

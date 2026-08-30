@@ -139,9 +139,9 @@ export const candidateFeaturesContent = {
     { label: 'Offer', time: 'Pending', active: false, done: false },
   ],
   profileTags: [
-    { label: 'Skills ✓', color: 'emerald' },
-    { label: 'Experience ✓', color: 'emerald' },
-    { label: 'Portfolio ↗', color: 'amber' },
+    { label: 'Skills', color: 'emerald' },
+    { label: 'Experience', color: 'emerald' },
+    { label: 'Portfolio', color: 'amber' },
   ],
   features: [
     { iconKey: 'search', title: 'Smart Job Discovery', desc: 'AI matches you with roles that fit your skills, experience, and career goals — not just keywords.' },

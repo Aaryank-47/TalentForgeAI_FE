@@ -9,7 +9,7 @@ import {
   type StageLibraryItem,
 } from '../../services/api/workflow.api';
 import { workflowKeys, stageLibraryKeys } from '../../constants/queryKeys';
-import { ChevronLeft, Save, Star, Loader2, Trash2, ArrowUp, ArrowDown, Plus, Layers, Sparkles } from 'lucide-react';
+import { ChevronLeft, Save, Star, Loader2, Trash2, ArrowUp, ArrowDown, Plus, Layers, X } from 'lucide-react';
 import { Badge } from '../../components/ui/Badge';
 import toast from 'react-hot-toast';
 
@@ -376,7 +376,7 @@ export default function WorkflowBuilderPage() {
                 onClick={() => setShowAddStageModal(false)}
                 className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
-                ✕
+                <X className="w-4 h-4" />
               </button>
             </div>
 

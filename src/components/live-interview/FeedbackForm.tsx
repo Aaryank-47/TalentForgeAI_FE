@@ -2,9 +2,9 @@
 // TalentForge AI — Candidate Post-Interview Feedback Form
 // ─────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
-import { Star, CheckCircle, Send } from 'lucide-react';
+import { Star, CheckCircle, Send, User, Building2, Target, Laptop, ThumbsUp, ThumbsDown, Sparkles } from 'lucide-react';
 import type { FeedbackRating } from '../../types/interview.types';
-import { ratingLabels, ratingEmojis } from '../../constants/feedback.mock';
+import { ratingLabels } from '../../constants/feedback.mock';
 
 interface FeedbackFormProps {
   interviewTitle: string;
@@ -14,10 +14,10 @@ interface FeedbackFormProps {
 }
 
 const RATING_CATEGORIES = [
-  { key: 'recruiterRating', label: 'Recruiter / Interviewer', icon: '👤', description: 'How was the interviewer?' },
-  { key: 'companyRating', label: 'Company Impression', icon: '🏢', description: 'How do you feel about the company?' },
-  { key: 'experienceRating', label: 'Interview Experience', icon: '🎯', description: 'How was the overall experience?' },
-  { key: 'platformRating', label: 'Platform Experience', icon: '💻', description: 'How was TalentForge AI platform?' },
+  { key: 'recruiterRating', label: 'Recruiter / Interviewer', icon: User, description: 'How was the interviewer?' },
+  { key: 'companyRating', label: 'Company Impression', icon: Building2, description: 'How do you feel about the company?' },
+  { key: 'experienceRating', label: 'Interview Experience', icon: Target, description: 'How was the overall experience?' },
+  { key: 'platformRating', label: 'Platform Experience', icon: Laptop, description: 'How was TalentForge AI platform?' },
 ];
 
 interface StarRatingProps {
@@ -43,7 +43,6 @@ const StarRating: React.FC<StarRatingProps> = ({ value, onChange }) => (
     </div>
     {value > 0 && (
       <span className="text-sm font-medium text-slate-600 flex items-center gap-1">
-        <span>{ratingEmojis[value as FeedbackRating]}</span>
         <span>{ratingLabels[value as FeedbackRating]}</span>
       </span>
     )}
@@ -89,7 +88,10 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({
         <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-6 animate-fade-in-up">
           <CheckCircle className="w-10 h-10 text-emerald-600" />
         </div>
-        <h2 className="text-2xl font-display font-bold text-slate-900 mb-2">Thank you! 🎉</h2>
+        <h2 className="text-2xl font-display font-bold text-slate-900 mb-2 flex items-center justify-center gap-2">
+          <span>Thank you!</span>
+          <Sparkles className="w-6 h-6 text-amber-500" />
+        </h2>
         <p className="text-slate-500 max-w-md leading-relaxed">
           Your feedback helps us improve the interview experience for everyone. We truly appreciate you taking the time.
         </p>
@@ -112,12 +114,14 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({
 
       {/* Rating categories */}
       <div className="space-y-4">
-        {RATING_CATEGORIES.map(({ key, label, icon, description }) => (
+        {RATING_CATEGORIES.map(({ key, label, icon: Icon, description }) => (
           <div key={key} className="card p-5">
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="text-xl">{icon}</span>
+                  <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+                    <Icon className="w-4 h-4" />
+                  </div>
                   <p className="text-sm font-semibold text-slate-900">{label}</p>
                 </div>
                 <p className="text-xs text-slate-500">{description}</p>
@@ -138,20 +142,21 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({
         </p>
         <div className="flex gap-3">
           {[
-            { value: true, label: '👍 Yes, definitely', color: 'border-emerald-300 bg-emerald-50 text-emerald-700' },
-            { value: false, label: '👎 Not really', color: 'border-red-200 bg-red-50 text-red-600' },
-          ].map(({ value, label, color }) => (
+            { value: true, label: 'Yes, definitely', icon: ThumbsUp, color: 'border-emerald-300 bg-emerald-50 text-emerald-700' },
+            { value: false, label: 'Not really', icon: ThumbsDown, color: 'border-red-200 bg-red-50 text-red-600' },
+          ].map(({ value, label, icon: Icon, color }) => (
             <button
               key={String(value)}
               type="button"
               onClick={() => setWouldRecommend(value)}
-              className={`flex-1 py-3 text-sm font-semibold rounded-xl border-2 transition-all ${
+              className={`flex-1 py-3 text-sm font-semibold rounded-xl border-2 transition-all flex items-center justify-center gap-2 ${
                 wouldRecommend === value
                   ? color
                   : 'border-[#E5E7EB] text-slate-600 hover:border-slate-300 bg-white'
               }`}
             >
-              {label}
+              <Icon className="w-4 h-4" />
+              <span>{label}</span>
             </button>
           ))}
         </div>

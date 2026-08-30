@@ -5,16 +5,16 @@ import { store } from '../../store';
 // ─────────────────────────────────────────────────────────────
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Star, CheckCircle, Send, Plus, X } from 'lucide-react';
+import { Star, CheckCircle, Send, Plus, X, Rocket, CheckCircle2, HelpCircle, XCircle, Ban } from 'lucide-react';
 import type { FeedbackRating, HiringRecommendation } from '../../types/interview.types';
-import { evaluationDimensions, ratingLabels, ratingEmojis } from '../../constants/feedback.mock';
+import { evaluationDimensions, ratingLabels } from '../../constants/feedback.mock';
 
-const RECOMMENDATIONS: { value: HiringRecommendation; label: string; emoji: string; color: string; selected: string }[] = [
-  { value: 'Strong Hire', label: 'Strong Hire', emoji: '🚀', color: 'border-emerald-200 bg-emerald-50 text-emerald-700', selected: 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-2 ring-emerald-300' },
-  { value: 'Hire', label: 'Hire', emoji: '✅', color: 'border-blue-200 bg-blue-50 text-blue-700', selected: 'border-blue-400 bg-blue-100 text-blue-800 ring-2 ring-blue-300' },
-  { value: 'Consider', label: 'Consider', emoji: '🤔', color: 'border-amber-200 bg-amber-50 text-amber-700', selected: 'border-amber-400 bg-amber-100 text-amber-800 ring-2 ring-amber-300' },
-  { value: 'Reject', label: 'Reject', emoji: '❌', color: 'border-red-200 bg-red-50 text-red-600', selected: 'border-red-400 bg-red-100 text-red-700 ring-2 ring-red-300' },
-  { value: 'Strong Reject', label: 'Strong Reject', emoji: '🚫', color: 'border-red-300 bg-red-100 text-red-700', selected: 'border-red-500 bg-red-200 text-red-900 ring-2 ring-red-400' },
+const RECOMMENDATIONS: { value: HiringRecommendation; label: string; icon: React.ComponentType<{ className?: string }>; color: string; selected: string }[] = [
+  { value: 'Strong Hire', label: 'Strong Hire', icon: Rocket, color: 'border-emerald-200 bg-emerald-50 text-emerald-700', selected: 'border-emerald-400 bg-emerald-100 text-emerald-800 ring-2 ring-emerald-300' },
+  { value: 'Hire', label: 'Hire', icon: CheckCircle2, color: 'border-blue-200 bg-blue-50 text-blue-700', selected: 'border-blue-400 bg-blue-100 text-blue-800 ring-2 ring-blue-300' },
+  { value: 'Consider', label: 'Consider', icon: HelpCircle, color: 'border-amber-200 bg-amber-50 text-amber-700', selected: 'border-amber-400 bg-amber-100 text-amber-800 ring-2 ring-amber-300' },
+  { value: 'Reject', label: 'Reject', icon: XCircle, color: 'border-red-200 bg-red-50 text-red-600', selected: 'border-red-400 bg-red-100 text-red-700 ring-2 ring-red-300' },
+  { value: 'Strong Reject', label: 'Strong Reject', icon: Ban, color: 'border-red-300 bg-red-100 text-red-700', selected: 'border-red-500 bg-red-200 text-red-900 ring-2 ring-red-400' },
 ];
 
 interface StarRatingProps {
@@ -40,7 +40,7 @@ const StarRating: React.FC<StarRatingProps> = ({ value, onChange }) => (
     </div>
     {value > 0 && (
       <span className="text-xs font-medium text-slate-500">
-        {ratingEmojis[value as FeedbackRating]} {ratingLabels[value as FeedbackRating]}
+        {ratingLabels[value as FeedbackRating]}
       </span>
     )}
   </div>
@@ -58,7 +58,7 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
   candidateName,
   interviewTitle,
   sessionId,
-  companyId: initialCompanyId,
+  companyId,
   onSubmit,
 }) => {
   const [ratings, setRatings] = useState<Record<string, FeedbackRating | 0>>({
@@ -77,10 +77,11 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
   const [submitted, setSubmitted] = useState(false);
 
   const avgScore =
-    Object.values(ratings).filter(Boolean).length === Object.values(ratings).length
+    Object.values(ratings).filter(Boolean).length > 0
       ? Math.round(
           (Object.values(ratings).reduce((a, b) => a + b, 0) /
-            Object.values(ratings).length) * 20
+            (Object.values(ratings).filter(Boolean).length * 5)) *
+            100
         )
       : 0;
 
@@ -88,35 +89,46 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!allRated) return;
+    if (!recommendation) {
+      toast.error('Please select a hiring recommendation.');
+      return;
+    }
+
+    const payload = {
+      ratings,
+      overallScore: avgScore,
+      recommendation,
+      comments,
+      strengths,
+      improvements,
+    };
+
     try {
-      const recMap: Record<string, string> = {
-        'Strong Hire': 'STRONG_HIRE',
-        'Hire': 'HIRE',
-        'Consider': 'HOLD',
-        'Reject': 'REJECT',
-        'Strong Reject': 'STRONG_REJECT'
-      };
-      if (sessionId) {
-        const currentWorkspace = store.getState().workspace.currentWorkspace;
-        const resolvedCompanyId = initialCompanyId || (currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined);
-        if (resolvedCompanyId) {
-          await interviewApi.submitEvaluation(resolvedCompanyId, sessionId, {
-            overallScore: avgScore,
-            communicationScore: (ratings.communication || 0) * 20,
-            technicalScore: (ratings.technical || 0) * 20,
-            problemSolvingScore: (ratings.problemSolving || 0) * 20,
-            behaviourScore: (ratings.behaviour || 0) * 20,
-            cultureFitScore: (ratings.cultureFit || 0) * 20,
-            recommendation: recommendation ? recMap[recommendation] || null : null,
-            strengths,
-            improvements,
-            comments
-          });
-        }
+      if (companyId && sessionId) {
+        const recMap: Record<string, string> = {
+          'Strong Hire': 'STRONG_HIRE',
+          'Hire': 'HIRE',
+          'Consider': 'HOLD',
+          'Reject': 'REJECT',
+          'Strong Reject': 'STRONG_REJECT'
+        };
+
+        await interviewApi.submitRecruiterEvaluation(companyId, sessionId, {
+          overallScore: avgScore,
+          communication: ratings.communication || 0,
+          technical: ratings.technical || 0,
+          problemSolving: ratings.problemSolving || 0,
+          behaviour: ratings.behaviour || 0,
+          cultureFit: ratings.cultureFit || 0,
+          recommendation: recMap[recommendation] || recommendation,
+          comments: comments || undefined,
+          strengths: strengths.length > 0 ? strengths : undefined,
+          areasForImprovement: improvements.length > 0 ? improvements : undefined,
+        });
       }
-      onSubmit({ ...ratings, recommendation, comments, strengths, improvements, overallScore: avgScore });
+      onSubmit(payload);
       setSubmitted(true);
+      toast.success('Evaluation submitted successfully!');
     } catch (err: any) {
       console.error('Failed to submit full recruiter feedback:', err);
       toast.error(err?.message || 'Failed to submit evaluation.');
@@ -176,10 +188,12 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
       {/* Skill Ratings */}
       <div className="card p-5 space-y-5">
         <h4 className="text-sm font-bold text-slate-900">Skill Assessment</h4>
-        {evaluationDimensions.map(({ key, label, icon }) => (
+        {evaluationDimensions.map(({ key, label, icon: Icon }) => (
           <div key={key} className="flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2">
-              <span className="text-lg">{icon}</span>
+              <div className="w-8 h-8 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+                <Icon className="w-4 h-4" />
+              </div>
               <p className="text-sm text-slate-700 font-medium">{label}</p>
             </div>
             <div className="flex flex-col items-end gap-1">
@@ -204,7 +218,7 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
       <div className="card p-5">
         <h4 className="text-sm font-bold text-slate-900 mb-3">Hiring Recommendation <span className="text-red-500">*</span></h4>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {RECOMMENDATIONS.map(({ value, label, emoji, color, selected }) => (
+          {RECOMMENDATIONS.map(({ value, label, icon: Icon, color, selected }) => (
             <button
               key={value}
               type="button"
@@ -213,8 +227,8 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
                 recommendation === value ? selected : color + ' hover:opacity-90'
               }`}
             >
-              <span className="text-base">{emoji}</span>
-              {label}
+              <Icon className="w-4 h-4 flex-shrink-0" />
+              <span>{label}</span>
             </button>
           ))}
         </div>
