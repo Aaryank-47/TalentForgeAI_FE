@@ -49,14 +49,22 @@ const RecruiterInterviewDetailPage: React.FC = () => {
 
   const interviewers = session?.participants
     ?.filter((p: any) => p.participantType === 'INTERVIEWER')
-    ?.map((p: any) => ({
-      id: p.id,
-      name: p.companyMember?.user?.fullName || 'Interviewer',
-      role: p.companyMember?.role || 'Staff',
-      department: p.companyMember?.department || 'Recruitment',
-      initials: (p.companyMember?.user?.fullName || 'I').charAt(0).toUpperCase(),
-      avatarColor: 'from-slate-400 to-slate-600'
-    })) || [];
+    ?.map((p: any) => {
+      const u = p.companyMember?.user;
+      const emp = u?.employer;
+      const adm = u?.admin;
+      const name = emp?.fullName || adm?.fullName || u?.email?.split('@')[0] || 'Interviewer';
+      const role = emp?.designation || adm?.designation || p.companyMember?.role || 'Staff';
+      const department = emp?.department || adm?.department || 'Recruitment';
+      return {
+        id: p.id,
+        name,
+        role,
+        department,
+        initials: (name || 'I').charAt(0).toUpperCase(),
+        avatarColor: 'from-slate-500 to-slate-700'
+      };
+    }) || [];
 
   if (isLoading) {
     return (
@@ -84,19 +92,27 @@ const RecruiterInterviewDetailPage: React.FC = () => {
   const isActive = ['SCHEDULED', 'Upcoming'].includes(session.status);
   const isLive = session.status === 'IN_PROGRESS';
 
-  const handleRescheduleConfirm = (newDate: string, newTime: string) => {
-    const newISO = new Date(`${newDate}T${newTime}`).toISOString();
-    rescheduleInterviewSession(session.id, newISO);
-    toast.success('Interview rescheduled!');
-    setRescheduleOpen(false);
-    refetch();
+  const handleRescheduleConfirm = async (newDate: string, newTime: string) => {
+    try {
+      const newISO = new Date(`${newDate}T${newTime}`).toISOString();
+      await interviewApi.updateSession(companyId as string, session.id, { scheduledAt: newISO });
+      toast.success('Interview rescheduled successfully!');
+      setRescheduleOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to reschedule interview');
+    }
   };
 
-  const handleCancelConfirm = () => {
-    cancelInterviewSession(session.id);
-    toast.error('Interview cancelled.');
-    setCancelOpen(false);
-    refetch();
+  const handleCancelConfirm = async () => {
+    try {
+      await interviewApi.cancelSession(companyId as string, session.id);
+      toast.success('Interview cancelled successfully.');
+      setCancelOpen(false);
+      refetch();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to cancel interview');
+    }
   };
 
   return (
@@ -127,7 +143,7 @@ const RecruiterInterviewDetailPage: React.FC = () => {
                 <LiveInterviewStatusBadge status={mappedInterview.status} size="md" />
               </div>
               <p className="text-sm text-slate-500">
-                {session.job?.title} · {session.interview?.mode} Session
+                {session.job?.title || 'Software Developer'} · {session.interview?.mode || 'INDIVIDUAL'} Session
               </p>
               <div className="flex items-center gap-4 mt-3 flex-wrap">
                 <div className="flex items-center gap-1.5 text-xs text-slate-600">
@@ -144,7 +160,7 @@ const RecruiterInterviewDetailPage: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-slate-600">
                   <Video className="w-3.5 h-3.5 text-slate-400" />
-                  <span className="capitalize">Video Room</span>
+                  Video Room
                 </div>
               </div>
             </div>
@@ -154,7 +170,16 @@ const RecruiterInterviewDetailPage: React.FC = () => {
           <div className="flex items-center gap-2 flex-wrap">
             {(isActive || isLive) && (
               <button
-                onClick={() => navigate(`/recruiter/live-interviews/${session.id}/room`)}
+                onClick={async () => {
+                  try {
+                    if (companyId && session.id && session.status !== 'IN_PROGRESS') {
+                      await interviewApi.startSession(companyId, session.id);
+                    }
+                  } catch (err) {
+                    console.warn('Could not update session status:', err);
+                  }
+                  navigate(`/recruiter/live-interviews/${session.id}/room`);
+                }}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-xl transition-colors ${
                   isLive
                     ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -265,6 +290,9 @@ const RecruiterInterviewDetailPage: React.FC = () => {
                     </span>
                   </div>
                 ))}
+                {interviewers.length === 0 && (
+                  <p className="text-xs text-slate-400">No interviewers assigned to this session.</p>
+                )}
               </div>
             </div>
           </div>
@@ -281,9 +309,11 @@ const RecruiterInterviewDetailPage: React.FC = () => {
                 { label: 'Recording', value: 'Enabled' },
                 { label: 'Room ID', value: mappedInterview.roomId },
               ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between items-start">
-                  <span className="text-xs text-slate-400">{label}</span>
-                  <span className="text-xs font-semibold text-slate-900 text-right capitalize max-w-[150px]">{value}</span>
+                <div key={label} className="flex justify-between items-start gap-3">
+                  <span className="text-xs text-slate-400 flex-shrink-0">{label}</span>
+                  <span className="text-xs font-semibold text-slate-900 text-right break-all max-w-[200px]">
+                    {value || '—'}
+                  </span>
                 </div>
               ))}
             </div>

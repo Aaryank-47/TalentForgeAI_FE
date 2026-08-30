@@ -28,7 +28,7 @@ const CandidateLiveInterviewFeedbackPage: React.FC = () => {
   
   const toCandidateLiveInterview = (dto: any) => ({
     id: dto.sessionId || dto.id,
-    title: dto.role || 'Interview',
+    title: dto.interviewTitle || dto.interview?.title || dto.role || 'Interview',
     status: (dto.status === 'EXPIRED' ? 'Missed' : dto.status === 'COMPLETED' ? 'Completed' : 'Scheduled') as InterviewStatus,
     company: dto.company || 'Company',
     companyLogo: dto.companyLogo || 'C',

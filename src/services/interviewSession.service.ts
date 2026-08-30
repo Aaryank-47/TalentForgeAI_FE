@@ -36,6 +36,24 @@ export const hydrateSession = (session: InterviewSession): InterviewSession => {
           jobId = p.assignment.application.jobId;
           jobTitle = p.assignment.application.job.title;
         }
+      } else if (p.participantType === 'INTERVIEWER') {
+        const u = p.companyMember?.user;
+        const emp = u?.employer;
+        const adm = u?.admin;
+        const interviewerName = emp?.fullName || adm?.fullName || u?.email?.split('@')[0] || 'Interviewer';
+        const department = emp?.department || adm?.department || 'Recruitment';
+        const designation = emp?.designation || adm?.designation || p.companyMember?.role || 'Interviewer';
+        
+        interviewers.push({
+          id: p.id,
+          name: interviewerName,
+          role: designation,
+          department: department,
+          email: u?.email || '',
+          avatar: interviewerName.substring(0, 2).toUpperCase(),
+          initials: interviewerName.substring(0, 2).toUpperCase(),
+          avatarColor: 'from-slate-500 to-slate-700'
+        });
       }
     });
   }

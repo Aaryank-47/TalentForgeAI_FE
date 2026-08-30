@@ -31,6 +31,7 @@ const CandidateRoomInner: React.FC<{
     isCinemaMode,
     participants,
     currentUser,
+    currentInterview,
   } = useInterview();
 
   const allParticipants = React.useMemo(() => {
@@ -63,7 +64,7 @@ const CandidateRoomInner: React.FC<{
   }, [joinRoom]);
 
   useEffect(() => {
-    if (useInterview().currentInterview?.status === 'Completed') {
+    if (currentInterview?.status === 'Completed') {
       toast.success('The interview has ended. Redirecting to feedback...', { duration: 3000 });
       // add a small delay so they can read the toast
       const t = setTimeout(() => {
@@ -71,7 +72,7 @@ const CandidateRoomInner: React.FC<{
       }, 1500);
       return () => clearTimeout(t);
     }
-  }, [useInterview().currentInterview?.status]);
+  }, [currentInterview?.status]);
 
   const handleLeave = () => {
     leaveRoom();
@@ -183,12 +184,12 @@ const CandidateLiveRoomPage: React.FC = () => {
 
   const toCandidateLiveInterview = (dto: any): LiveInterview => ({
     id: dto.sessionId || dto.id,
-    title: dto.role || 'Interview',
+    title: dto.interviewTitle || dto.interview?.title || dto.role || 'Interview',
     type: dto.interviewType?.includes('AI') ? 'Technical' : 'Technical',
-    status: dto.status === 'EXPIRED' ? 'Missed' : dto.status === 'COMPLETED' ? 'Completed' : 'Scheduled',
+    status: dto.status === 'EXPIRED' ? 'Missed' : dto.status === 'COMPLETED' ? 'Completed' : dto.status === 'IN_PROGRESS' ? 'Live' : 'Scheduled',
     meetingType: 'video',
     jobId: dto.id,
-    jobTitle: dto.role,
+    jobTitle: dto.role || dto.interviewTitle || 'Software Developer',
     company: dto.company || 'Company',
     companyLogo: dto.companyLogo || 'C',
     companyColor: dto.companyColor || 'bg-primary-600',
@@ -236,6 +237,28 @@ const CandidateLiveRoomPage: React.FC = () => {
           <p className="text-slate-900 font-semibold mb-3">Interview not found.</p>
           <button onClick={() => navigate('/candidate/live-interviews')} className="text-sm text-primary-600 underline">
             Go back
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (interview.status !== 'Live') {
+    return (
+      <div className="h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md p-6 bg-white rounded-2xl shadow-sm border border-slate-200">
+          <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
+            ⏳
+          </div>
+          <h3 className="text-base font-bold text-slate-900 mb-2">Interview Not Started</h3>
+          <p className="text-sm text-slate-600 mb-6">
+            Interview has not started by the interviewer. Please wait until the interviewer starts the session.
+          </p>
+          <button
+            onClick={() => navigate(`/candidate/live-interviews/${interview.id}`)}
+            className="btn-primary text-sm w-full py-2.5"
+          >
+            Back to Details
           </button>
         </div>
       </div>

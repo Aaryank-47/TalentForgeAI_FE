@@ -11,6 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { interviewApi } from '../../../services/api/interview.api';
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
 import { RefreshCw } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const CandidateLiveInterviewDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,6 +20,9 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
     queryKey: ['candidate-session', id],
     queryFn: () => interviewApi.getCandidateSessionDetails(id as string),
     enabled: !!id,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
 
   const session = sessionResponse as any;
@@ -43,16 +47,40 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
     );
   }
 
-  const isJoinable = ['SCHEDULED', 'IN_PROGRESS', 'Upcoming', 'Live', 'Today'].includes(session.status);
+  const isCancelled = session.status === 'CANCELLED';
+  const isExpired = session.status === 'EXPIRED';
   const isCompleted = session.status === 'COMPLETED';
+  const isLive = session.status === 'IN_PROGRESS' || session.status === 'Live';
+  const isJoinable = !isCancelled && !isExpired && !isCompleted;
 
-  const title = session.role || 'Interview Session';
-  const subtitle = `${session.department || 'Engineering'} · ${session.interviewType || 'Video'} Session`;
-  const displayStatus = session.status === 'EXPIRED' ? 'Missed' : session.status === 'COMPLETED' ? 'Completed' : 'Scheduled';
-  const date = session.startedAt ? new Date(session.startedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const timeStart = session.startedAt ? new Date(session.startedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '10:00 AM';
-  const timeEnd = '11:00 AM';
+  const title = session.interviewTitle || session.interview?.title || session.role || 'Interview Session';
+  const subtitle = `${session.role || session.department || 'Engineering'} · ${session.interviewType || 'Video'} Session`;
+  
+  // Real date & timing calculation
+  const scheduledTime = session.scheduledAt
+    ? new Date(session.scheduledAt)
+    : session.startedAt
+    ? new Date(session.startedAt)
+    : new Date();
+  const duration = session.durationMinutes || 45;
+  const endTime = new Date(scheduledTime.getTime() + duration * 60000);
+
+  const date = scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timeStart = scheduledTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  const timeEnd = endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const timezone = 'IST';
+
+  const statusMap: Record<string, any> = {
+    SCHEDULED: 'Scheduled',
+    IN_PROGRESS: 'Live',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+    EXPIRED: 'Missed',
+    Upcoming: 'Upcoming',
+    Live: 'Live',
+    Today: 'Today',
+  };
+  const displayStatus = statusMap[session.status] || session.status || 'Scheduled';
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
@@ -65,13 +93,35 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
         My Interviews
       </button>
 
+      {/* Cancelled Banner */}
+      {isCancelled && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3">
+          <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-red-800">Interview Cancelled</p>
+            <p className="text-xs text-red-600">This interview session has been cancelled by the recruiter.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Expired Banner */}
+      {isExpired && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+          <Clock className="w-5 h-5 text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="text-sm font-bold text-amber-800">Interview Expired / Missed</p>
+            <p className="text-xs text-amber-600">The scheduled time for this interview has passed without attendance.</p>
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <div className="card p-6">
         <div className="flex items-start gap-5 flex-wrap">
           <div
-            className={`w-16 h-16 rounded-2xl bg-primary-600 flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 shadow-lg`}
+            className={`w-16 h-16 rounded-2xl ${session.companyColor || 'bg-primary-600'} flex items-center justify-center text-white font-bold text-2xl flex-shrink-0 shadow-lg`}
           >
-            TF
+            {session.companyLogo || 'TF'}
           </div>
           <div className="flex-1">
             <div className="flex items-center gap-3 flex-wrap mb-1">
@@ -87,7 +137,7 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Clock className="w-3.5 h-3.5 text-slate-400" />
-                {timeStart} – {timeEnd}
+                {timeStart} – {timeEnd} ({duration} mins)
               </div>
               <div className="flex items-center gap-1.5 text-xs text-slate-600">
                 <Video className="w-3.5 h-3.5 text-slate-400" />
@@ -105,19 +155,25 @@ const CandidateLiveInterviewDetailPage: React.FC = () => {
         <div className="flex gap-3 mt-6 flex-wrap">
           {isJoinable && (
             <button
-              onClick={() => navigate(`/candidate/live-interviews/${session.sessionId || session.id}/room`)}
+              onClick={() => {
+                if (!isLive) {
+                  toast.error('Interview has not started by the interviewer');
+                  return;
+                }
+                navigate(`/candidate/live-interviews/${session.sessionId || session.id}/room`);
+              }}
               id="join-interview-btn"
               className={`flex items-center gap-2 px-5 py-2.5 text-sm font-bold rounded-xl transition-colors ${
-                session.status === 'IN_PROGRESS'
+                isLive
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
                   : 'btn-primary'
               }`}
             >
-              {session.status === 'IN_PROGRESS' && (
+              {isLive && (
                 <span className="w-2 h-2 bg-white rounded-full animate-recording-pulse" />
               )}
               <Play className="w-4 h-4" />
-              {session.status === 'IN_PROGRESS' ? 'Join Now' : 'Join Interview'}
+              {isLive ? 'Join Now' : 'Join Interview'}
             </button>
           )}
           {isCompleted && (

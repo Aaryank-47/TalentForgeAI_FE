@@ -32,6 +32,7 @@ const RoomInner: React.FC<{
     connectionStatus,
     isRoomJoined,
     joinRoom,
+    startInterview,
     endInterview,
     leaveRoom,
     activePanel,
@@ -39,6 +40,7 @@ const RoomInner: React.FC<{
     isCinemaMode,
     participants,
     currentUser,
+    currentInterview,
   } = useInterview();
 
   const allParticipants = React.useMemo(() => {
@@ -63,13 +65,14 @@ const RoomInner: React.FC<{
   }, [participants, currentUser]);
 
   useEffect(() => {
-    // Auto-join on mount with a brief delay for UX
+    // Auto-join and start session on mount for recruiter
     const t = setTimeout(() => {
       joinRoom();
+      startInterview();
       toast.success('You joined the interview room.', { duration: 2000 });
     }, 500);
     return () => clearTimeout(t);
-  }, [joinRoom]);
+  }, [joinRoom, startInterview]);
 
   const handleLeave = () => {
     leaveRoom();
@@ -150,7 +153,7 @@ const RoomInner: React.FC<{
               {activePanel === 'participants' && (
                 <ParticipantList
                   participants={participants}
-                  localUserId={useInterview().currentUser?.id || ''}
+                  localUserId={currentUser?.id || ''}
                 />
               )}
               {activePanel === 'notes' && <NotesPanel />}
@@ -164,7 +167,7 @@ const RoomInner: React.FC<{
             <RecruiterSidebar
               interview={interview}
               participants={participants}
-              localUserId={useInterview().currentUser?.id || ''}
+              localUserId={currentUser?.id || ''}
             />
           </div>
         )}

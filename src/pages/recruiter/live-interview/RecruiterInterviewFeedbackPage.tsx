@@ -18,8 +18,8 @@ import { toLiveInterview } from '../../../services/interviewSession.service';
 const RecruiterInterviewFeedbackPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
+  const { user, currentWorkspace } = useAuth();
+  const companyId = (currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined) || user?.companyId || user?.companies?.[0]?.companyId;
 
   const { data: sessionResponse, isLoading } = useQuery({
     queryKey: ['interview-session', id, companyId],
@@ -99,6 +99,7 @@ const RecruiterInterviewFeedbackPage: React.FC = () => {
         candidateName={interview.candidateName}
         interviewTitle={interview.title}
         sessionId={id}
+        companyId={companyId}
         onSubmit={handleSubmit}
       />
     </div>

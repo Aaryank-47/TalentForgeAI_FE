@@ -87,6 +87,21 @@ export const interviewApi = {
   updateSession: (companyId: string, sessionId: string, payload: any) =>
     api.patch(`/interviews/${companyId}/interview-sessions/${sessionId}`, payload),
 
+  startSession: (companyId: string, sessionId: string) =>
+    api.post(`/interviews/${companyId}/interview-sessions/${sessionId}/start`),
+
+  cancelSession: (companyId: string, sessionId: string) =>
+    api.post(`/interviews/${companyId}/interview-sessions/${sessionId}/cancel`),
+
+  endSession: (companyId: string, sessionId: string) =>
+    api.post(`/interviews/${companyId}/interview-sessions/${sessionId}/end`),
+
+  submitEvaluation: (companyId: string, sessionId: string, payload: any) =>
+    api.post(`/interviews/${companyId}/interview-sessions/${sessionId}/evaluation`, payload),
+
+  getEvaluations: (companyId: string, sessionId: string) =>
+    api.get(`/interviews/${companyId}/interview-sessions/${sessionId}/evaluation`),
+
   // ── 4. AI Interview Endpoints ─────────────────────────────────
   getCompanyAIInterviews: (companyId: string, params?: { search?: string }) =>
     api.get(`/interviews/ai/${companyId}/ai-interviews`, { params }),

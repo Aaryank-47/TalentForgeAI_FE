@@ -14,7 +14,10 @@ import React, {
 import { io, Socket } from 'socket.io-client';
 import type { LiveInterview, ConnectionStatus, ChatMessage, InterviewNote } from '../types/interview.types';
 import type { RoomParticipant, CurrentUser } from '../types/participant.types';
+import { store } from '../store';
+import { interviewApi } from '../services/api/interview.api';
 import { tokenStorage } from '../services/api/apiClient';
+import { queryClient } from '../lib/queryClient';
 import toast from 'react-hot-toast';
 
 // ─── State Shape ──────────────────────────────────────────────
@@ -146,6 +149,8 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
 
   // Refs for WebRTC & WebSocket
   const socketRef = useRef<Socket | null>(null);
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null);
+  const pingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -272,9 +277,29 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
 
     pc.onconnectionstatechange = () => {
       const state = pc.connectionState;
-      setConnectionStatus(state === 'connected' ? 'excellent' : 'good');
-      if (state === 'failed' || state === 'disconnected') {
-        toast.error(`Video connection lost with participant.`);
+      if (state === 'connected') {
+        setConnectionStatus('excellent');
+      } else if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+        setRemoteStreams((prev) => {
+          if (!prev[peerId]) return prev;
+          const updated = { ...prev };
+          delete updated[peerId];
+          return updated;
+        });
+        setParticipants((prev) => prev.filter((p) => p.id !== peerId));
+      }
+    };
+
+    pc.oniceconnectionstatechange = () => {
+      const iceState = pc.iceConnectionState;
+      if (iceState === 'disconnected' || iceState === 'failed' || iceState === 'closed') {
+        setRemoteStreams((prev) => {
+          if (!prev[peerId]) return prev;
+          const updated = { ...prev };
+          delete updated[peerId];
+          return updated;
+        });
+        setParticipants((prev) => prev.filter((p) => p.id !== peerId));
       }
     };
 
@@ -369,6 +394,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         
         // Initialize BroadcastChannel for same-origin signaling between recruiter and candidate tabs
         const channel = new BroadcastChannel(`tf-room-${currentInterview.id}`);
+        broadcastChannelRef.current = channel;
         
         channel.onmessage = async (event) => {
           const { type, from, to, offer, answer, candidate, user: remoteUser } = event.data;
@@ -517,6 +543,25 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
                 setChatMessages((prev) => [...prev, event.data.message]);
               }
               break;
+
+            case 'user-left': {
+              const leavingUserId = from || event.data?.userId;
+              if (leavingUserId) {
+                const pc = peersRef.current.get(leavingUserId);
+                if (pc) {
+                  pc.close();
+                  peersRef.current.delete(leavingUserId);
+                }
+                setRemoteStreams((prev) => {
+                  const updated = { ...prev };
+                  delete updated[leavingUserId];
+                  return updated;
+                });
+                setParticipants((prev) => prev.filter((p) => p.id !== leavingUserId));
+                toast('Participant left the interview.', { icon: '👋' });
+              }
+              break;
+            }
           }
         };
         
@@ -527,6 +572,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
             channel.postMessage({ type: 'ping', from: currentUser?.id, user: currentUser });
           }
         }, 1000);
+        pingIntervalRef.current = pingInterval;
         
         // Wrap channel methods to pretend it is the socket connection
         (socketRef as any).current = {
@@ -539,8 +585,17 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
             }
           },
           disconnect: () => {
-            clearInterval(pingInterval);
-            channel.close();
+            if (pingIntervalRef.current) {
+              clearInterval(pingIntervalRef.current);
+              pingIntervalRef.current = null;
+            }
+            try {
+              channel.postMessage({ type: 'user-left', from: currentUser?.id, userId: currentUser?.id });
+              channel.close();
+            } catch (e) {
+              // ignore
+            }
+            broadcastChannelRef.current = null;
           }
         };
 
@@ -632,7 +687,10 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         createPeerConnection(user.userId, false);
       });
 
-      socket.on('user-left', (peerId: string) => {
+      socket.on('user-left', (data: any) => {
+        const peerId = typeof data === 'string' ? data : (data?.userId || data?.socketId || data?.id);
+        if (!peerId) return;
+
         // Clean up connection
         const pc = peersRef.current.get(peerId);
         if (pc) {
@@ -647,7 +705,7 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
         });
 
         setParticipants((prev) => prev.filter((p) => p.id !== peerId));
-        toast(`${peerId} left the interview.`, { icon: '👋' });
+        toast(`Participant left the interview.`, { icon: '👋' });
       });
 
       // signaling events
@@ -693,11 +751,17 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
       socket.on('interview-started', (data: { sessionId: string; startedAt: string; status: string }) => {
         toast.success('The interview has officially started!');
         setCurrentInterview((prev) => prev ? { ...prev, status: 'Live' } : null);
+        queryClient.invalidateQueries({ queryKey: ['candidateInterviews'] });
+        queryClient.invalidateQueries({ queryKey: ['candidate-session'] });
+        queryClient.invalidateQueries({ queryKey: ['interview-session'] });
       });
 
       socket.on('interview-ended', (data: { sessionId: string; endedAt: string; status: string }) => {
         toast.success('The interview has ended.');
         setCurrentInterview((prev) => prev ? { ...prev, status: 'Completed' } : null);
+        queryClient.invalidateQueries({ queryKey: ['candidateInterviews'] });
+        queryClient.invalidateQueries({ queryKey: ['candidate-session'] });
+        queryClient.invalidateQueries({ queryKey: ['interview-session'] });
       });
 
       socket.on('code-change', (data: { senderId: string; code: string }) => {
@@ -733,17 +797,43 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
 
   const leaveRoom = useCallback(() => {
     setIsRoomJoined(false);
-    cleanPeers();
-    cleanMedia();
+
+    if (pingIntervalRef.current) {
+      clearInterval(pingIntervalRef.current);
+      pingIntervalRef.current = null;
+    }
+
+    if (broadcastChannelRef.current) {
+      try {
+        broadcastChannelRef.current.postMessage({
+          type: 'user-left',
+          from: currentUser?.id,
+          userId: currentUser?.id
+        });
+        broadcastChannelRef.current.close();
+      } catch (e) {
+        // ignore
+      }
+      broadcastChannelRef.current = null;
+    }
     
     if (socketRef.current) {
+      try {
+        socketRef.current.emit('leave-room', { sessionId: currentInterview?.id });
+      } catch (e) {
+        // ignore
+      }
       socketRef.current.disconnect();
       socketRef.current = null;
     }
+
+    cleanPeers();
+    cleanMedia();
+    setParticipants([]);
     
     if (timerRef.current) clearInterval(timerRef.current);
     setConnectionStatus('disconnected');
-  }, [cleanPeers, cleanMedia]);
+  }, [cleanPeers, cleanMedia, currentInterview, currentUser]);
 
 
   const sendCodeChange = useCallback((newCode: string) => {
@@ -770,18 +860,20 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
     if (!currentInterview) return;
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('start-interview', { sessionId: currentInterview.id });
-    } else {
-      try {
-        const token = tokenStorage.getAccessToken();
-        const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
-        await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${currentInterview.id}/start`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        setCurrentInterview((prev) => prev ? { ...prev, status: 'Live' } : null);
-      } catch (e) {
-        console.error('REST startInterview error:', e);
+    }
+    // Also trigger backend REST endpoint to guarantee database session status update to IN_PROGRESS
+    try {
+      const currentWorkspace = store.getState().workspace.currentWorkspace;
+      const companyId = currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined;
+      if (companyId) {
+        await interviewApi.startSession(companyId, currentInterview.id);
       }
+      setCurrentInterview((prev) => prev ? { ...prev, status: 'Live' } : null);
+      queryClient.invalidateQueries({ queryKey: ['candidateInterviews'] });
+      queryClient.invalidateQueries({ queryKey: ['candidate-session'] });
+      queryClient.invalidateQueries({ queryKey: ['interview-session'] });
+    } catch (e) {
+      console.warn('REST startInterview:', e);
     }
   }, [currentInterview]);
 
@@ -789,21 +881,33 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
     if (!currentInterview) return;
     if (socketRef.current && socketRef.current.connected) {
       socketRef.current.emit('end-interview', { sessionId: currentInterview.id });
-    } else {
+    }
+    if (broadcastChannelRef.current) {
       try {
-        const token = tokenStorage.getAccessToken();
-        const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
-        await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${currentInterview.id}/end`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}` }
+        broadcastChannelRef.current.postMessage({
+          type: 'interview-ended',
+          from: currentUser?.id,
+          sessionId: currentInterview.id
         });
-        setCurrentInterview((prev) => prev ? { ...prev, status: 'Completed' } : null);
       } catch (e) {
-        console.error('REST endInterview error:', e);
+        // ignore
       }
     }
+    try {
+      const currentWorkspace = store.getState().workspace.currentWorkspace;
+      const companyId = currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined;
+      if (companyId) {
+        await interviewApi.endSession(companyId, currentInterview.id);
+      }
+      setCurrentInterview((prev) => prev ? { ...prev, status: 'Completed' } : null);
+      queryClient.invalidateQueries({ queryKey: ['candidateInterviews'] });
+      queryClient.invalidateQueries({ queryKey: ['candidate-session'] });
+      queryClient.invalidateQueries({ queryKey: ['interview-session'] });
+    } catch (e) {
+      console.warn('REST endInterview:', e);
+    }
     leaveRoom();
-  }, [currentInterview, leaveRoom]);
+  }, [currentInterview, currentUser, leaveRoom]);
 
   // Clean up component on unmount
   useEffect(() => {

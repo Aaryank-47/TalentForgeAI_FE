@@ -3,7 +3,7 @@
 // Recruiter schedules interview sessions using assignments
 // ─────────────────────────────────────────────────────────────
 import React, { useState, useEffect, useMemo } from 'react';
-import { X, Calendar, Clock, Check, AlertTriangle, Users } from 'lucide-react';
+import { X, Calendar, Clock, Check, AlertTriangle, Users, Search } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { interviewApi } from '../../services/api/interview.api';
 import type { Interview, CompanyMember } from '../../types/interviewSession.types';
@@ -29,6 +29,10 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   // Database lists
   const [interviewers, setInterviewers] = useState<CompanyMember[]>([]);
 
+  // Search filter states
+  const [candidateSearch, setCandidateSearch] = useState('');
+  const [interviewerSearch, setInterviewerSearch] = useState('');
+
   // Form State
   const [selectedInterviewId, setSelectedInterviewId] = useState('');
   const [selectedCandidateIds, setSelectedCandidateIds] = useState<string[]>([]);
@@ -45,6 +49,8 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
       setSelectedInterviewId('');
       setSelectedCandidateIds([]);
       setSelectedInterviewerIds([]);
+      setCandidateSearch('');
+      setInterviewerSearch('');
       setDate('');
       setTime('');
 
@@ -122,6 +128,27 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
     }));
   }, [eligibleCandidatesResponse]);
 
+  const filteredCandidates = useMemo(() => {
+    if (!candidateSearch.trim()) return assignedCandidates;
+    const query = candidateSearch.toLowerCase();
+    return assignedCandidates.filter(asg =>
+      asg.candidate.name.toLowerCase().includes(query) ||
+      asg.candidate.title.toLowerCase().includes(query) ||
+      asg.candidate.experience.toLowerCase().includes(query)
+    );
+  }, [assignedCandidates, candidateSearch]);
+
+  const filteredInterviewers = useMemo(() => {
+    if (!interviewerSearch.trim()) return interviewers;
+    const query = interviewerSearch.toLowerCase();
+    return interviewers.filter(cm =>
+      cm.name.toLowerCase().includes(query) ||
+      cm.role.toLowerCase().includes(query) ||
+      cm.department.toLowerCase().includes(query) ||
+      cm.email.toLowerCase().includes(query)
+    );
+  }, [interviewers, interviewerSearch]);
+
   // Default the mode based on the interview definition
   useEffect(() => {
     if (selectedInterviewId) {
@@ -132,8 +159,6 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
       }
     }
   }, [selectedInterviewId, interviews]);
-
-
 
   const selectedInterview = interviews.find((i) => i.id === selectedInterviewId);
 
@@ -196,9 +221,13 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   };
 
   const toggleCandidate = (id: string) => {
-    setSelectedCandidateIds((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
-    );
+    if (mode === 'INDIVIDUAL') {
+      setSelectedCandidateIds([id]);
+    } else {
+      setSelectedCandidateIds((prev) =>
+        prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+      );
+    }
   };
 
   const toggleInterviewer = (id: string) => {
@@ -269,7 +298,7 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
           {step === 1 && (
             <div className="space-y-4">
               <label className="text-sm font-semibold text-slate-700 block">Select Interview Template</label>
-              <div className="grid grid-cols-1 gap-3">
+              <div className="grid grid-cols-1 gap-3 max-h-[340px] overflow-y-auto pr-1">
                 {interviews.map((iv) => (
                   <button
                     key={iv.id}
@@ -302,25 +331,97 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
 
           {/* Step 2: Select Candidates */}
           {step === 2 && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <label className="text-sm font-semibold text-slate-700">Assign Candidates</label>
-                {selectedInterview && (
-                  <span className="text-xs font-semibold text-primary-600 bg-primary-50 px-2 py-0.5 rounded-md">
-                    {selectedInterview.mode} Mode Configured
-                  </span>
+            <div className="space-y-3">
+              {/* Mode Selection Banner */}
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-900">Choose Session Type</p>
+                    <p className="text-[11px] text-slate-500">
+                      {mode === 'INDIVIDUAL'
+                        ? '1-on-1 Session: Select exactly 1 candidate'
+                        : 'Group Session: Select multiple candidates'}
+                    </p>
+                  </div>
+                  <div className="flex items-center bg-white p-0.5 rounded-lg border border-slate-200 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMode('INDIVIDUAL');
+                        if (selectedCandidateIds.length > 1) {
+                          setSelectedCandidateIds([selectedCandidateIds[0]]);
+                        }
+                      }}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                        mode === 'INDIVIDUAL'
+                          ? 'bg-primary-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Individual (1:1)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMode('GROUP')}
+                      className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                        mode === 'GROUP'
+                          ? 'bg-primary-600 text-white shadow-sm'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Group
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-1">
+                <label className="text-xs font-bold text-slate-700">
+                  {mode === 'INDIVIDUAL' ? 'Select 1 Candidate' : 'Select Candidates'} ({selectedCandidateIds.length}/{assignedCandidates.length} selected)
+                </label>
+                {mode === 'GROUP' && assignedCandidates.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedCandidateIds.length === assignedCandidates.length) {
+                        setSelectedCandidateIds([]);
+                      } else {
+                        setSelectedCandidateIds(assignedCandidates.map(c => c.id));
+                      }
+                    }}
+                    className="text-xs text-primary-600 hover:text-primary-700 font-semibold"
+                  >
+                    {selectedCandidateIds.length === assignedCandidates.length ? 'Deselect All' : 'Select All'}
+                  </button>
                 )}
               </div>
+
+              {assignedCandidates.length > 3 && (
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={candidateSearch}
+                    onChange={(e) => setCandidateSearch(e.target.value)}
+                    placeholder="Search candidate by name, role, or email..."
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              )}
 
               {assignedCandidates.length === 0 ? (
                 <div className="text-center py-8 border-2 border-dashed border-slate-200 rounded-xl">
                   <AlertTriangle className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                  <p className="text-sm font-semibold text-slate-700">No candidates assigned</p>
-                  <p className="text-xs text-slate-400 mt-0.5">No candidates are currently assigned to this interview template.</p>
+                  <p className="text-sm font-semibold text-slate-700">No candidates in interview stage</p>
+                  <p className="text-xs text-slate-400 mt-0.5">No active candidates have reached an interview stage yet.</p>
+                </div>
+              ) : filteredCandidates.length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-slate-200 rounded-xl text-xs text-slate-400">
+                  No candidates match "{candidateSearch}"
                 </div>
               ) : (
-                <div className="space-y-2">
-                  {assignedCandidates.map((asg) => {
+                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-2">
+                  {filteredCandidates.map((asg) => {
                     const isSelected = selectedCandidateIds.includes(asg.id);
                     return (
                       <button
@@ -329,14 +430,21 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
                         onClick={() => toggleCandidate(asg.id)}
                         className={`flex items-center gap-3 p-3 w-full text-left rounded-xl border transition-all ${
                           isSelected
-                            ? 'border-primary-500 bg-primary-50'
+                            ? 'border-primary-500 bg-primary-50 ring-1 ring-primary-300'
                             : 'border-[#E5E7EB] hover:border-slate-300 bg-white'
                         }`}
                       >
-                        <div className={`w-5 h-5 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                        {/* Radio for Individual, Checkbox for Group */}
+                        <div className={`w-5 h-5 flex items-center justify-center flex-shrink-0 transition-colors ${
+                          mode === 'INDIVIDUAL' ? 'rounded-full border' : 'rounded border'
+                        } ${
                           isSelected ? 'bg-primary-600 border-primary-600 text-white' : 'border-slate-300 bg-white'
                         }`}>
-                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                          {isSelected && (
+                            mode === 'INDIVIDUAL'
+                              ? <span className="w-2 h-2 rounded-full bg-white" />
+                              : <Check className="w-3.5 h-3.5" />
+                          )}
                         </div>
                         <div className={`w-8 h-8 rounded-full bg-gradient-to-br ${asg.candidate.avatarColor} flex items-center justify-center text-white text-xs font-bold`}>
                           {asg.candidate.initials}
@@ -355,10 +463,26 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
 
           {/* Step 3: Select Interviewers */}
           {step === 3 && (
-            <div className="space-y-4">
-              <label className="text-sm font-semibold text-slate-700 block">Select Interview Panel members</label>
-              <div className="space-y-2">
-                {interviewers.map((cm) => {
+            <div className="space-y-3">
+              <label className="text-sm font-semibold text-slate-700 block">
+                Select Interview Panel ({selectedInterviewerIds.length}/{interviewers.length} selected)
+              </label>
+
+              {interviewers.length > 3 && (
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={interviewerSearch}
+                    onChange={(e) => setInterviewerSearch(e.target.value)}
+                    placeholder="Search panel members..."
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-[#E5E7EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2 max-h-[260px] overflow-y-auto pr-2">
+                {filteredInterviewers.map((cm) => {
                   const isSelected = selectedInterviewerIds.includes(cm.id);
                   return (
                     <button

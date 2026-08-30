@@ -99,6 +99,27 @@ export interface InterviewSessionParticipant {
       };
     };
   } | null;
+  companyMember?: {
+    id: string;
+    role: string;
+    user: {
+      id: string;
+      email: string;
+      role?: string;
+      employer?: {
+        fullName: string;
+        profilePicture?: string | null;
+        designation?: string | null;
+        department?: string | null;
+      } | null;
+      admin?: {
+        fullName: string;
+        profilePicture?: string | null;
+        designation?: string | null;
+        department?: string | null;
+      } | null;
+    };
+  } | null;
 }
 
 export interface InterviewSession {

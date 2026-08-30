@@ -21,44 +21,68 @@ const CandidateLiveInterviewsPage: React.FC = () => {
   const { data: interviewsResponse, isLoading } = useQuery({
     queryKey: ['candidateInterviews'],
     queryFn: () => interviewApi.getCandidateInterviews({ type: 'NORMAL' }),
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
+    refetchOnMount: 'always',
   });
 
-  const toCandidateLiveInterview = (dto: any): LiveInterview => ({
-    id: dto.sessionId || dto.id,
-    title: dto.role || 'Interview',
-    type: dto.interviewType?.includes('AI') ? 'Technical' : 'Technical',
-    status: dto.status === 'EXPIRED' ? 'Missed' : dto.status === 'COMPLETED' ? 'Completed' : 'Scheduled',
-    meetingType: 'video',
-    jobId: dto.id,
-    jobTitle: dto.role,
-    company: dto.company || 'Company',
-    companyLogo: dto.companyLogo || 'C',
-    companyColor: dto.companyColor || 'bg-primary-600',
-    candidateId: 'me',
-    candidateName: 'Me',
-    candidateInitials: 'ME',
-    candidateAvatarColor: 'from-blue-500 to-blue-700',
-    candidateEmail: '',
-    recruiterIds: [],
-    date: dto.assignedDate || new Date().toLocaleDateString(),
-    dateISO: new Date().toISOString(),
-    timeStart: '10:00 AM', // Generic time since DTO lacks specific time
-    timeEnd: '11:00 AM',
-    duration: `${dto.durationMinutes || 45} min` as any,
-    timezone: 'IST',
-    settings: {
-      allowCamera: true,
-      allowMicrophone: true,
-      allowScreenShare: true,
-      instructions: ''
-    },
-    createdAt: new Date().toISOString(),
-    createdBy: '',
-    recordingEnabled: true,
-    roomId: dto.sessionId,
-    aiScore: dto.aiScore || null,
-    recommendation: dto.recommendation,
-  });
+  const toCandidateLiveInterview = (dto: any): LiveInterview => {
+    const scheduledTime = dto.scheduledAt
+      ? new Date(dto.scheduledAt)
+      : dto.startedAt
+      ? new Date(dto.startedAt)
+      : new Date();
+    const duration = dto.durationMinutes || 45;
+    const endTime = new Date(scheduledTime.getTime() + duration * 60000);
+
+    const statusMap: Record<string, any> = {
+      EXPIRED: 'Missed',
+      CANCELLED: 'Cancelled',
+      COMPLETED: 'Completed',
+      IN_PROGRESS: 'Live',
+      SCHEDULED: 'Scheduled',
+      Upcoming: 'Upcoming',
+      Live: 'Live',
+      Today: 'Today'
+    };
+
+    return {
+      id: dto.sessionId || dto.id,
+      title: dto.interviewTitle || dto.interview?.title || dto.role || 'Interview',
+      type: dto.interviewType?.includes('AI') ? 'Technical' : 'Technical',
+      status: statusMap[dto.status] || dto.status || 'Scheduled',
+      meetingType: 'video',
+      jobId: dto.id,
+      jobTitle: dto.role || dto.interviewTitle || 'Software Developer',
+      company: dto.company || 'Company',
+      companyLogo: dto.companyLogo || 'C',
+      companyColor: dto.companyColor || 'bg-primary-600',
+      candidateId: 'me',
+      candidateName: 'Me',
+      candidateInitials: 'ME',
+      candidateAvatarColor: 'from-blue-500 to-blue-700',
+      candidateEmail: '',
+      recruiterIds: [],
+      date: scheduledTime.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      dateISO: scheduledTime.toISOString(),
+      timeStart: scheduledTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      timeEnd: endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      duration: `${duration} min` as any,
+      timezone: 'IST',
+      settings: {
+        allowCamera: true,
+        allowMicrophone: true,
+        allowScreenShare: true,
+        instructions: ''
+      },
+      createdAt: new Date().toISOString(),
+      createdBy: '',
+      recordingEnabled: true,
+      roomId: dto.sessionId,
+      aiScore: dto.aiScore || null,
+      recommendation: dto.recommendation,
+    };
+  };
 
   const upcomingList = React.useMemo(() => {
     const response = interviewsResponse as any;

@@ -1,4 +1,5 @@
-import { tokenStorage } from '../../services/api/apiClient';
+import { interviewApi } from '../../services/api/interview.api';
+import { store } from '../../store';
 import { useInterview } from '../../context/InterviewContext';
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Evaluation Panel (recruiter sidebar)
@@ -67,21 +68,16 @@ export const EvaluationPanel: React.FC = () => {
     setSaved(true);
     try {
       if (currentInterview) {
-        const token = tokenStorage.getAccessToken();
-        const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
-        const recMap: Record<string, string> = {
-          'Strong Hire': 'STRONG_HIRE',
-          'Hire': 'HIRE',
-          'Consider': 'HOLD',
-          'Reject': 'REJECT'
-        };
-        const res = await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${currentInterview.id}/evaluation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
+        const currentWorkspace = store.getState().workspace.currentWorkspace;
+        const resolvedCompanyId = (currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined);
+        if (resolvedCompanyId) {
+          const recMap: Record<string, string> = {
+            'Strong Hire': 'STRONG_HIRE',
+            'Hire': 'HIRE',
+            'Consider': 'HOLD',
+            'Reject': 'REJECT'
+          };
+          await interviewApi.submitEvaluation(resolvedCompanyId, currentInterview.id, {
             overallScore: avgScore,
             communicationScore: (ratings.communication || 0) * 20,
             technicalScore: (ratings.technical || 0) * 20,
@@ -90,15 +86,12 @@ export const EvaluationPanel: React.FC = () => {
             cultureFitScore: (ratings.cultureFit || 0) * 20,
             recommendation: recommendation ? recMap[recommendation] || null : null,
             comments: comments || null
-          })
-        });
-        if (!res.ok) {
-          toast.error('Failed to save evaluation');
-          return;
+          });
         }
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Failed to save evaluation to backend:', e);
+      toast.error(e?.message || 'Failed to save evaluation');
     }
     setTimeout(() => setSaved(false), 2000);
   };

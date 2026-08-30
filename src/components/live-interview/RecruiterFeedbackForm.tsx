@@ -1,4 +1,5 @@
-import { tokenStorage } from '../../services/api/apiClient';
+import { interviewApi } from '../../services/api/interview.api';
+import { store } from '../../store';
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Recruiter Post-Interview Evaluation Form
 // ─────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ interface RecruiterFeedbackFormProps {
   candidateName: string;
   interviewTitle: string;
   sessionId?: string;
+  companyId?: string;
   onSubmit: (data: Record<string, unknown>) => void;
 }
 
@@ -56,6 +58,7 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
   candidateName,
   interviewTitle,
   sessionId,
+  companyId: initialCompanyId,
   onSubmit,
 }) => {
   const [ratings, setRatings] = useState<Record<string, FeedbackRating | 0>>({
@@ -87,22 +90,18 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
     e.preventDefault();
     if (!allRated) return;
     try {
-      const token = tokenStorage.getAccessToken();
-      const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
       const recMap: Record<string, string> = {
         'Strong Hire': 'STRONG_HIRE',
         'Hire': 'HIRE',
         'Consider': 'HOLD',
-        'Reject': 'REJECT'
+        'Reject': 'REJECT',
+        'Strong Reject': 'STRONG_REJECT'
       };
       if (sessionId) {
-        const res = await fetch(`${baseUrl}/api/v1/interviews/company/interview-sessions/${sessionId}/evaluation`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
+        const currentWorkspace = store.getState().workspace.currentWorkspace;
+        const resolvedCompanyId = initialCompanyId || (currentWorkspace?.type === 'COMPANY' ? currentWorkspace.id : undefined);
+        if (resolvedCompanyId) {
+          await interviewApi.submitEvaluation(resolvedCompanyId, sessionId, {
             overallScore: avgScore,
             communicationScore: (ratings.communication || 0) * 20,
             technicalScore: (ratings.technical || 0) * 20,
@@ -113,18 +112,14 @@ export const RecruiterFeedbackForm: React.FC<RecruiterFeedbackFormProps> = ({
             strengths,
             improvements,
             comments
-          })
-        });
-        if (!res.ok) {
-          toast.error('Failed to submit evaluation');
-          return;
+          });
         }
       }
       onSubmit({ ...ratings, recommendation, comments, strengths, improvements, overallScore: avgScore });
       setSubmitted(true);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to submit full recruiter feedback:', err);
-      toast.error('Failed to submit evaluation.');
+      toast.error(err?.message || 'Failed to submit evaluation.');
     }
   };
 

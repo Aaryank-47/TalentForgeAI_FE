@@ -9,6 +9,8 @@ import type { LiveInterview } from '../../types/interview.types';
 import { LiveInterviewStatusBadge } from './LiveInterviewStatusBadge';
 import { getRecruitersByIds } from '../../constants/participants.mock';
 
+import toast from 'react-hot-toast';
+
 interface LiveInterviewCardProps {
   interview: LiveInterview;
   mode: 'recruiter' | 'candidate';
@@ -31,10 +33,14 @@ export const LiveInterviewCard: React.FC<LiveInterviewCardProps> = ({
   const navigate = useNavigate();
   const recruiters = getRecruitersByIds(interview.recruiterIds);
   const isLive = interview.status === 'Live';
-  const isJoinable = ['Live', 'Waiting', 'Today', 'Upcoming'].includes(interview.status);
+  const isJoinable = ['Live', 'Waiting', 'Today', 'Upcoming', 'Scheduled'].includes(interview.status);
 
   const handleJoin = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (mode === 'candidate' && !isLive) {
+      toast.error('Interview has not started by the interviewer');
+      return;
+    }
     const roomPath =
       mode === 'recruiter'
         ? `/recruiter/live-interviews/${interview.id}/room`
@@ -85,7 +91,9 @@ export const LiveInterviewCard: React.FC<LiveInterviewCardProps> = ({
             {interview.companyLogo}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-slate-900 truncate">{interview.title}</p>
+            <p className="text-sm font-bold text-slate-900 truncate">
+              {interview.title || 'Interview Session'}
+            </p>
             <p className="text-xs text-slate-500 truncate">
               {interview.company} · {interview.jobTitle}
             </p>
