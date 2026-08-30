@@ -203,4 +203,22 @@ export const jobApi = {
   /** Unsave a job (DELETE /jobs/:jobId/save) */
   unsaveJob: (jobId: string) =>
     api.delete<any>(`/jobs/${jobId}/save`),
+
+  // ── Matching (AI Candidate & Job Matching) ─────────────────
+  /** Fetch AI-matched jobs for current candidate */
+  getMatchedJobs: async (params?: { page?: number; limit?: number; minScore?: number }) =>
+    api.get<any>('/matching/candidate/matched-jobs', { params }),
+
+  /** Trigger candidate matching recalculation */
+  recalculateCandidateMatches: async () =>
+    api.post<any>('/matching/candidate/recalculate-matches'),
+
+  /** Fetch AI-matched candidates for a specific job (Recruiter) */
+  getMatchedCandidatesForJob: async (jobId: string, params?: { page?: number; limit?: number; minScore?: number }) =>
+    api.get<any>(`/matching/recruiter/jobs/${jobId}/matched-candidates`, { params }),
+
+  /** Trigger job matching recalculation (Recruiter) */
+  recalculateJobMatches: async (jobId: string) =>
+    api.post<any>(`/matching/recruiter/jobs/${jobId}/recalculate-matches`),
 };
+

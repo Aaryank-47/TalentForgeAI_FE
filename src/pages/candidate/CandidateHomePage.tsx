@@ -5,8 +5,7 @@ import {
   Activity, MapPin, Globe, FileText, Video, Gift, XCircle, Calendar, Sparkles,
   BookmarkCheck, Loader2, AlertCircle, CheckCircle2, Clock
 } from 'lucide-react';
-import { jobsData } from '../../constants/candidate_mockData';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { candidateApi } from '../../services/api/candidate.api';
 import { interviewApi } from '../../services/api/interview.api';
 import { assessmentApi } from '../../services/api/assessment.api';
@@ -121,7 +120,76 @@ const CandidateHomePage = () => {
       : [];
 
   const [localSavedJobs, setLocalSavedJobs] = useState<string[]>(['job_1', 'job_5']);
-  const aiJobs = jobsData.slice(0, 3);
+
+  const queryClient = useQueryClient();
+
+  // 6. Real AI Matched Jobs
+  const { data: matchedJobsResponse, isLoading: isLoadingMatches, isRefetching: isRefetchingMatches } = useQuery({
+    queryKey: ['matchedJobs'],
+    queryFn: () => jobApi.getMatchedJobs({ limit: 6 }),
+  });
+
+  const recalculateMatchesMutation = useMutation({
+    mutationFn: () => jobApi.recalculateCandidateMatches(),
+    onSuccess: () => {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['matchedJobs'] });
+      }, 1500);
+    },
+  });
+
+  const formatSalary = (min?: number | null, max?: number | null) => {
+    if (!min && !max) return 'Competitive';
+    if (min && max) {
+      if (min >= 100000) {
+        const minLpa = +(min / 100000).toFixed(1);
+        const maxLpa = +(max / 100000).toFixed(1);
+        return `₹${minLpa} - ₹${maxLpa} LPA`;
+      }
+      if (min >= 1000) {
+        return `$${Math.round(min / 1000)}k - $${Math.round(max / 1000)}k`;
+      }
+      return `₹${min} - ₹${max} LPA`;
+    }
+    const val = min || max || 0;
+    return val >= 100000 ? `₹${+(val / 100000).toFixed(1)} LPA` : `₹${val}`;
+  };
+
+  const formatRelativeDate = (dateStr?: string | null) => {
+    if (!dateStr) return 'Recently';
+    const diffDays = Math.floor((Date.now() - new Date(dateStr).getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays <= 0) return 'Today';
+    if (diffDays === 1) return '1 day ago';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  };
+
+  const rawMatches = Array.isArray((matchedJobsResponse as any)?.data)
+    ? (matchedJobsResponse as any).data
+    : Array.isArray(matchedJobsResponse)
+      ? matchedJobsResponse
+      : [];
+
+  const aiJobs = rawMatches.map((m: any, idx: number) => {
+    const companyColors = ['bg-blue-600', 'bg-purple-600', 'bg-emerald-600', 'bg-amber-600', 'bg-rose-600', 'bg-indigo-600'];
+    const companyName = m.job?.company?.companyName || 'Company';
+    return {
+      id: m.job?.id || m.id,
+      title: m.job?.title || 'Software Engineer',
+      company: companyName,
+      logo: m.job?.company?.logo,
+      location: m.job?.location || (m.job?.workplaceType === 'REMOTE' ? 'Remote' : 'Various'),
+      type: m.job?.employmentType ? m.job.employmentType.replace('_', ' ').toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Full Time',
+      workplaceType: m.job?.workplaceType ? m.job.workplaceType.toLowerCase().replace(/\b\w/g, (c: string) => c.toUpperCase()) : 'Remote',
+      salary: formatSalary(m.job?.minimumSalary, m.job?.maximumSalary),
+      match: Math.round(m.matchScore || 85),
+      skills: m.job?.skills?.map((s: any) => s.name) || [],
+      posted: formatRelativeDate(m.job?.publishedAt || m.calculatedAt),
+      companyLogo: companyName.slice(0, 2).toUpperCase(),
+      companyColor: companyColors[idx % companyColors.length],
+    };
+  });
 
   const toggleSave = (id: string) =>
     setLocalSavedJobs(prev => prev.includes(id) ? prev.filter(j => j !== id) : [...prev, id]);
@@ -325,64 +393,152 @@ const CandidateHomePage = () => {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Left 2/3 */}
         <div className="xl:col-span-2 space-y-6">
-          {/* AI Matched Jobs For You (Kept as requested) */}
+          {/* AI Matched Jobs For You */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <div>
                 <h2 className="font-display font-bold text-[#0F172A] text-base flex items-center gap-2">
-                  <span className="w-6 h-6 bg-primary-600 rounded-lg flex items-center justify-center text-white text-xs font-bold">AI</span>
+                  <span className="w-6 h-6 bg-gradient-to-tr from-primary-600 to-indigo-600 rounded-lg flex items-center justify-center text-white text-xs font-bold shadow-sm">
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                  </span>
                   AI Matched Jobs For You
+                  {(isLoadingMatches || isRefetchingMatches || recalculateMatchesMutation.isPending) && (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin text-primary-500 ml-1" />
+                  )}
                 </h2>
-                <p className="text-xs text-slate-400 mt-0.5">Jobs that match your skills, experience and preferences.</p>
+                <p className="text-xs text-slate-400 mt-0.5">Real-time jobs tailored to your skills, experience & preferences.</p>
               </div>
-              <Link to="/candidate/jobs" className="text-xs text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1">
-                View All Jobs <ArrowUpRight className="w-3.5 h-3.5" />
-              </Link>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => recalculateMatchesMutation.mutate()}
+                  disabled={recalculateMatchesMutation.isPending || isRefetchingMatches}
+                  title="Recalculate AI Matches"
+                  className="text-xs text-slate-500 hover:text-primary-600 font-medium flex items-center gap-1 bg-slate-100 hover:bg-primary-50 px-2.5 py-1 rounded-md transition-colors disabled:opacity-50"
+                >
+                  <Sparkles className={`w-3 h-3 text-primary-500 ${recalculateMatchesMutation.isPending ? 'animate-spin' : ''}`} />
+                  <span>{recalculateMatchesMutation.isPending ? 'Calculating...' : 'Refresh AI'}</span>
+                </button>
+                <Link to="/candidate/jobs" className="text-xs text-primary-600 hover:text-primary-700 font-semibold flex items-center gap-1">
+                  View All Jobs <ArrowUpRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {aiJobs.map((job) => (
-                <div key={job.id} className="card p-4 hover:border-primary-200 hover:shadow-md transition-all group">
-                  <div className="flex items-start justify-between mb-3">
+            {isLoadingMatches ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="card p-4 animate-pulse space-y-3 bg-white border border-slate-100">
                     <div className="flex items-center gap-2.5">
-                      <div className={`w-9 h-9 rounded-xl ${job.companyColor} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                        {job.companyLogo}
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-slate-900 leading-tight">{job.title}</h3>
-                        <p className="text-[11px] text-slate-500">{job.company}</p>
+                      <div className="w-9 h-9 rounded-xl bg-slate-200" />
+                      <div className="space-y-1.5 flex-1">
+                        <div className="h-3.5 bg-slate-200 rounded w-3/4" />
+                        <div className="h-2.5 bg-slate-100 rounded w-1/2" />
                       </div>
                     </div>
-                    <button
-                      onClick={() => toggleSave(job.id)}
-                      className="p-1 rounded-lg text-slate-300 hover:text-primary-500 transition-colors"
-                    >
-                      <Bookmark className={`w-4 h-4 ${localSavedJobs.includes(job.id) ? 'fill-primary-500 text-primary-500' : ''}`} />
-                    </button>
+                    <div className="h-3 bg-slate-100 rounded w-2/3" />
+                    <div className="flex justify-between items-center">
+                      <div className="h-4 bg-slate-200 rounded w-16" />
+                      <div className="h-3 bg-slate-200 rounded w-20" />
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="h-4 bg-slate-100 rounded w-12" />
+                      <div className="h-4 bg-slate-100 rounded w-14" />
+                    </div>
+                    <div className="h-8 bg-slate-100 rounded w-full mt-2" />
                   </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2">
-                    <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 text-slate-400" />{job.location}</span>
-                    <span>·</span>
-                    <span className="flex items-center gap-0.5"><Globe className="w-3 h-3 text-slate-400" />{job.type}</span>
-                  </div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-emerald-600">{job.match}% Match</span>
-                    <span className="text-xs font-bold text-slate-900">{job.salary}</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1 mb-3">
-                    {job.skills.slice(0, 3).map(s => (
-                      <span key={s} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">{s}</span>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-slate-400 mb-3">Posted {job.posted}</p>
-                  <Link
-                    to={`/candidate/jobs`}
-                    className="w-full text-center block py-2 text-xs font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                ))}
+              </div>
+            ) : aiJobs.length === 0 ? (
+              <div className="card p-8 text-center bg-slate-50/70 border border-dashed border-slate-200 flex flex-col items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-primary-50 flex items-center justify-center text-primary-600 mb-3 shadow-xs">
+                  <Sparkles className="w-6 h-6" />
+                </div>
+                <h3 className="text-sm font-bold text-slate-800">No Matched Jobs Found Yet</h3>
+                <p className="text-xs text-slate-500 max-w-sm mt-1 mb-4">
+                  Add more skills and experience to your profile, or trigger an instant AI matching scan.
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => recalculateMatchesMutation.mutate()}
+                    disabled={recalculateMatchesMutation.isPending}
+                    className="btn btn-primary text-xs flex items-center gap-1.5 px-4 py-2"
                   >
-                    View Job
+                    <Sparkles className={`w-3.5 h-3.5 ${recalculateMatchesMutation.isPending ? 'animate-spin' : ''}`} />
+                    {recalculateMatchesMutation.isPending ? 'Scanning Jobs...' : 'Run AI Match Scan'}
+                  </button>
+                  <Link
+                    to="/candidate/jobs"
+                    className="btn btn-secondary text-xs px-4 py-2"
+                  >
+                    Browse All Jobs
                   </Link>
                 </div>
-              ))}
-            </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {aiJobs.map((job) => (
+                  <div key={job.id} className="card p-4 hover:border-primary-200 hover:shadow-md transition-all group relative flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2.5">
+                          {job.logo ? (
+                            <img
+                              src={job.logo}
+                              alt={job.company}
+                              className="w-9 h-9 rounded-xl object-contain border border-slate-100 p-1 flex-shrink-0 bg-white"
+                            />
+                          ) : (
+                            <div className={`w-9 h-9 rounded-xl ${job.companyColor} flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm`}>
+                              {job.companyLogo}
+                            </div>
+                          )}
+                          <div>
+                            <h3 className="text-sm font-bold text-slate-900 leading-tight group-hover:text-primary-600 transition-colors line-clamp-1">{job.title}</h3>
+                            <p className="text-[11px] text-slate-500 font-medium">{job.company}</p>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => toggleSave(job.id)}
+                          className="p-1 rounded-lg text-slate-300 hover:text-primary-500 transition-colors"
+                        >
+                          <Bookmark className={`w-4 h-4 ${localSavedJobs.includes(job.id) ? 'fill-primary-500 text-primary-500' : ''}`} />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2">
+                        <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3 text-slate-400" />{job.location}</span>
+                        <span>·</span>
+                        <span className="flex items-center gap-0.5"><Globe className="w-3 h-3 text-slate-400" />{job.workplaceType || job.type}</span>
+                      </div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                          job.match >= 90
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : job.match >= 75
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-slate-50 text-slate-700 border border-slate-200'
+                        }`}>
+                          {job.match}% Match
+                        </span>
+                        <span className="text-xs font-bold text-slate-900">{job.salary}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1 mb-3">
+                        {job.skills.slice(0, 3).map((s: string) => (
+                          <span key={s} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-medium">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 mb-2.5">Posted {job.posted}</p>
+                      <Link
+                        to={`/candidate/jobs`}
+                        className="w-full text-center block py-2 text-xs font-semibold bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                      >
+                        View Job
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Application Tracker */}
