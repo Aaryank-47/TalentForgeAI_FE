@@ -1,8 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import { useOnClickOutside } from '../../hooks/useOnClickOutside';
 import { WorkspaceSwitcher } from '../workspace/WorkspaceSwitcher';
+import { candidateApi } from '../../services/api/candidate.api';
+import { candidateKeys } from '../../constants/queryKeys';
 import {
   Home, Briefcase, FileText, ClipboardList, Video, MessageSquare,
   Bookmark, User, FileText as Resume, Settings, Bell, Search,
@@ -71,8 +74,21 @@ const CandidateLayout: React.FC = () => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
-  const { user, currentWorkspace, logout } = useAuth();
+  const { user, logout } = useAuth();
   const location = useLocation();
+
+  const { data: candidate } = useQuery({
+    queryKey: candidateKeys.me,
+    queryFn: () => candidateApi.getCandidateProfile(),
+  });
+
+  const fullName = candidate?.fullName || user?.fullName || 'Candidate';
+  const email = user?.email || '';
+  const currentCompany =
+    candidate?.currentCompany ||
+    candidate?.experiences?.find((e: any) => e.currentlyWorking)?.companyName ||
+    candidate?.experiences?.[0]?.companyName ||
+    '';
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
@@ -256,24 +272,38 @@ const CandidateLayout: React.FC = () => {
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => { setProfileOpen(!profileOpen); setNotifOpen(false); }}
-                className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+                className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
               >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold">
-                  {user?.fullName ? user.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'CA'}
-                </div>
-                <div className="hidden md:block text-left">
-                  <p className="text-xs font-semibold text-slate-900 leading-none">{user?.fullName || user?.email || 'Candidate'}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5 font-medium truncate max-w-[130px]">
-                    {currentWorkspace?.name || 'Candidate Workspace'}
+                {candidate?.profilePicture ? (
+                  <img
+                    src={candidate.profilePicture}
+                    alt={fullName}
+                    className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xs font-bold shadow-xs">
+                    {fullName.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase() || 'CA'}
+                  </div>
+                )}
+                <div className="hidden md:block text-left max-w-[150px]">
+                  <p className="text-xs font-semibold text-slate-900 leading-none truncate">{fullName}</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5 font-medium truncate">
+                    {currentCompany || email}
                   </p>
                 </div>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden md:block" />
               </button>
               {profileOpen && (
                 <div className="absolute right-0 top-full mt-2 w-64 bg-white rounded-xl border border-[#E5E7EB] shadow-xl z-50 overflow-hidden py-1">
-                  <div className="px-4 py-2.5 border-b border-[#E5E7EB]">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{user?.fullName || 'User'}</p>
-                    <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+                  <div className="px-4 py-3 border-b border-[#E5E7EB] bg-slate-50/50">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{fullName}</p>
+                    <p className="text-xs text-slate-500 truncate mt-0.5">{email}</p>
+                    {currentCompany && (
+                      <div className="flex items-center gap-1.5 mt-1.5 text-xs text-slate-600 font-medium">
+                        <Briefcase className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                        <span className="truncate">{currentCompany}</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Workspace Switcher */}
