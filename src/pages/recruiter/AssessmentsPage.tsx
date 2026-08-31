@@ -28,10 +28,7 @@ const AssessmentsPage = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const companyId = user?.companyId || user?.companies?.[0]?.companyId;
-
-  const [activeTab, setActiveTab] = useState('All Assessments');
   const [selectedAssessmentId, setSelectedAssessmentId] = useState<string | null>(null);
-  const [detailTab, setDetailTab] = useState('Overview');
   const [search, setSearch] = useState('');
 
   // 1. Fetch Assessments Query
