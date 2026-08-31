@@ -38,10 +38,10 @@ const SignupRolePage = () => {
       {/* Header */}
       <header className="w-full px-6 py-5">
         <Link to="/" className="inline-flex items-center gap-2.5 group">
-          <div className="bg-gradient-to-br from-[#0175b2] to-[#0175b2] p-2 rounded-[10px] shadow-md shadow-blue-200/50 group-hover:shadow-blue-300/60 transition-shadow">
-            <img src={jobportal} className="h-5 w-5" alt="TalentForge" />
+          <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-[#0175b2] shadow-md shadow-blue-200/50 group-hover:shadow-blue-300/60 transition-shadow flex-shrink-0">
+            <img src={jobportal} className="h-full w-full object-cover" alt="TalentForge" />
           </div>
-          <span className="font-display font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#2563EB]"> AI</span></span>
+          <span className="font-display font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#0175b2]"> AI</span></span>
         </Link>
       </header>
 

@@ -62,12 +62,12 @@ const SelectCompanyPage: React.FC = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 pb-6 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-br from-[#2563EB] to-[#3B82F6] p-2.5 rounded-[12px] shadow-md shadow-blue-200/50">
-              <img src={jobportal} className="h-6 w-6" alt="TalentForge" />
+            <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center bg-[#0175b2] shadow-md shadow-blue-200/50 flex-shrink-0">
+              <img src={jobportal} className="h-full w-full object-cover" alt="TalentForge" />
             </div>
             <div>
               <span className="font-display font-bold text-xl tracking-tight text-[#0F172A]">
-                TalentForge <span className="text-[#2563EB]">AI</span>
+                TalentForge <span className="text-[#0175b2]">AI</span>
               </span>
               <p className="text-[12px] text-slate-500">Logged in as {user?.email}</p>
             </div>

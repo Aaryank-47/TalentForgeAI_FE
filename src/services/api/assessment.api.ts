@@ -290,6 +290,14 @@ export const assessmentApi = {
     return (res as any).data || res;
   },
 
+  /** Candidate: Fetch all my assigned assessment invitations (GET /assessments/assignments/candidate/my-invitations) */
+  getMyAssessmentInvitations: async (): Promise<any[]> => {
+    const res = await api.get<{ success: boolean; message: string; data: any[] }>(
+      '/assessments/assignments/candidate/my-invitations'
+    );
+    return (res as any).data || (Array.isArray(res) ? res : []);
+  },
+
   /** Fetch assessment invitation by application (GET /assessments/assignments/applications/:applicationId/assessment-invitation) */
   getAssessmentInvitation: async (applicationId: string): Promise<any> => {
     const res = await api.get<{ success: boolean; message: string; data: any }>(

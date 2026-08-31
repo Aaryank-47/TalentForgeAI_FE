@@ -87,17 +87,11 @@ const CandidateHomePage = () => {
     isLoading: isLoadingInvites,
     isError: isErrorInvites,
   } = useQuery({
-    queryKey: ['candidate', 'assessment-invitations', applications.map((a: any) => a.id).join(',')],
+    queryKey: ['candidate', 'assessment-invitations'],
     queryFn: async () => {
-      if (!applications.length) return [];
-      const results = await Promise.allSettled(
-        applications.map((app: any) => assessmentApi.getAssessmentInvitation(app.id))
-      );
-      return results
-        .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled' && Boolean(res.value))
-        .map(res => res.value);
+      const res = await assessmentApi.getMyAssessmentInvitations();
+      return Array.isArray(res) ? res : [];
     },
-    enabled: applications.length > 0,
   });
 
   const pendingAssessments = invitations.filter(

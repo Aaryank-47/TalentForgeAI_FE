@@ -12,30 +12,14 @@ const AssessmentsPage = () => {
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>('Pending');
 
-  // Fetch candidate applications to query assessment invitations via getAssessmentInvitation
-  const { data: applicationsResponse, isLoading: isLoadingApps } = useQuery({
-    queryKey: candidateKeys.applications({ limit: 50 }),
-    queryFn: () => candidateApi.getMyApplications({ limit: 50 }),
-  });
-
-  const applications = applicationsResponse?.applications || applicationsResponse?.data || (Array.isArray(applicationsResponse) ? applicationsResponse : []);
-
-  // Query assessment invitations for each application
-  const { data: invitations = [], isLoading: isLoadingInvites } = useQuery({
-    queryKey: ['candidate', 'assessment-invitations', applications.map((a: any) => a.id).join(',')],
+  // Fetch candidate assessment invitations in a single clean query
+  const { data: invitations = [], isLoading } = useQuery({
+    queryKey: ['candidate', 'assessment-invitations'],
     queryFn: async () => {
-      if (!applications.length) return [];
-      const results = await Promise.allSettled(
-        applications.map((app: any) => assessmentApi.getAssessmentInvitation(app.id))
-      );
-      return results
-        .filter((res): res is PromiseFulfilledResult<any> => res.status === 'fulfilled' && Boolean(res.value))
-        .map(res => res.value);
+      const res = await assessmentApi.getMyAssessmentInvitations();
+      return Array.isArray(res) ? res : [];
     },
-    enabled: applications.length > 0,
   });
-
-  const isLoading = isLoadingApps || (applications.length > 0 && isLoadingInvites);
 
   const pendingInvitations = invitations.filter((inv: any) => inv.status === 'PENDING' || inv.status === 'IN_PROGRESS');
   const completedInvitations = invitations.filter((inv: any) => inv.status === 'COMPLETED' || inv.status === 'SUBMITTED');

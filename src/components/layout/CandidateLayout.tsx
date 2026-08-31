@@ -8,7 +8,7 @@ import { candidateApi } from '../../services/api/candidate.api';
 import { candidateKeys } from '../../constants/queryKeys';
 import {
   Home, Briefcase, FileText, ClipboardList, Video, MessageSquare,
-  Bookmark, User, FileText as Resume, Settings, Bell, Search,
+  Bookmark, User, Settings, Bell, Search,
   Menu, X, ChevronDown, Zap, LogOut, ChevronRight, Bot, Calendar, Sparkles,
 } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
@@ -27,7 +27,6 @@ const secondaryNav = [
   { name: 'Messages', href: '/candidate/messages', icon: MessageSquare, badge: 3 },
   { name: 'Saved Jobs', href: '/candidate/saved', icon: Bookmark },
   { name: 'Profile', href: '/candidate/profile', icon: User },
-  { name: 'Resume', href: '/candidate/resume', icon: Resume },
   { name: 'Settings', href: '/candidate/settings', icon: Settings },
 ];
 
@@ -125,12 +124,12 @@ const CandidateLayout: React.FC = () => {
       >
         {/* Logo */}
         <div className={`flex items-center h-16 border-b border-[#E5E7EB] flex-shrink-0 ${sidebarCollapsed ? 'justify-center px-2' : 'px-4 gap-3'}`}>
-          <div className="bg-[#2563EB] p-1.5 rounded-lg flex-shrink-0">
-            <img src={jobportal} className="h-5 w-5 brightness-0 invert" alt="TalentForge" />
+          <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-[#0175b2] shadow-sm flex-shrink-0">
+            <img src={jobportal} className="h-full w-full object-cover" alt="TalentForge AI" />
           </div>
           {!sidebarCollapsed && (
             <span className="font-display font-bold text-[17px] text-[#0F172A] leading-tight">
-              TalentForge<span className="text-[#2563EB]"> AI</span>
+              TalentForge<span className="text-[#0175b2]"> AI</span>
             </span>
           )}
         </div>

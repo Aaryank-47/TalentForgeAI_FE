@@ -104,10 +104,10 @@ export default function ForgotPasswordPage() {
       <div className="w-full max-w-[440px] bg-white rounded-[24px] shadow-2xl shadow-slate-300/80 border border-slate-200/50 p-10">
         {/* Logo */}
         <Link to="/" className="inline-flex items-center gap-2.5 mb-8">
-          <div className="bg-gradient-to-br from-[#2563EB] to-[#3B82F6] p-2 rounded-[10px] shadow-md shadow-blue-200/50">
-            <img src={jobportal} className="h-5 w-5" alt="TalentForge" />
+          <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-[#0175b2] shadow-md shadow-blue-200/50 flex-shrink-0">
+            <img src={jobportal} className="h-full w-full object-cover" alt="TalentForge" />
           </div>
-          <span className="font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#2563EB]"> AI</span></span>
+          <span className="font-bold text-[19px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#0175b2]"> AI</span></span>
         </Link>
 
         {/* STEP 1: Email Form */}

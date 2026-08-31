@@ -31,10 +31,10 @@ const Navbar = () => {
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-[72px]">
           <div className="flex items-center gap-2.5">
-            <div className="bg-gradient-to-br from-[#0175b2] to-[#0175b2] p-2 rounded-[10px] shadow-md shadow-blue-200/50">
-              <img src={jobportal} className="h-5 w-5 text-white" alt="TalentForge logo" />
+            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-[#0175b2] shadow-md shadow-blue-200/50 flex-shrink-0">
+              <img src={jobportal} className="h-full w-full object-cover" alt="TalentForge logo" />
             </div>
-            <span className="font-display font-bold text-[20px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#2563EB]"> AI</span></span>
+            <span className="font-display font-bold text-[20px] tracking-tight text-[#0F172A]">TalentForge<span className="text-[#0175b2]"> AI</span></span>
           </div>
 
           <div className="hidden lg:flex items-center gap-1">
