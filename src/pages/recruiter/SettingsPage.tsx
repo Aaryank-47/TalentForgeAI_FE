@@ -21,17 +21,10 @@ import { Modal } from '../../components/ui/Modal';
 
 import {
   settingsTabs as tabs,
-  settingsTeamMembers as teamMembers,
   settingsDefaultStages as defaultStages,
   settingsEmailPrefs as emailPrefs,
 } from '../../constants/recruiter_mockData';
 
-const roleStyle = (r: string) => ({
-  Admin: 'bg-red-50 text-red-700 border-red-200',
-  Recruiter: 'bg-blue-50 text-blue-700 border-blue-200',
-  'Hiring Manager': 'bg-purple-50 text-purple-700 border-purple-200',
-  HR: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-})[r] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const SettingsPage = () => {
   const location = useLocation();

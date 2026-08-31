@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Play, Clock, Wifi, Shield, Mic, Camera, Brain, BookOpen, CheckCircle2 } from 'lucide-react';
 import { interviewApi } from '../../services/api/interview.api';
-import { aiInterviewData } from '../../constants/candidate_mockData';
 import { InterviewStepper, AIInterviewerCard, InterviewSummaryCard } from '../../components/interview/InterviewComponents';
 import { CameraPreview, ScreenPreview } from '../../modules/shared/system-check/SystemCheck';
 import { useMedia } from '../../context/MediaProvider';
@@ -42,15 +41,14 @@ export default function WaitingRoomPage() {
     enabled: Boolean(id),
   });
 
-  const fallback = aiInterviewData.pendingInterviews[0];
-  const pending = realDetail ? {
-    company: realDetail.company,
-    role: realDetail.role,
-    questionCount: realDetail.questionCount || 5,
-    estimatedDuration: realDetail.estimatedDuration || `${realDetail.durationMinutes || 25} mins`,
-    companyColor: realDetail.companyColor || 'bg-primary-600',
-    companyLogo: realDetail.companyLogo || (realDetail.company || 'TF').slice(0, 2).toUpperCase()
-  } : fallback;
+  const pending = {
+    company: realDetail?.job?.company?.companyName || realDetail?.company?.companyName || 'TalentForge Client',
+    role: realDetail?.job?.title || realDetail?.interview?.title || 'AI Technical Interview',
+    questionCount: realDetail?.interview?.aiConfiguration?.questionCount || 5,
+    estimatedDuration: `${realDetail?.interview?.durationMinutes || 25} mins`,
+    companyColor: 'bg-primary-600',
+    companyLogo: (realDetail?.job?.company?.companyName || 'TF').slice(0, 2).toUpperCase(),
+  };
 
   const { cameraStream, screenStream, deviceState } = useMedia();
 

@@ -1,11 +1,19 @@
 import { useNavigate, useParams } from 'react-router-dom';
 import { CheckCircle, Home, Clock, FileText, Copy } from 'lucide-react';
-import { aiInterviewData } from '../../constants/candidate_mockData';
-
 export default function SubmissionSuccessPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { submission } = aiInterviewData;
+  
+  const submission = {
+    role: 'AI Technical Interview',
+    company: 'TalentForge Client',
+    companyLogo: 'TF',
+    companyColor: 'bg-primary-600',
+    submittedAt: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    status: 'In Evaluation',
+    expectedCompletion: 'Within 24–48 Hours',
+    confirmationCode: `TF-INT-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 flex items-center justify-center p-6">

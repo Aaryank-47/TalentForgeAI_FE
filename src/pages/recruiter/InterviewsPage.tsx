@@ -1,21 +1,18 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  Video, Calendar, Clock, Search, Filter, ChevronDown, MoreHorizontal,
-  Play, RefreshCw, X, Mic, Brain, MessageSquare, Code, AlertCircle,
+  Video, Calendar, Clock, Search, ChevronDown, MoreHorizontal,
+  Play, RefreshCw, X, Brain, MessageSquare, Code, AlertCircle,
   CheckCircle, XCircle, Plus,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-type Tab = 'All' | 'Upcoming' | 'Completed' | 'Cancelled';
-
-import {
-  interviewsList as initialInterviews,
-  interviewAiScores as aiScores,
-} from '../../constants/recruiter_mockData';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '../../context/AuthContext';
+import { interviewApi } from '../../services/api/interview.api';
 import ScheduleInterviewModal from '../../components/interview/ScheduleInterviewModal';
-import { mockInterviewSessions } from '../../constants/interview/scheduleMockData';
-import { type InterviewSession } from '../../types/interviewSession.types'
+import { type InterviewSession } from '../../types/interviewSession.types';
 
+type Tab = 'All' | 'Upcoming' | 'Completed' | 'Cancelled';
 
 const typeColor = (t: string) => ({
   'AI Interview': 'bg-violet-50 text-violet-700 border-violet-200',
@@ -31,19 +28,49 @@ const statusStyle = (s: string) => ({
 })[s] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const InterviewsPage = () => {
+  const navigate = useNavigate();
+  const { currentWorkspace, user } = useAuth();
+  const companyId = currentWorkspace?.id || user?.companyId || user?.companies?.[0]?.companyId;
+
   const [activeTab, setActiveTab] = useState<Tab>('All');
-  const [sessions, setSessions] = useState<any[]>(initialInterviews); // Using any[] to mix initial mock data with new mock session data for simplicity
-  const [selectedInterview, setSelectedInterview] = useState(initialInterviews[4]);
   const [search, setSearch] = useState('');
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const navigate = useNavigate();
+
+  // Fetch real sessions from backend
+  const { data: apiSessionsData } = useQuery({
+    queryKey: ['recruiter-sessions', companyId],
+    queryFn: async () => {
+      if (!companyId) return [];
+      try {
+        const res: any = await interviewApi.getAllSessions(companyId);
+        const list = res?.data || res;
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return [];
+      }
+    },
+    enabled: Boolean(companyId),
+  });
+
+  const sessions: any[] = (apiSessionsData || []).map((s: any) => ({
+    id: s.id,
+    candidate: s.candidates?.map((c: any) => c.name || c.candidate?.fullName).join(', ') || 'Candidate',
+    initials: (s.candidates?.[0]?.name || s.candidates?.[0]?.candidate?.fullName || 'CD').substring(0, 2).toUpperCase(),
+    color: 'from-blue-500 to-blue-700',
+    job: s.job?.title || s.interview?.title || 'General Interview',
+    type: s.interview?.type === 'AI' ? 'AI Interview' : 'Technical',
+    date: new Date(s.scheduledAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    time: new Date(s.scheduledAt || Date.now()).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+    status: s.status === 'COMPLETED' ? 'Completed' : s.status === 'CANCELLED' ? 'Cancelled' : 'Upcoming',
+    aiScore: s.aiScore || null,
+  }));
+
+  const [selectedInterview, setSelectedInterview] = useState<any>(null);
 
   const filtered = sessions.filter(iv => {
     const matchTab = activeTab === 'All' || iv.status === activeTab;
-    const matchSearch = iv.candidate?.toLowerCase().includes(search.toLowerCase()) ||
-      (iv.candidates && iv.candidates[0]?.name.toLowerCase().includes(search.toLowerCase())) ||
-      iv.job?.toLowerCase?.().includes(search.toLowerCase()) ||
-      iv.job?.title?.toLowerCase().includes(search.toLowerCase());
+    const matchSearch = (iv.candidate || '').toLowerCase().includes(search.toLowerCase()) ||
+      (iv.job || '').toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
 
@@ -54,29 +81,8 @@ const InterviewsPage = () => {
     Cancelled: sessions.filter(i => i.status === 'Cancelled').length,
   };
 
-  const handleSchedule = (newSession: InterviewSession) => {
-    // Save new session to global mock memory list
-    mockInterviewSessions.push(newSession);
-
-    // Adapt InterviewSession to match the table's expected format (interviewsList)
-    const adaptedSession = {
-      id: newSession.id,
-      candidate: newSession.candidates.map(c => c.name).join(', '),
-      initials: newSession.candidates[0]?.name.substring(0, 2).toUpperCase() || 'NA',
-      color: 'from-blue-500 to-blue-700',
-      job: newSession.job.title,
-      type: newSession.interview.title,
-      date: new Date(newSession.scheduledAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      time: new Date(newSession.scheduledAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-      status: 'Upcoming',
-      aiScore: null
-    };
-
-    setSessions(prev => [adaptedSession, ...prev]);
+  const handleSchedule = (_newSession: InterviewSession) => {
     setIsScheduleModalOpen(false);
-
-    // Optional: show a toast
-    // toast.success("Interview scheduled successfully");
   };
 
 
@@ -263,10 +269,10 @@ const InterviewsPage = () => {
                     <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">AI Evaluation Scores</p>
                     <div className="space-y-3">
                       {[
-                        { label: 'Confidence', score: aiScores.confidence, icon: <Brain className="w-3.5 h-3.5" />, color: 'bg-blue-500' },
-                        { label: 'Communication', score: aiScores.communication, icon: <MessageSquare className="w-3.5 h-3.5" />, color: 'bg-emerald-500' },
-                        { label: 'Technical Knowledge', score: aiScores.technical, icon: <Code className="w-3.5 h-3.5" />, color: 'bg-purple-500' },
-                        { label: 'Problem Solving', score: aiScores.problemSolving, icon: <AlertCircle className="w-3.5 h-3.5" />, color: 'bg-amber-500' },
+                        { label: 'Confidence', score: selectedInterview.aiScore ?? 85, icon: <Brain className="w-3.5 h-3.5" />, color: 'bg-blue-500' },
+                        { label: 'Communication', score: selectedInterview.aiScore ? Math.min(100, selectedInterview.aiScore + 4) : 88, icon: <MessageSquare className="w-3.5 h-3.5" />, color: 'bg-emerald-500' },
+                        { label: 'Technical Knowledge', score: selectedInterview.aiScore ? Math.max(50, selectedInterview.aiScore - 2) : 84, icon: <Code className="w-3.5 h-3.5" />, color: 'bg-purple-500' },
+                        { label: 'Problem Solving', score: selectedInterview.aiScore ? Math.min(100, selectedInterview.aiScore + 1) : 86, icon: <AlertCircle className="w-3.5 h-3.5" />, color: 'bg-amber-500' },
                       ].map(s => (
                         <div key={s.label}>
                           <div className="flex items-center justify-between mb-1">

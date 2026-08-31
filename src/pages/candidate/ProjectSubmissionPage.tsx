@@ -5,12 +5,25 @@ import {
   GitBranch, Globe, FileText, Video, StickyNote, FileDown, Timer
 } from 'lucide-react';
 import SubmissionPanel from '../../components/assessment/SubmissionPanel';
-import { mockFullAssessments } from '../../constants/assessment_mockData';
 import type { CandidateAttemptStatus, SubmissionType } from '../../types/assessment';
 
-// Demo project assessment
-const DEMO_PROJECT = mockFullAssessments[2];
 const DEADLINE_DAYS = 3;
+
+// Project assessment configuration
+const PROJECT_CONFIG = {
+  title: 'Full-Stack Project Assessment',
+  name: 'Technical Project Evaluation',
+  description: 'Build a production-ready application according to the specifications below and submit your repository and live demo links.',
+  techStack: ['React', 'TypeScript', 'Node.js', 'PostgreSQL'],
+  difficulty: 'Intermediate',
+  maximumMarks: 100,
+  deadlineDays: DEADLINE_DAYS,
+  requirements: `1. Implement responsive user interface matching specifications.
+2. Ensure proper API error handling and validation.
+3. Include README with setup and deployment instructions.
+4. Provide unit or integration tests where appropriate.`,
+  submissionTypes: ['github', 'live_url', 'notes'] as SubmissionType[],
+};
 
 // Simulated deadline from now
 const DEADLINE = new Date(Date.now() + DEADLINE_DAYS * 24 * 60 * 60 * 1000);
@@ -65,7 +78,7 @@ const ProjectSubmissionPage: React.FC = () => {
     }, 1500);
   };
 
-  const project = DEMO_PROJECT.projectConfig!;
+  const project = PROJECT_CONFIG;
   const statusInfo = statusConfig[status];
   const allowedTypes = project.submissionTypes as SubmissionType[];
 
@@ -139,7 +152,7 @@ const ProjectSubmissionPage: React.FC = () => {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-display font-bold text-slate-900">{project.title}</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{DEMO_PROJECT.name}</p>
+          <p className="text-sm text-slate-500 mt-0.5">{PROJECT_CONFIG.name}</p>
         </div>
         <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${statusInfo.bg} ${statusInfo.border}`}>
           <span className={statusInfo.color}>{statusInfo.icon}</span>

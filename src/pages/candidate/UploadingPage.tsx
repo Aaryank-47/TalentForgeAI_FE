@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Bot, Video, FileText, BarChart2 } from 'lucide-react';
-import { aiInterviewData } from '../../constants/candidate_mockData';
 import { UploaderCard } from '../../components/interview/InterviewComponents';
 
 type UploadStatus = 'pending' | 'uploading' | 'done' | 'error';
@@ -21,13 +20,19 @@ const STEP_ICONS: Record<string, React.ReactNode> = {
   report: <BarChart2 className="w-4 h-4 text-emerald-600" />,
 };
 
+const DEFAULT_UPLOAD_STEPS: UploadStep[] = [
+  { id: '1', label: 'Video & Audio Recording', icon: 'recording', detail: 'Finalizing stream packets and media chunks', status: 'pending' },
+  { id: '2', label: 'Audio Transcription', icon: 'transcript', detail: 'Converting speech-to-text data for analysis', status: 'pending' },
+  { id: '3', label: 'AI Evaluation & Scoring', icon: 'analysis', detail: 'Evaluating responses against role criteria', status: 'pending' },
+  { id: '4', label: 'Final Candidate Report', icon: 'report', detail: 'Compiling structured report for hiring team', status: 'pending' },
+];
+
 export default function UploadingPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { uploadSteps, submission } = aiInterviewData;
 
   const [steps, setSteps] = useState<UploadStep[]>(
-    uploadSteps.map(s => ({ ...s, status: 'pending' as UploadStatus }))
+    DEFAULT_UPLOAD_STEPS.map(s => ({ ...s, status: 'pending' as UploadStatus }))
   );
   const [currentStep, setCurrentStep] = useState(0);
   const [done, setDone] = useState(false);

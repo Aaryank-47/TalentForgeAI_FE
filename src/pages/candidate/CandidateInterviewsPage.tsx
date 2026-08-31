@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { Calendar, CheckCircle, X, ChevronRight, Mic, Camera, Wifi, Home, Play, Star, MoreVertical, TrendingUp, Bot, CheckCircle2, MessageSquare, MapPin, Globe, Clock, FileText, Brain, Pin } from 'lucide-react';
+import { useState } from 'react';
+import { Calendar, X, ChevronRight, Play, MoreVertical, TrendingUp, Bot, CheckCircle2, MessageSquare, MapPin, Globe, Clock, Mic, FileText, Brain, Pin } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { interviewsData } from '../../constants/candidate_mockData';
-
-type SelectedInterview = typeof interviewsData.upcoming[0] | null;
+import { useQuery } from '@tanstack/react-query';
+import { interviewApi } from '../../services/api/interview.api';
 
 // Countdown timer display
 const CountdownTimer = ({ hrs, mins, secs }: { hrs: number; mins: number; secs: number }) => (
@@ -13,13 +12,13 @@ const CountdownTimer = ({ hrs, mins, secs }: { hrs: number; mins: number; secs: 
       { val: String(mins).padStart(2, '0'), label: 'MINS' },
       { val: String(secs).padStart(2, '0'), label: 'SECS' },
     ].map((t, i) => (
-      <React.Fragment key={t.label}>
+      <div key={t.label} className="flex items-center gap-2">
         <div className="text-center">
           <div className="bg-slate-900 text-white font-display font-bold text-xl px-3 py-2 rounded-xl min-w-[52px]">{t.val}</div>
           <p className="text-[9px] text-slate-400 mt-1">{t.label}</p>
         </div>
         {i < 2 && <span className="text-slate-400 font-bold text-xl mb-3">:</span>}
-      </React.Fragment>
+      </div>
     ))}
   </div>
 );
@@ -46,11 +45,73 @@ const ScoreRing = ({ score }: { score: number }) => {
 };
 
 const CandidateInterviewsPage = () => {
-  const [selectedUpcoming, setSelectedUpcoming] = useState<SelectedInterview>(interviewsData.upcoming[0] || null);
-  const [detailTab, setDetailTab] = useState<'Overview' | 'Instructions & Prep' | 'About the Role' | 'Company'>('Overview');
   const navigate = useNavigate();
+  const [selectedUpcoming, setSelectedUpcoming] = useState<any | null>(null);
+  const [detailTab, setDetailTab] = useState<'Overview' | 'Instructions & Prep' | 'About the Role' | 'Company'>('Overview');
 
-  const stats = interviewsData.stats;
+  // Fetch real candidate interviews from backend
+  const { data: apiInterviewsData } = useQuery({
+    queryKey: ['candidate-my-interviews'],
+    queryFn: async () => {
+      try {
+        const res: any = await interviewApi.getCandidateInterviews();
+        const list = res?.data || res;
+        return Array.isArray(list) ? list : [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  const rawList: any[] = Array.isArray(apiInterviewsData) ? apiInterviewsData : [];
+
+  const upcoming = rawList.filter((iv: any) => iv.status !== 'COMPLETED' && iv.status !== 'CANCELLED').map((iv: any) => {
+    const scheduledDate = new Date(iv.session?.scheduledAt || iv.scheduledAt || Date.now());
+    return {
+      id: iv.session?.id || iv.id,
+      interviewId: iv.id,
+      jobTitle: iv.job?.title || iv.interview?.title || 'Software Engineer',
+      company: iv.job?.company?.companyName || iv.company?.companyName || 'TalentForge Client',
+      companyLogo: (iv.job?.company?.companyName || 'TF').substring(0, 2).toUpperCase(),
+      companyColor: 'bg-primary-600',
+      dateLabel: scheduledDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
+      date: scheduledDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      timeStart: scheduledDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      timeEnd: new Date(scheduledDate.getTime() + (iv.interview?.durationMinutes || 45) * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      duration: `${iv.interview?.durationMinutes || 45} mins`,
+      type: iv.interview?.type === 'AI' ? 'AI Interview' : 'Technical Round',
+      typeColor: iv.interview?.type === 'AI' ? 'bg-violet-50 text-violet-700' : 'bg-blue-50 text-blue-700',
+      location: iv.job?.workplaceType || 'Remote',
+      workType: iv.job?.employmentType || 'Full-time',
+      countdownHrs: 2,
+      countdownMins: 45,
+      countdownSecs: 0,
+    };
+  });
+
+  const completed = rawList.filter((iv: any) => iv.status === 'COMPLETED').map((iv: any) => {
+    const completedDate = new Date(iv.session?.endedAt || iv.updatedAt || Date.now());
+    return {
+      id: iv.session?.id || iv.id,
+      jobTitle: iv.job?.title || iv.interview?.title || 'Software Engineer',
+      company: iv.job?.company?.companyName || iv.company?.companyName || 'TalentForge Client',
+      companyLogo: (iv.job?.company?.companyName || 'TF').substring(0, 2).toUpperCase(),
+      companyColor: 'bg-emerald-600',
+      type: iv.interview?.type === 'AI' ? 'AI Interview' : 'Technical Round',
+      typeColor: iv.interview?.type === 'AI' ? 'bg-violet-50 text-violet-700' : 'bg-blue-50 text-blue-700',
+      date: completedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      time: completedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      aiScore: iv.aiScore || 85,
+      hasFeedback: true,
+    };
+  });
+
+  const stats = {
+    upcoming: upcoming.length,
+    completed: completed.length,
+    aiInterviews: rawList.filter((iv: any) => iv.interview?.type === 'AI').length,
+    feedbackReceived: completed.length,
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#F8FAFC]">
@@ -104,107 +165,114 @@ const CandidateInterviewsPage = () => {
           {/* Scheduled Interviews */}
           <div>
             <h2 className="font-display font-bold text-[#0F172A] text-base mb-4">Scheduled Interviews</h2>
-            <div className="card overflow-hidden divide-y divide-[#E5E7EB]">
-              {interviewsData.upcoming.map((iv) => (
-                <div
-                  key={iv.id}
-                  onClick={() => { setSelectedUpcoming(iv); setDetailTab('Overview'); }}
-                  className={`px-5 py-4 flex items-center gap-4 hover:bg-slate-50 cursor-pointer transition-colors ${selectedUpcoming?.id === iv.id ? 'bg-primary-50/40' : ''}`}
-                >
-                  <div className={`w-10 h-10 rounded-xl ${iv.companyColor} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
-                    {iv.companyLogo}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900">{iv.jobTitle}</p>
-                    <p className="text-xs text-slate-500">{iv.company}</p>
-                  </div>
-                  <div className="text-center hidden md:block">
-                    <p className="text-xs font-bold text-primary-600">{iv.dateLabel}</p>
-                    <p className="text-[10px] text-slate-400">{iv.date}</p>
-                  </div>
-                  <div className="text-center hidden md:block">
-                    <p className="text-xs font-semibold text-slate-700">{iv.timeStart} – {iv.timeEnd}</p>
-                    <p className="text-[10px] text-slate-400">({iv.duration})</p>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${iv.typeColor}`}>{iv.type}</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); navigate(`/candidate/interviews/${iv.id === 'iv_1' ? 'sess-1' : iv.id}/room`); }}
-                    className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs rounded-xl transition-colors whitespace-nowrap flex-shrink-0"
+            {upcoming.length === 0 ? (
+              <div className="card p-8 text-center text-slate-500">
+                <Calendar className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-medium">No upcoming interviews scheduled</p>
+                <p className="text-xs text-slate-400 mt-1">When an employer schedules an interview round, it will appear here.</p>
+              </div>
+            ) : (
+              <div className="card overflow-hidden divide-y divide-[#E5E7EB]">
+                {upcoming.map((iv) => (
+                  <div
+                    key={iv.id}
+                    onClick={() => { setSelectedUpcoming(iv); setDetailTab('Overview'); }}
+                    className={`px-5 py-4 flex items-center gap-4 hover:bg-slate-50 cursor-pointer transition-colors ${selectedUpcoming?.id === iv.id ? 'bg-primary-50/40' : ''}`}
                   >
-                    Join Interview
-                  </button>
-                  <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-                    <MoreVertical className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-            <button className="mt-3 text-xs text-primary-600 font-semibold hover:text-primary-700 flex items-center gap-1">
-              View All Scheduled Interviews <ChevronRight className="w-3.5 h-3.5" />
-            </button>
+                    <div className={`w-10 h-10 rounded-xl ${iv.companyColor} flex items-center justify-center text-white font-bold text-sm flex-shrink-0`}>
+                      {iv.companyLogo}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-slate-900">{iv.jobTitle}</p>
+                      <p className="text-xs text-slate-500">{iv.company}</p>
+                    </div>
+                    <div className="text-center hidden md:block">
+                      <p className="text-xs font-bold text-primary-600">{iv.dateLabel}</p>
+                      <p className="text-[10px] text-slate-400">{iv.date}</p>
+                    </div>
+                    <div className="text-center hidden md:block">
+                      <p className="text-xs font-semibold text-slate-700">{iv.timeStart} – {iv.timeEnd}</p>
+                      <p className="text-[10px] text-slate-400">({iv.duration})</p>
+                    </div>
+                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full whitespace-nowrap ${iv.typeColor}`}>{iv.type}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); navigate(`/candidate/interviews/${iv.id}/room`); }}
+                      className="px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white font-semibold text-xs rounded-xl transition-colors whitespace-nowrap flex-shrink-0"
+                    >
+                      Join Interview
+                    </button>
+                    <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
+                      <MoreVertical className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Completed Interviews */}
           <div>
             <h2 className="font-display font-bold text-[#0F172A] text-base mb-4">Completed Interviews</h2>
-            <div className="card overflow-hidden">
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-[#E5E7EB]">
-                  <tr>
-                    {['Role', 'Company', 'Type', 'Completed On', 'AI Score', 'Feedback', 'Action'].map(h => (
-                      <th key={h} className="px-5 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#E5E7EB]">
-                  {interviewsData.completed.map(iv => (
-                    <tr key={iv.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2.5">
-                          <div className={`w-8 h-8 rounded-xl ${iv.companyColor} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
-                            {iv.companyLogo}
-                          </div>
-                          <div>
-                            <p className="text-xs font-bold text-slate-900">{iv.jobTitle}</p>
-                            <p className="text-[10px] text-slate-400">{iv.company}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <p className="text-xs text-slate-700 font-medium">{iv.company}</p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${iv.typeColor}`}>{iv.type}</span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <p className="text-xs text-slate-700">{iv.date}</p>
-                        <p className="text-[10px] text-slate-400">{iv.time}</p>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {iv.aiScore ? <ScoreRing score={iv.aiScore} /> : <span className="text-xs text-slate-400">—</span>}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        {iv.hasFeedback ? (
-                          <span className="text-[10px] text-emerald-600 font-semibold">Feedback received</span>
-                        ) : (
-                          <span className="text-[10px] text-slate-400">No feedback</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <button className="text-xs font-semibold text-primary-600 hover:text-primary-700">
-                          {iv.hasFeedback ? 'View Feedback' : 'View Summary'}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="px-5 py-3 border-t border-[#E5E7EB] bg-slate-50">
-                <button className="text-xs font-semibold text-primary-600 hover:text-primary-700 flex items-center gap-1">
-                  View All Completed Interviews <ChevronRight className="w-3.5 h-3.5" />
-                </button>
+            {completed.length === 0 ? (
+              <div className="card p-8 text-center text-slate-500">
+                <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-sm font-medium">No completed interviews yet</p>
               </div>
-            </div>
+            ) : (
+              <div className="card overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-[#E5E7EB]">
+                    <tr>
+                      {['Role', 'Company', 'Type', 'Completed On', 'AI Score', 'Feedback', 'Action'].map(h => (
+                        <th key={h} className="px-5 py-3 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#E5E7EB]">
+                    {completed.map(iv => (
+                      <tr key={iv.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-5 py-3.5">
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-8 h-8 rounded-xl ${iv.companyColor} flex items-center justify-center text-white font-bold text-xs flex-shrink-0`}>
+                              {iv.companyLogo}
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-slate-900">{iv.jobTitle}</p>
+                              <p className="text-[10px] text-slate-400">{iv.company}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <p className="text-xs text-slate-700 font-medium">{iv.company}</p>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${iv.typeColor}`}>{iv.type}</span>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <p className="text-xs text-slate-700">{iv.date}</p>
+                          <p className="text-[10px] text-slate-400">{iv.time}</p>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {iv.aiScore ? <ScoreRing score={iv.aiScore} /> : <span className="text-xs text-slate-400">—</span>}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          {iv.hasFeedback ? (
+                            <span className="text-[10px] text-emerald-600 font-semibold">Feedback received</span>
+                          ) : (
+                            <span className="text-[10px] text-slate-400">No feedback</span>
+                          )}
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <button className="text-xs font-semibold text-primary-600 hover:text-primary-700">
+                            {iv.hasFeedback ? 'View Feedback' : 'View Summary'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
 

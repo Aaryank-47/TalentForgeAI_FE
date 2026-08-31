@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronRight, ArrowLeft, Check, ChevronDown, ChevronUp, Mic, Eye, Clock, BookOpen, VolumeX, Wifi, Lightbulb, Info } from 'lucide-react';
-import { aiInterviewData } from '../../constants/candidate_mockData';
 import { InterviewStepper } from '../../components/interview/InterviewComponents';
 
 const STEPS = [
@@ -21,11 +20,32 @@ const TIP_ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> 
   'volume-x': VolumeX,
 };
 
+const DEFAULT_TIPS = [
+  { icon: 'mic', title: 'Speak Clearly & Slowly', desc: 'Maintain an audible, steady tone. Position your microphone 4–6 inches from your mouth.' },
+  { icon: 'eye', title: 'Maintain Eye Contact', desc: 'Look at your webcam rather than your own preview tile to simulate natural eye contact.' },
+  { icon: 'clock', title: 'Take Time to Think', desc: 'You have 10–15 seconds to organize your thoughts before speaking. Concise answers score best.' },
+  { icon: 'book', title: 'STAR Technique', desc: 'Use Situation, Task, Action, and Result structure for all behavioral questions.' },
+  { icon: 'volume-x', title: 'Eliminate Background Noise', desc: 'Close windows and doors. Silence mobile devices and close unnecessary browser tabs.' },
+];
+
+const DEFAULT_CHECKLIST = [
+  { id: '1', label: 'I am seated in a quiet, well-lit private room', done: false },
+  { id: '2', label: 'My face is clearly visible without harsh backlighting', done: false },
+  { id: '3', label: 'My microphone and webcam are connected and tested', done: false },
+  { id: '4', label: 'My device has sufficient battery and reliable power', done: false },
+  { id: '5', label: 'I have closed all other apps and browser tabs', done: false },
+];
+
+const DEFAULT_PRACTICE_QUESTIONS = [
+  'Can you describe a challenging technical problem you solved recently and your approach?',
+  'How do you handle disagreements on technical design with senior team members?',
+  'Walk me through the architecture of a scalable web application you contributed to.',
+];
+
 export default function PreparationCenterPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { preparation, interviewDetail } = aiInterviewData;
-  const [checklist, setChecklist] = useState(preparation.environmentChecklist.map(i => ({ ...i })));
+  const [checklist, setChecklist] = useState(DEFAULT_CHECKLIST);
   const [expandedPractice, setExpandedPractice] = useState<number | null>(null);
 
   const toggleCheck = (idx: number) => {
@@ -51,7 +71,7 @@ export default function PreparationCenterPage() {
       <div className="card p-5">
         <h3 className="font-bold text-slate-900 mb-4">Interview Tips</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {preparation.tips.map(tip => {
+          {DEFAULT_TIPS.map(tip => {
             const Icon = TIP_ICON_MAP[tip.icon] || Info;
             return (
               <div key={tip.title} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
@@ -105,7 +125,7 @@ export default function PreparationCenterPage() {
         <h3 className="font-bold text-slate-900 mb-4">Practice Questions</h3>
         <p className="text-xs text-slate-500 mb-3">Practice answering these out loud to warm up.</p>
         <div className="space-y-2">
-          {preparation.practiceQuestions.map((q, i) => (
+          {DEFAULT_PRACTICE_QUESTIONS.map((q, i) => (
             <div key={i} className="border border-slate-200 rounded-xl overflow-hidden">
               <button
                 onClick={() => setExpandedPractice(expandedPractice === i ? null : i)}
@@ -140,8 +160,7 @@ export default function PreparationCenterPage() {
           <span>About Your Interview</span>
         </p>
         <p className="text-xs text-blue-600">
-          You will be answering {interviewDetail.questionCount} questions in approximately {interviewDetail.estimatedDuration}.
-          The AI interviewer will ask each question verbally. Wait for it to finish before responding.
+          The AI interviewer will ask questions verbally. Wait for the prompt to finish before speaking, and answer clearly.
         </p>
       </div>
 

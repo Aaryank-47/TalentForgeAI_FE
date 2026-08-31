@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, Bot, ChevronDown, AlertTriangle, Shield, Eye, Volume2, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { interviewApi } from '../../services/api/interview.api';
-import { aiInterviewCompleted } from '../../constants/recruiter_mockData';
 import { RiskBadge } from '../../components/interview/InterviewComponents';
 
 const RECOMMENDATION_STYLES: Record<string, string> = {
@@ -27,18 +26,19 @@ export default function AIInterviewsPage() {
   const { data: apiData, isLoading } = useQuery({
     queryKey: ['recruiter-ai-interviews', companyId, search],
     queryFn: async () => {
-      if (!companyId) return null;
+      if (!companyId) return [];
       try {
         const res: any = await interviewApi.getCompanyAIInterviews(companyId, { search: search || undefined });
-        return res?.data || res;
+        const list = res?.data || res;
+        return Array.isArray(list) ? list : [];
       } catch {
-        return null;
+        return [];
       }
     },
     enabled: Boolean(companyId),
   });
 
-  const rawList: any[] = Array.isArray(apiData) && apiData.length > 0 ? apiData : aiInterviewCompleted;
+  const rawList: any[] = Array.isArray(apiData) ? apiData : [];
 
   const [selected, setSelected] = useState<any>(rawList[0] || null);
 

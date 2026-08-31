@@ -1,37 +1,18 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
-import { assessmentApi, type AssessmentView } from '../../services/api/assessment.api';
+import { assessmentApi } from '../../services/api/assessment.api';
 import { assessmentKeys } from '../../constants/queryKeys';
 import {
-  Plus, Search, Filter, MoreHorizontal, Eye, Copy, Archive, X,
+  Plus, Search, Filter, Copy,
   ChevronDown, BarChart3, ClipboardList, Activity, TrendingUp,
-  Check, ChevronRight, BookOpen, Loader2, Trash2, Pencil,
+  BookOpen, Loader2, Trash2, Pencil,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
+import { assessmentScoreDistribution, assessmentPerformanceTrend, topAssessments } from '../../constants/recruiter_mockData';
 
-import {
-  assessmentsList as mockAssessments,
-  assessmentScoreDistribution as scoreDistribution,
-  assessmentPerformanceTrend as performanceTrend,
-  topAssessments,
-  assessmentRecentResults as recentResults,
-} from '../../constants/recruiter_mockData';
-
-const typeColor = (t: string) => ({
-  Technical: 'bg-blue-50 text-blue-700 border-blue-200',
-  Aptitude: 'bg-amber-50 text-amber-700 border-amber-200',
-  MCQ: 'bg-purple-50 text-purple-700 border-purple-200',
-  Communication: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  Coding: 'bg-rose-50 text-rose-700 border-rose-200',
-  DSA: 'bg-rose-50 text-rose-700 border-rose-200',
-  MIXED: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  'MCQ + DSA': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-  MACHINE_CODING: 'bg-violet-50 text-violet-700 border-violet-200',
-  PROJECT: 'bg-amber-50 text-amber-700 border-amber-200',
-})[t] || 'bg-slate-100 text-slate-600 border-slate-200';
 
 const statusStyle = (s: string) => ({
   Active: 'bg-emerald-50 text-emerald-700 border-emerald-200',
@@ -337,8 +318,8 @@ const AssessmentsPage = () => {
               <div className="flex items-center gap-3">
                 <div className="relative w-24 h-24">
                   <PieChart width={96} height={96}>
-                    <Pie data={scoreDistribution} cx={44} cy={44} innerRadius={28} outerRadius={44} paddingAngle={2} dataKey="value" startAngle={90} endAngle={-270}>
-                      {scoreDistribution.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    <Pie data={assessmentScoreDistribution} cx={44} cy={44} innerRadius={28} outerRadius={44} paddingAngle={2} dataKey="value" startAngle={90} endAngle={-270}>
+                      {assessmentScoreDistribution.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                     </Pie>
                   </PieChart>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
@@ -347,7 +328,7 @@ const AssessmentsPage = () => {
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  {scoreDistribution.map(s => (
+                  {assessmentScoreDistribution.map(s => (
                     <div key={s.name} className="flex items-center gap-1.5 text-[10px]">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
                       <span className="text-slate-600">{s.name}</span>
@@ -366,7 +347,7 @@ const AssessmentsPage = () => {
               </div>
               <div className="h-20">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={performanceTrend} margin={{ top: 2, right: 5, left: -25, bottom: 2 }}>
+                  <LineChart data={assessmentPerformanceTrend} margin={{ top: 2, right: 5, left: -25, bottom: 2 }}>
                     <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8' }} />
                     <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: '#94A3B8' }} domain={[60, 85]} />
                     <Tooltip contentStyle={{ fontSize: '11px', borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />

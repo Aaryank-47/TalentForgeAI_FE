@@ -2,7 +2,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Clock, Layers, Mic, Info, Target, ArrowLeft, Loader2 } from 'lucide-react';
 import { interviewApi } from '../../services/api/interview.api';
-import { aiInterviewData } from '../../constants/candidate_mockData';
 import { InterviewStepper } from '../../components/interview/InterviewComponents';
 
 const STEPS = [
@@ -32,8 +31,30 @@ export default function InterviewDetailsPage() {
     enabled: Boolean(id),
   });
 
-  const fallbackDetail = aiInterviewData.interviewDetail;
-  const detail = realDetail || fallbackDetail;
+  const detail = {
+    role: realDetail?.job?.title || realDetail?.interview?.title || 'AI Technical Interview',
+    company: realDetail?.job?.company?.companyName || realDetail?.company?.companyName || 'TalentForge Client',
+    companyLogo: (realDetail?.job?.company?.companyName || 'TF').substring(0, 2).toUpperCase(),
+    department: realDetail?.job?.department || '',
+    interviewType: realDetail?.interview?.type === 'AI' ? 'Conversational AI' : 'Technical Round',
+    language: 'English',
+    difficulty: realDetail?.interview?.aiConfiguration?.difficulty || 'Medium',
+    estimatedDuration: `${realDetail?.interview?.durationMinutes || 25} mins`,
+    durationMinutes: realDetail?.interview?.durationMinutes || 25,
+    questionCount: realDetail?.interview?.aiConfiguration?.questionCount || 5,
+    format: [
+      'One question presented dynamically by the AI interviewer at a time.',
+      'Respond verbally using your microphone or type your answer.',
+      'The AI evaluates your response depth and asks adaptive follow-ups.',
+      'Session is timed and automatically evaluated upon completion.',
+    ],
+    evaluationCriteria: [
+      { label: 'Technical Depth & Accuracy', weight: '40%' },
+      { label: 'Problem Solving & Approach', weight: '30%' },
+      { label: 'Communication & Articulation', weight: '20%' },
+      { label: 'System Design & Best Practices', weight: '10%' },
+    ],
+  };
 
   if (isLoading) {
     return (
