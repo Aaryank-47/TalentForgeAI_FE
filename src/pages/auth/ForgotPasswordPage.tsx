@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Mail, KeyRound, Lock, ArrowLeft, Loader2, CheckCircle2, Eye, EyeOff, ShieldCheck } from 'lucide-react';
 import { authApi } from '../../services/api/auth.api';
 import { ApiError } from '../../services/api/apiClient';
@@ -17,7 +17,6 @@ import jobportal from '../../assets/jobportal_logo2.jpg';
 type Step = 'email' | 'otp' | 'new_password' | 'success';
 
 export default function ForgotPasswordPage() {
-  const navigate = useNavigate();
   const [step, setStep] = useState<Step>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');

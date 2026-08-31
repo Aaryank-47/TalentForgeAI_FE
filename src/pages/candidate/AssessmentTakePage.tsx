@@ -19,7 +19,6 @@ import { useMedia } from '../../context/MediaProvider';
 import AssessmentMonitoringPanel from '../../components/assessment/AssessmentMonitoringPanel';
 import MonacoEditorWrapper from '../../components/assessment/MonacoEditorWrapper';
 import { assessmentApi } from '../../services/api/assessment.api';
-import { candidateApi } from '../../services/api/candidate.api';
 import { runMockCode, submitMockCode } from '../../constants/assessment_candidate_mock';
 import type { MockExecutionResult } from '../../types/assessment';
 

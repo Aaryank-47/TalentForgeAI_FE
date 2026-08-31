@@ -1,10 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Clock, ChevronRight, MoreVertical, Play, CheckCircle, AlertCircle, Loader2, Sparkles, Building, ExternalLink, Building2, Mail, FileText, BarChart2 } from 'lucide-react';
+import { Clock, Play, CheckCircle, Loader2, Sparkles, Building2, Mail, FileText, BarChart2 } from 'lucide-react';
 import { assessmentApi } from '../../services/api/assessment.api';
-import { candidateApi } from '../../services/api/candidate.api';
-import { candidateKeys } from '../../constants/queryKeys';
 
 type Tab = 'Pending' | 'Completed' | 'All Assessments';
 

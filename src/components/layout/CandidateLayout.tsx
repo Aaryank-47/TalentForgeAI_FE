@@ -9,7 +9,7 @@ import { candidateKeys } from '../../constants/queryKeys';
 import {
   Home, Briefcase, FileText, ClipboardList, Video, MessageSquare,
   Bookmark, User, Settings, Bell, Search,
-  Menu, X, ChevronDown, Zap, LogOut, ChevronRight, Bot, Calendar, Sparkles,
+  Menu, ChevronDown, Zap, LogOut, ChevronRight, Bot, Calendar, Sparkles,
 } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
 

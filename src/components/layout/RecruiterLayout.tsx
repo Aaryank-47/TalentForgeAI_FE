@@ -16,7 +16,6 @@ import {
   Settings,
   Bell,
   Menu,
-  X,
   ChevronDown,
   ChevronRight,
   Bot,
