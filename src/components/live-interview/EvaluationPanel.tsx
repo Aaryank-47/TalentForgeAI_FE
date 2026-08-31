@@ -54,7 +54,7 @@ export const EvaluationPanel: React.FC = () => {
   const avgScore =
     Object.values(ratings).filter(Boolean).length > 0
       ? Math.round(
-          (Object.values(ratings).reduce((a, b) => a + b, 0) /
+          (Object.values(ratings).reduce<number>((a, b) => a + Number(b), 0) /
             (Object.values(ratings).filter(Boolean).length * 5)) *
             100
         )

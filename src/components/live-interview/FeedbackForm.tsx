@@ -71,7 +71,7 @@ export const FeedbackForm: React.FC<FeedbackFormProps> = ({
     e.preventDefault();
     if (!allRated) return;
     const overallRating = Math.round(
-      Object.values(ratings).reduce((a, b) => a + b, 0) / Object.values(ratings).length
+      Object.values(ratings).reduce<number>((a, b) => a + Number(b), 0) / Object.values(ratings).length
     ) as FeedbackRating;
     onSubmit({
       ...ratings,

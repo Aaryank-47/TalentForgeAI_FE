@@ -96,12 +96,12 @@ const SharedAssessmentSettings: React.FC<SharedAssessmentSettingsProps> = ({ set
         </h3>
         <ToggleRow label="Fullscreen Required" description="Candidate must remain fullscreen during the exam" value={settings.fullscreenRequired} onChange={v => set('fullscreenRequired', v)} />
         <ToggleRow label="Camera Required" description="Enable AI face detection monitoring" value={settings.cameraRequired} onChange={v => set('cameraRequired', v)} />
-        <ToggleRow label="Microphone Required" description="Enable audio recording and noise detection" value={settings.microphoneRequired} onChange={v => set('microphoneRequired', v)} />
+        <ToggleRow label="Microphone Required" description="Enable audio recording and noise detection" value={!!settings.microphoneRequired} onChange={v => set('microphoneRequired', v)} />
         <ToggleRow label="Screen Sharing Required" description="Capture candidate's screen activity" value={settings.screenSharingRequired} onChange={v => set('screenSharingRequired', v)} />
-        <ToggleRow label="Session Recording" description="Record the entire assessment session" value={settings.recordingEnabled} onChange={v => set('recordingEnabled', v)} />
-        <ToggleRow label="Tab Monitoring" description="Detect and report if the candidate leaves the exam tab" value={settings.tabMonitoring} onChange={v => set('tabMonitoring', v)} />
-        <ToggleRow label="Face Detection" description="Use AI to ensure face is visible at all times" value={settings.faceDetection} onChange={v => set('faceDetection', v)} />
-        <ToggleRow label="Background Noise Detection" description="Detect suspicious background audio activity" value={settings.noiseDetection} onChange={v => set('noiseDetection', v)} />
+        <ToggleRow label="Session Recording" description="Record the entire assessment session" value={!!settings.recordingEnabled} onChange={v => set('recordingEnabled', v)} />
+        <ToggleRow label="Tab Monitoring" description="Detect and report if the candidate leaves the exam tab" value={!!settings.tabMonitoring} onChange={v => set('tabMonitoring', v)} />
+        <ToggleRow label="Face Detection" description="Use AI to ensure face is visible at all times" value={!!settings.faceDetection} onChange={v => set('faceDetection', v)} />
+        <ToggleRow label="Background Noise Detection" description="Detect suspicious background audio activity" value={!!settings.noiseDetection} onChange={v => set('noiseDetection', v)} />
       </div>
     </div>
   );

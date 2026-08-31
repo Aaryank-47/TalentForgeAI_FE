@@ -204,7 +204,7 @@ export default function AIInterviewDetailPage() {
                     <span>Strengths</span>
                   </p>
                   <ul className="space-y-1">
-                    {report.strengths.map(s => (
+                    {report.strengths.map((s: string) => (
                       <li key={s} className="text-xs text-slate-600 flex items-start gap-1.5">
                         <span className="text-emerald-500 flex-shrink-0">•</span>{s}
                       </li>
@@ -217,7 +217,7 @@ export default function AIInterviewDetailPage() {
                     <span>Areas to Improve</span>
                   </p>
                   <ul className="space-y-1">
-                    {report.areasForImprovement.map(s => (
+                    {report.areasForImprovement.map((s: string) => (
                       <li key={s} className="text-xs text-slate-600 flex items-start gap-1.5">
                         <span className="text-amber-500 flex-shrink-0">•</span>{s}
                       </li>
@@ -378,7 +378,7 @@ export default function AIInterviewDetailPage() {
             />
           </div>
           <div className="space-y-4">
-            {filteredTranscript.map(t => (
+            {filteredTranscript.map((t: any) => (
               <TranscriptCard
                 key={t.questionId}
                 order={t.order}

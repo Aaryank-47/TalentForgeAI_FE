@@ -102,7 +102,7 @@ const CandidateLiveInterviewsPage: React.FC = () => {
     return completedArray.map(toCandidateLiveInterview);
   }, [interviewsResponse]);
 
-  const liveNow = upcomingList.filter((iv) => iv.status === 'Live');
+  const liveNow = upcomingList.filter((iv: any) => iv.status === 'Live');
 
   return (
     <div className="space-y-6">
@@ -173,7 +173,7 @@ const CandidateLiveInterviewsPage: React.FC = () => {
                   subtitle="Your scheduled interviews will appear here."
                 />
               ) : (
-                upcomingList.map((iv) => (
+                upcomingList.map((iv: any) => (
                   <LiveInterviewCard
                     key={iv.id}
                     interview={iv}
@@ -195,7 +195,7 @@ const CandidateLiveInterviewsPage: React.FC = () => {
                   variant="history"
                 />
               ) : (
-                pastList.map((iv) => (
+                pastList.map((iv: any) => (
                   <LiveInterviewCard
                     key={iv.id}
                     interview={iv}

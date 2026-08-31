@@ -1,6 +1,14 @@
 export type CheckStatus = 'checking' | 'ok' | 'error' | 'warning' | 'active';
 
-import { ProctoringSettings } from '../../../types/systemCheck.types';
+export interface ProctoringSettings {
+  cameraRequired?: boolean;
+  microphoneRequired?: boolean;
+  screenSharingRequired?: boolean;
+  faceDetection?: boolean;
+  noiseDetection?: boolean;
+  fullscreenRequired?: boolean;
+  tabMonitoring?: boolean;
+}
 
 export interface SystemCheckProps {
   mode: 'ai-interview' | 'assessment' | 'live-interview';

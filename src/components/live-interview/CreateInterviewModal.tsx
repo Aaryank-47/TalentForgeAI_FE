@@ -131,7 +131,7 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   const filteredCandidates = useMemo(() => {
     if (!candidateSearch.trim()) return assignedCandidates;
     const query = candidateSearch.toLowerCase();
-    return assignedCandidates.filter(asg =>
+    return assignedCandidates.filter((asg: { id: string; candidate: { name: string; title: string; experience: string } }) =>
       asg.candidate.name.toLowerCase().includes(query) ||
       asg.candidate.title.toLowerCase().includes(query) ||
       asg.candidate.experience.toLowerCase().includes(query)
@@ -141,11 +141,11 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   const filteredInterviewers = useMemo(() => {
     if (!interviewerSearch.trim()) return interviewers;
     const query = interviewerSearch.toLowerCase();
-    return interviewers.filter(cm =>
+    return interviewers.filter((cm: CompanyMember) =>
       cm.name.toLowerCase().includes(query) ||
       cm.role.toLowerCase().includes(query) ||
       cm.department.toLowerCase().includes(query) ||
-      cm.email.toLowerCase().includes(query)
+      (cm.email && cm.email.toLowerCase().includes(query))
     );
   }, [interviewers, interviewerSearch]);
 
@@ -386,7 +386,7 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
                       if (selectedCandidateIds.length === assignedCandidates.length) {
                         setSelectedCandidateIds([]);
                       } else {
-                        setSelectedCandidateIds(assignedCandidates.map(c => c.id));
+                        setSelectedCandidateIds(assignedCandidates.map((c: any) => c.id));
                       }
                     }}
                     className="text-xs text-primary-600 hover:text-primary-700 font-semibold"
@@ -421,7 +421,7 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
                 </div>
               ) : (
                 <div className="space-y-2 max-h-[260px] overflow-y-auto pr-2">
-                  {filteredCandidates.map((asg) => {
+                  {filteredCandidates.map((asg: any) => {
                     const isSelected = selectedCandidateIds.includes(asg.id);
                     return (
                       <button
