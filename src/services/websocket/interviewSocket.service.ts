@@ -43,7 +43,8 @@ export interface AIInterviewErrorPayload {
   message: string;
 }
 
-const SOCKET_SERVER_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+// const SOCKET_SERVER_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+const SOCKET_SERVER_URL = import.meta.env.VITE_WS_URL || 'https://talentforgeai-backend-uqrt.onrender.com';
 const AI_INTERVIEW_NAMESPACE = '/interviews/ai';
 
 class AIInterviewSocketService {

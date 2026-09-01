@@ -41,7 +41,8 @@ export interface ResumeFailedPayload {
   timestamp?: string;
 }
 
-const SOCKET_SERVER_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+// const SOCKET_SERVER_URL = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+const SOCKET_SERVER_URL = import.meta.env.VITE_WS_URL || 'https://talentforgeai-backend-uqrt.onrender.com';
 const RESUME_NAMESPACE = '/resume-processing';
 
 let resumeSocket: Socket | null = null;
