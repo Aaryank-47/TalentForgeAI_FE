@@ -57,7 +57,7 @@ import landingIMG from '../../assets/landingIMG.png';
 import resume_matching from '../../assets/resume_matching1.png';
 import ats_pipeline from '../../assets/ats_pipeline4.png';
 import hiring_automation from '../../assets/hiring_automate.png';
-import ai_proctoring from '../../assets/AI_Proctoring.png';
+import ai_proctoring from '../../assets/ai_proctoring.png';
 import workspace from '../../assets/setupWorkspace.png';
 import jobPost from '../../assets/postJob.png';
 import ai_interview_img from '../../assets/aiInterview.png';
