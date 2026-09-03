@@ -124,16 +124,18 @@ const RecruiterLiveInterviewsPage: React.FC = () => {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {STAT_CARDS.map(({ label, value, icon: Icon, color, bg }) => (
-          <div key={label} className={`${bg} rounded-xl p-4 border border-transparent`}>
-            <div className="flex items-center gap-2 mb-2">
+          <div key={label} className="card p-4 flex items-start gap-3">
+            <div className={`${bg} rounded-xl p-2.5 flex-shrink-0`}>
               <Icon className={`w-5 h-5 ${color}`} />
             </div>
-            <p className={`text-2xl font-display font-black ${color}`}>{value}</p>
-            <p className="text-xs text-slate-600 font-medium mt-0.5">{label}</p>
-            <p className="text-[10px] text-emerald-600 mt-1 flex items-center gap-0.5">
-              <TrendingUp className="w-3 h-3" />
-              +{Math.floor(Math.random() * 30 + 10)}% this month
-            </p>
+            <div>
+              <p className="text-[12px] text-slate-500 leading-tight">{label}</p>
+              <p className="text-2xl font-display font-bold text-slate-900 mt-0.5">{value}</p>
+              <p className="text-[10px] text-emerald-600 font-medium mt-0.5 flex items-center gap-1">
+                <TrendingUp className="w-3 h-3" />
+                +{Math.floor(Math.random() * 30 + 10)}% this month
+              </p>
+            </div>
           </div>
         ))}
       </div>

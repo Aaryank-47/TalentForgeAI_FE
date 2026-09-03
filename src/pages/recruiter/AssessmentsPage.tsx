@@ -118,19 +118,45 @@ const AssessmentsPage = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Assessments', value: '24', change: '+18% vs last month', icon: <ClipboardList className="w-5 h-5 text-blue-600" />, bg: 'bg-blue-50' },
-          { label: 'Active Assessments', value: '16', change: '+12% vs last month', icon: <Activity className="w-5 h-5 text-emerald-600" />, bg: 'bg-emerald-50' },
-          { label: 'Total Attempts', value: '1,248', change: '+22% vs last month', icon: <BarChart3 className="w-5 h-5 text-purple-600" />, bg: 'bg-purple-50' },
-          { label: 'Average Score', value: '72%', change: '+8% vs last month', icon: <TrendingUp className="w-5 h-5 text-amber-600" />, bg: 'bg-amber-50' },
+          { 
+            label: 'Total Assessments', 
+            value: assessmentsData?.total || 0, 
+            change: '+18% vs last month', 
+            icon: <ClipboardList className="w-5 h-5 text-blue-600" />, 
+            bg: 'bg-blue-50' 
+          },
+          { 
+            label: 'Active Assessments', 
+            value: apiAssessments.filter(a => a.status === 'PUBLISHED' || (a.status as string) === 'Active').length, 
+            change: '+12% vs last month', 
+            icon: <Activity className="w-5 h-5 text-emerald-600" />, 
+            bg: 'bg-emerald-50' 
+          },
+          { 
+            label: 'Total Attempts', 
+            value: apiAssessments.reduce((acc, a) => acc + (a._count?.attempts || 0), 0), 
+            change: '+22% vs last month', 
+            icon: <BarChart3 className="w-5 h-5 text-purple-600" />, 
+            bg: 'bg-purple-50' 
+          },
+          { 
+            label: 'Average Score', 
+            value: '-', 
+            change: '+0% vs last month', 
+            icon: <TrendingUp className="w-5 h-5 text-amber-600" />, 
+            bg: 'bg-amber-50' 
+          },
         ].map(k => (
           <div key={k.label} className="card p-4 flex items-start gap-3">
             <div className={`${k.bg} rounded-xl p-2.5 flex-shrink-0`}>{k.icon}</div>
             <div>
               <p className="text-[12px] text-slate-500 leading-tight">{k.label}</p>
               <p className="text-2xl font-display font-bold text-slate-900 mt-0.5">{k.value}</p>
-              <p className="text-[10px] text-emerald-600 font-medium mt-0.5 flex items-center gap-1">
-                <TrendingUp className="w-3 h-3" />{k.change}
-              </p>
+              {k.value !== '-' && (
+                <p className="text-[10px] text-emerald-600 font-medium mt-0.5 flex items-center gap-1">
+                  <TrendingUp className="w-3 h-3" />{k.change}
+                </p>
+              )}
             </div>
           </div>
         ))}
