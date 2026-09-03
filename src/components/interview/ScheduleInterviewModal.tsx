@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
-  X, Calendar, Clock, Users, Video, User, Briefcase, ChevronRight, Check
+  X, Calendar, Clock, Briefcase, Check
 } from 'lucide-react';
 import { 
   mockJobs, 
@@ -10,11 +10,7 @@ import {
   mockCompanyMembers,
   mockInterviewAssignments
 } from '../../constants/interview/scheduleMockData';
-import type {
-  InterviewSession,
-  InterviewType,
-  InterviewMode
-} from '../../types/interviewSession.types';
+import type { InterviewSession } from '../../types/interviewSession.types';
 
 interface ScheduleInterviewModalProps {
   isOpen: boolean;

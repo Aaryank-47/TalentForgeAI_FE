@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Mail, Lock, User, Building, Eye, EyeOff, ArrowRight, Bot, Sparkles, Users, BarChart2, Check, Loader2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Bot, Sparkles, Users, BarChart2, Check, Loader2 } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
 import { useAuth } from '../../context/AuthContext';
 import { resolvePortalRoute } from '../../lib/permissions';

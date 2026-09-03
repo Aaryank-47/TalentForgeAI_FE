@@ -3,7 +3,7 @@
  * All components are mock/simulation UI — no real camera/mic/AI
  */
 import React from 'react';
-import { Check, Clock, AlertTriangle, Shield, Volume2, Eye, Monitor, Bot, User } from 'lucide-react';
+import { Check, Clock, AlertTriangle, Shield, Volume2, Bot, User } from 'lucide-react';
 
 // ─────────────────────────────────────────────────────────────
 // InterviewStepper

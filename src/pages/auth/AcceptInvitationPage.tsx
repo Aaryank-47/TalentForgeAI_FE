@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Building, CheckCircle, XCircle, AlertCircle, Loader2, ArrowRight, ShieldCheck, Mail, Users
+  CheckCircle, XCircle, AlertCircle, Loader2, ArrowRight, ShieldCheck, Mail
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { companyApi } from '../../services/api/company.api';

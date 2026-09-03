@@ -1,6 +1,5 @@
 import { interviewApi } from '../../services/api/interview.api';
 import { store } from '../../store';
-import { useInterview } from '../../context/InterviewContext';
 // ─────────────────────────────────────────────────────────────
 // TalentForge AI — Evaluation Panel (recruiter sidebar)
 // Live rating input while interview is in progress

@@ -6,12 +6,12 @@ import { useAuth } from '../../context/AuthContext';
 import { WorkflowSelector } from '../../components/hiring/WorkflowSelector';
 import { workflowApi } from '../../services/api/workflow.api';
 import { jobApi, type CreateJobPayload, type EmploymentType, type WorkplaceType, type SalaryPeriod } from '../../services/api/job.api';
-import { assessmentApi, type AssessmentView } from '../../services/api/assessment.api';
+import { assessmentApi } from '../../services/api/assessment.api';
 import { jobKeys, workflowKeys, assessmentKeys } from '../../constants/queryKeys';
 import {
   ChevronRight, ChevronLeft, Check, Briefcase,
-  Plus, X, Save, Send, MapPin, GitBranch, Loader2, AlertCircle, Calendar, DollarSign,
-  ClipboardList, Clock, Trash2, ArrowUpDown, ArrowUp, ArrowDown, GripVertical, Search
+  Plus, X, Save, Send, MapPin, GitBranch, Loader2, AlertCircle,
+  ClipboardList, Clock, ArrowUpDown, ArrowUp, ArrowDown, GripVertical, Search
 } from 'lucide-react';
 
 const steps = [

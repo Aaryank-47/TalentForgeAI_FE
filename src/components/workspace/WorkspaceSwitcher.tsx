@@ -22,11 +22,7 @@ import {
   Check,
   PlusCircle,
   Sparkles,
-  Loader2,
-  X,
-  Globe,
-  MapPin,
-  Briefcase,
+  Loader2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

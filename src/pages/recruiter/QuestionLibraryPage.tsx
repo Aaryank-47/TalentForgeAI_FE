@@ -19,7 +19,6 @@ import {
   Trash2,
   Code2,
   CheckSquare,
-  Bot,
   Loader2,
   Copy,
   X,
@@ -27,11 +26,8 @@ import {
   Layers,
   Tag,
   Cpu,
-  Boxes,
   Briefcase,
   Terminal,
-  ChevronRight,
-  Filter,
   Check,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
