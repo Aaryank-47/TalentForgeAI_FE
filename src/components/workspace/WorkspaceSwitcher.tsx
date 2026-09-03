@@ -42,6 +42,8 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
   const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
   // Fetch industries & sizes dynamically from the backend / database
   const { data: metadataResponse } = useQuery({
     queryKey: companyKeys.metadata,
@@ -106,8 +108,17 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
 
   const handleCreateCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFieldErrors({});
+    let hasError = false;
+    const newFieldErrors: Record<string, string> = {};
+
     if (!companyForm.companyName.trim()) {
-      toast.error('Please enter a company name');
+      newFieldErrors.companyName = 'Please enter a company name';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setFieldErrors(newFieldErrors);
       return;
     }
 
@@ -137,6 +148,33 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
       selectWorkspace(newWs);
       navigate('/recruiter/dashboard');
     } catch (err: any) {
+      if (err?.message === 'Validation Failed' || err?.status === 400 || err?.status === 422) {
+        // Handle z.treeifyError format: { properties: { fieldName: { errors: ['...'] } } }
+        const errData = err?.data?.errors?.properties || err?.data?.data || err?.data?.errors || err?.data;
+        const serverFieldErrors: Record<string, string> = {};
+        
+        if (typeof errData === 'object' && errData !== null) {
+          Object.keys(errData).forEach(key => {
+             const val = (errData as any)[key];
+             if (Array.isArray(val) && val.length > 0) {
+               serverFieldErrors[key] = val[0];
+             } else if (typeof val === 'string') {
+               serverFieldErrors[key] = val;
+             } else if (val && typeof val === 'object' && val.errors && Array.isArray(val.errors)) {
+               serverFieldErrors[key] = val.errors[0];
+             } else if (val && typeof val === 'object' && val._errors && Array.isArray(val._errors)) {
+               serverFieldErrors[key] = val._errors[0];
+             } else if (val && typeof val === 'object' && val.message) {
+               serverFieldErrors[key] = val.message;
+             }
+          });
+        }
+        
+        if (Object.keys(serverFieldErrors).length > 0) {
+          setFieldErrors(serverFieldErrors);
+          return;
+        }
+      }
       toast.error(err?.message || 'Failed to create company organization');
     } finally {
       setIsSubmitting(false);
@@ -209,7 +247,10 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
         <div className="border-t border-slate-100 mt-2 pt-1.5 px-1 space-y-1">
           {/* Create Company Action */}
           <button
-            onClick={() => setShowCreateCompanyModal(true)}
+            onClick={() => {
+              setShowCreateCompanyModal(true);
+              setFieldErrors({});
+            }}
             className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-blue-600 transition-colors"
           >
             <PlusCircle className="w-3.5 h-3.5 text-blue-600" />
@@ -258,10 +299,20 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
               type="text"
               required
               value={companyForm.companyName}
-              onChange={(e) => setCompanyForm({ ...companyForm, companyName: e.target.value })}
+              onChange={(e) => {
+                setCompanyForm({ ...companyForm, companyName: e.target.value });
+                if (fieldErrors.companyName) setFieldErrors({ ...fieldErrors, companyName: '' });
+              }}
               placeholder="e.g. Acme Technologies"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
+                fieldErrors.companyName
+                  ? 'border-red-500 focus:ring-red-500 text-red-900'
+                  : 'border-slate-200 focus:ring-blue-500'
+              }`}
             />
+            {fieldErrors.companyName && (
+              <p className="mt-1 text-[10px] font-medium text-red-500">{fieldErrors.companyName}</p>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -269,8 +320,15 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
               <label className="block text-xs font-semibold text-slate-700 mb-1">Industry</label>
               <select
                 value={companyForm.industry}
-                onChange={(e) => setCompanyForm({ ...companyForm, industry: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                onChange={(e) => {
+                  setCompanyForm({ ...companyForm, industry: e.target.value });
+                  if (fieldErrors.industry) setFieldErrors({ ...fieldErrors, industry: '' });
+                }}
+                className={`w-full px-3 py-2 border rounded-lg text-xs font-medium focus:outline-none focus:ring-2 bg-white ${
+                  fieldErrors.industry
+                    ? 'border-red-500 focus:ring-red-500 text-red-900'
+                    : 'border-slate-200 focus:ring-blue-500'
+                }`}
               >
                 {industries.length > 0 ? (
                   industries.map((ind) => (
@@ -280,14 +338,24 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
                   <option value="Technology & SaaS">Technology & SaaS</option>
                 )}
               </select>
+              {fieldErrors.industry && (
+                <p className="mt-1 text-[10px] font-medium text-red-500">{fieldErrors.industry}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Company Size</label>
               <select
                 value={companyForm.companySize}
-                onChange={(e) => setCompanyForm({ ...companyForm, companySize: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                onChange={(e) => {
+                  setCompanyForm({ ...companyForm, companySize: e.target.value });
+                  if (fieldErrors.companySize) setFieldErrors({ ...fieldErrors, companySize: '' });
+                }}
+                className={`w-full px-3 py-2 border rounded-lg text-xs font-medium focus:outline-none focus:ring-2 bg-white ${
+                  fieldErrors.companySize
+                    ? 'border-red-500 focus:ring-red-500 text-red-900'
+                    : 'border-slate-200 focus:ring-blue-500'
+                }`}
               >
                 {companySizes.length > 0 ? (
                   companySizes.map((sz) => (
@@ -297,6 +365,9 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
                   <option value="11-50 employees">11-50 employees</option>
                 )}
               </select>
+              {fieldErrors.companySize && (
+                <p className="mt-1 text-[10px] font-medium text-red-500">{fieldErrors.companySize}</p>
+              )}
             </div>
           </div>
 
@@ -306,20 +377,40 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
               <input
                 type="url"
                 value={companyForm.website}
-                onChange={(e) => setCompanyForm({ ...companyForm, website: e.target.value })}
+                onChange={(e) => {
+                  setCompanyForm({ ...companyForm, website: e.target.value });
+                  if (fieldErrors.website) setFieldErrors({ ...fieldErrors, website: '' });
+                }}
                 placeholder="https://company.com"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 ${
+                  fieldErrors.website
+                    ? 'border-red-500 focus:ring-red-500 text-red-900'
+                    : 'border-slate-200 focus:ring-blue-500'
+                }`}
               />
+              {fieldErrors.website && (
+                <p className="mt-1 text-[10px] font-medium text-red-500">{fieldErrors.website}</p>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Headquarters</label>
               <input
                 type="text"
                 value={companyForm.headquarters}
-                onChange={(e) => setCompanyForm({ ...companyForm, headquarters: e.target.value })}
+                onChange={(e) => {
+                  setCompanyForm({ ...companyForm, headquarters: e.target.value });
+                  if (fieldErrors.headquarters) setFieldErrors({ ...fieldErrors, headquarters: '' });
+                }}
                 placeholder="e.g. San Francisco, CA"
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 ${
+                  fieldErrors.headquarters
+                    ? 'border-red-500 focus:ring-red-500 text-red-900'
+                    : 'border-slate-200 focus:ring-blue-500'
+                }`}
               />
+              {fieldErrors.headquarters && (
+                <p className="mt-1 text-[10px] font-medium text-red-500">{fieldErrors.headquarters}</p>
+              )}
             </div>
           </div>
 
@@ -328,10 +419,20 @@ export const WorkspaceSwitcher: React.FC<WorkspaceSwitcherProps> = ({ onClose })
             <textarea
               rows={2}
               value={companyForm.description}
-              onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
+              onChange={(e) => {
+                setCompanyForm({ ...companyForm, description: e.target.value });
+                if (fieldErrors.description) setFieldErrors({ ...fieldErrors, description: '' });
+              }}
               placeholder="What does your company do?"
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className={`w-full px-3 py-2 border rounded-lg text-xs focus:outline-none focus:ring-2 ${
+                fieldErrors.description
+                  ? 'border-red-500 focus:ring-red-500 text-red-900'
+                  : 'border-slate-200 focus:ring-blue-500'
+              }`}
             />
+            {fieldErrors.description && (
+              <p className="mt-1 text-[10px] font-medium text-red-500">{fieldErrors.description}</p>
+            )}
           </div>
 
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
