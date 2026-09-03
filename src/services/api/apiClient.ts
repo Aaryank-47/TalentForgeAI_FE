@@ -13,8 +13,9 @@ import { setAccessToken, clearAccessToken } from '../../store/slices/authSlice';
 import { queryClient } from '../../lib/queryClient';
 import { authKeys } from '../../constants/queryKeys';
 
-// const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://talentforgeai-backend-uqrt.onrender.com/api/v1';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
+console.log("BASE_URL", BASE_URL);
+// const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://talentforgeai-backend-uqrt.onrender.com/api/v1';
 
 export const tokenStorage = {
   getAccessToken: (): string | null => store.getState().auth.accessToken,
@@ -70,6 +71,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
   // Unwrap TalentForge Backend ApiResponse { success, message, data }
   if (isJson && typeof body === 'object' && body !== null && 'success' in body && 'data' in body) {
+    if ('tokens' in body) {
+      const tokens = (body as any).tokens;
+      if (tokens && tokens.accessToken) {
+        store.dispatch(setAccessToken(tokens.accessToken));
+      }
+    }
     return (body as { data: T }).data;
   }
 
