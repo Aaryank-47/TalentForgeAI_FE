@@ -37,16 +37,30 @@ export function resolveWorkspaceRoute(workspace: { type: 'CANDIDATE' | 'COMPANY'
   return '/login';
 }
 
-/** Resolve which portal the user should be routed to after login */
+/** Resolve which portal the user should be routed to after login or when accessing root */
 export function resolvePortalRoute(user: AuthUser): string {
-  if (!user.hasCandidateProfile && (!user.companies || user.companies.length === 0)) {
+  const candidateCount = user.hasCandidateProfile ? 1 : 0;
+  const companyCount = user.companies?.length || 0;
+  const totalWorkspaces = candidateCount + companyCount;
+
+  if (totalWorkspaces === 0) {
     return '/onboarding';
   }
+
+  if (totalWorkspaces > 1) {
+    return '/select-workspace';
+  }
+
+  if (candidateCount === 1) {
+    return '/candidate/home';
+  }
+
+  if (companyCount === 1) {
+    return '/recruiter/dashboard';
+  }
+
+  // Fallbacks for ADMIN etc.
   switch (user.role) {
-    case 'CANDIDATE':
-      return '/candidate/home';
-    case 'EMPLOYER':
-      return '/recruiter/dashboard';
     case 'ADMIN':
     case 'SUPER_ADMIN':
       return '/admin/dashboard';

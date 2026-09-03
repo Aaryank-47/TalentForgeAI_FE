@@ -154,6 +154,15 @@ export function PublicRoute({ redirectAuthenticatedTo }: PublicRouteProps) {
   }
 
   if (isAuthenticated && user) {
+    const candidateCount = user.hasCandidateProfile ? 1 : 0;
+    const companyCount = user.companies?.length || 0;
+    const totalWorkspaces = candidateCount + companyCount;
+
+    // Force workspace selection if they have multiple and haven't selected one yet
+    if (totalWorkspaces > 1 && !currentWorkspace) {
+      return <Navigate to="/select-workspace" replace />;
+    }
+
     const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
     const destination = redirectAuthenticatedTo || from || resolveWorkspaceRoute(currentWorkspace, user);
     return <Navigate to={destination} replace />;

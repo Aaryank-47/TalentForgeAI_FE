@@ -109,10 +109,13 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    setFormErrors({});
+
     try {
       const { user: authUser, availableWorkspaces } = await login({ email, password });
       
@@ -143,7 +146,15 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
       const destination = resolvePortalRoute(authUser);
       navigate(destination, { replace: true });
     } catch (err: any) {
-      setLocalError(err?.message || error || 'Invalid email or password. Please try again.');
+      if (err?.data?.errors?.properties) {
+        const newErrors: Record<string, string> = {};
+        Object.keys(err.data.errors.properties).forEach(key => {
+          newErrors[key] = err.data.errors.properties[key].errors[0];
+        });
+        setFormErrors(newErrors);
+      } else {
+        setLocalError(err?.message || error || 'Invalid email or password. Please try again.');
+      }
     }
   };
 
@@ -178,24 +189,28 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
 
       <form onSubmit={handleLogin} className="space-y-4">
         <div>
-          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address</label>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address *</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="email"
               required
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              onChange={e => {
+                setEmail(e.target.value);
+                if (formErrors.email) setFormErrors(prev => ({ ...prev, email: '' }));
+              }}
               placeholder="you@company.com"
               disabled={isLoading}
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all disabled:opacity-60"
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${formErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`}
             />
           </div>
+          {formErrors.email && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.email}</p>}
         </div>
 
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label className="block text-[13px] font-medium text-slate-700">Password</label>
+            <label className="block text-[13px] font-medium text-slate-700">Password *</label>
             <Link to="/forgot-password" className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8]">Forgot password?</Link>
           </div>
           <div className="relative">
@@ -204,15 +219,19 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
               type={showPassword ? 'text' : 'password'}
               required
               value={password}
-              onChange={e => setPassword(e.target.value)}
+              onChange={e => {
+                setPassword(e.target.value);
+                if (formErrors.password) setFormErrors(prev => ({ ...prev, password: '' }));
+              }}
               placeholder="••••••••"
               disabled={isLoading}
-              className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all disabled:opacity-60"
+              className={`w-full pl-10 pr-10 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${formErrors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`}
             />
             <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          {formErrors.password && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.password}</p>}
         </div>
 
         {(localError) && (
@@ -243,9 +262,13 @@ const RegisterForm = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [localError, setLocalError] = useState<string | null>(null);
 
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    setFormErrors({});
+
     if (form.password !== form.confirm) {
       setLocalError('Passwords do not match.');
       return;
@@ -259,11 +282,22 @@ const RegisterForm = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
       // Redirect user to email verification with their email address pre-filled
       navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
     } catch (err: any) {
-      setLocalError(err?.message || error || 'Registration failed. Please try again.');
+      if (err?.data?.errors?.properties) {
+        const newErrors: Record<string, string> = {};
+        Object.keys(err.data.errors.properties).forEach(key => {
+          newErrors[key] = err.data.errors.properties[key].errors[0];
+        });
+        setFormErrors(newErrors);
+      } else {
+        setLocalError(err?.message || error || 'Registration failed. Please try again.');
+      }
     }
   };
 
-  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(f => ({ ...f, [k]: e.target.value }));
+    if (formErrors[k]) setFormErrors(prev => ({ ...prev, [k]: '' }));
+  };
 
   return (
     <div className="flex flex-col justify-center h-full px-10 py-14 max-w-[440px] w-full mx-auto">
@@ -280,40 +314,43 @@ const RegisterForm = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
       <form onSubmit={handleRegister} className="space-y-3.5">
         {/* Full Name */}
         <div>
-          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Full Name</label>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Full Name *</label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input type="text" required value={form.name} onChange={set('name')} placeholder="Jordan Clark"
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all" />
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${formErrors.fullName ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`} />
           </div>
+          {formErrors.fullName && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.fullName}</p>}
         </div>
 
         {/* Email */}
         <div>
-          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address</label>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address *</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input type="email" required value={form.email} onChange={set('email')} placeholder="you@company.com"
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all" />
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${formErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`} />
           </div>
+          {formErrors.email && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.email}</p>}
         </div>
 
         {/* Password */}
         <div>
-          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Password</label>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Password *</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input type={showPassword ? 'text' : 'password'} required value={form.password} onChange={set('password')} placeholder="Min. 8 characters"
-              className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all" />
+              className={`w-full pl-10 pr-10 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${formErrors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`} />
             <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
+          {formErrors.password && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.password}</p>}
         </div>
 
         {/* Confirm Password */}
         <div>
-          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Confirm Password</label>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Confirm Password *</label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input type={showConfirm ? 'text' : 'password'} required value={form.confirm} onChange={set('confirm')} placeholder="Re-enter password"

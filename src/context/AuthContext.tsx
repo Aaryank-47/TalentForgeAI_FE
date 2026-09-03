@@ -244,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastLoginAt: u.lastLoginAt,
       fullName,
       profile: p,
-      hasCandidateProfile: !!authMeData.candidate?.enabled || (!!p && ('profileCompletion' in p || 'isOpenToWork' in p)),
+      hasCandidateProfile: !!p && 'profileCompletion' in p && (p as any).profileCompletion > 0,
       candidateProfileId: authMeData.candidate?.id,
       companies: companyMemberships,
       companyId: activeCompanyWorkspace?.id,
@@ -275,12 +275,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         dispatch(setAccessToken(token));
       }
-      queryClient.setQueryData(authKeys.me, {
-        user: data.user,
-        profile: data.profile,
-      });
-      // Invalidate to trigger full getMe with companies
-      await queryClient.invalidateQueries({ queryKey: authKeys.me });
+      // We intentionally do not setQueryData or invalidateQueries here.
+      // The `login` wrapper function will fetch the full `me` data (including companies)
+      // and update the cache, preventing premature redirects by <PublicRoute>.
       setLocalAuthError(null);
     },
     onError: (err: any) => {
@@ -376,9 +373,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Fetch authoritative me data with workspaces
     const meData = await authApi.getMe();
+
+    // Set the full data in the cache to avoid incomplete states
+    queryClient.setQueryData(authKeys.me, meData);
     
     const workspaces: Workspace[] = [];
-    const hasCandidate = !!meData.candidate?.enabled || !!(meData.profile && 'profileCompletion' in meData.profile) || platformRole === 'CANDIDATE';
+    const hasCandidate = !!(meData.profile && 'profileCompletion' in meData.profile && (meData.profile as any).profileCompletion > 0);
     if (hasCandidate) {
       workspaces.push({
         type: 'CANDIDATE',
