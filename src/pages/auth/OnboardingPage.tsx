@@ -355,6 +355,15 @@ export default function OnboardingPage() {
                   <span>Enter Candidate Portal</span>
                 </button>
               </div>
+              <div className="mt-3 text-center">
+                <button 
+                  type="button"
+                  onClick={() => setStep('company_setup')}
+                  className="text-xs text-slate-500 hover:text-blue-600 font-medium transition-colors"
+                >
+                  Actually, I want to create a company workspace instead
+                </button>
+              </div>
             </form>
           </div>
         )}
@@ -472,6 +481,15 @@ export default function OnboardingPage() {
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building className="w-4 h-4" />}
                   <span>Create Company & Continue</span>
+                </button>
+              </div>
+              <div className="mt-3 text-center">
+                <button 
+                  type="button"
+                  onClick={() => setStep('candidate_setup')}
+                  className="text-xs text-slate-500 hover:text-blue-600 font-medium transition-colors"
+                >
+                  Actually, I want to set up a candidate profile instead
                 </button>
               </div>
             </form>

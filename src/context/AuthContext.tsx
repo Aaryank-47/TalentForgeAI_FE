@@ -517,6 +517,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Overall loading state
   const isActionLoading =
     loginMutation.isPending ||
+    registerUserMutation.isPending ||
     registerCandidateMutation.isPending ||
     registerCompanyOwnerMutation.isPending ||
     logoutMutation.isPending;
