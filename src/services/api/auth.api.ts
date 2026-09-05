@@ -151,6 +151,10 @@ export interface EmployerProfileData {
 export interface AuthMeResponse {
   user: AuthUserResponse;
   profile: CandidateProfileData | EmployerProfileData | null;
+  capabilities?: {
+    candidate: boolean;
+    employer: boolean;
+  };
   candidate?: {
     enabled: boolean;
     id: string;

@@ -28,10 +28,6 @@ export function resolveWorkspaceRoute(workspace: { type: 'CANDIDATE' | 'COMPANY'
     if (workspace.type === 'COMPANY') return '/recruiter/dashboard';
   }
   if (user) {
-    // If user has no candidate profile and no company memberships yet, send to onboarding
-    if (!user.hasCandidateProfile && (!user.companies || user.companies.length === 0)) {
-      return '/onboarding';
-    }
     return resolvePortalRoute(user);
   }
   return '/login';
@@ -39,34 +35,22 @@ export function resolveWorkspaceRoute(workspace: { type: 'CANDIDATE' | 'COMPANY'
 
 /** Resolve which portal the user should be routed to after login or when accessing root */
 export function resolvePortalRoute(user: AuthUser): string {
-  const candidateCount = user.hasCandidateProfile ? 1 : 0;
-  const companyCount = user.companies?.length || 0;
-  const totalWorkspaces = candidateCount + companyCount;
+  if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+    return '/admin/dashboard';
+  }
 
-  if (totalWorkspaces === 0) {
+  const isCandidate = user.capabilities?.candidate ?? false;
+  const hasEmployer = user.capabilities?.employer ?? false;
+
+  if (!isCandidate && !hasEmployer) {
     return '/onboarding';
   }
 
-  if (totalWorkspaces > 1) {
-    return '/select-workspace';
-  }
-
-  if (candidateCount === 1) {
+  if (isCandidate && !hasEmployer) {
     return '/candidate/home';
   }
 
-  if (companyCount === 1) {
-    return '/recruiter/dashboard';
-  }
-
-  // Fallbacks for ADMIN etc.
-  switch (user.role) {
-    case 'ADMIN':
-    case 'SUPER_ADMIN':
-      return '/admin/dashboard';
-    default:
-      return '/';
-  }
+  return '/select-workspace';
 }
 
 /** Check if a user has a given platform role */
@@ -77,7 +61,7 @@ export function hasRole(user: AuthUser | null, ...roles: UserRole[]): boolean {
 
 /** Check if an employer user has a given company membership role */
 export function hasCompanyRole(user: AuthUser | null, ...roles: CompanyMemberRole[]): boolean {
-  if (!user || user.role !== 'EMPLOYER') return false;
+  if (!user || !user.capabilities?.employer) return false;
   if (!user.companyRole) return false;
   return roles.includes(user.companyRole);
 }
@@ -92,9 +76,9 @@ export function usePermissions() {
     isAuthenticated,
     user,
 
-    // ── Platform roles ──────────────────────────────────────────────────────
-    isCandidate: isAuthenticated && user?.role === 'CANDIDATE',
-    isEmployer: isAuthenticated && user?.role === 'EMPLOYER',
+    // ── Platform capabilities ───────────────────────────────────────────────
+    isCandidate: isAuthenticated && !!user?.capabilities?.candidate,
+    isEmployer: isAuthenticated && !!user?.capabilities?.employer,
     isAdmin: isAuthenticated && (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN'),
     isSuperAdmin: isAuthenticated && user?.role === 'SUPER_ADMIN',
 
@@ -111,9 +95,9 @@ export function usePermissions() {
 
     // ── Compound checks ─────────────────────────────────────────────────────
     /** Can access recruiter/employer portal */
-    canAccessRecruiterPortal: isAuthenticated && user?.role === 'EMPLOYER',
+    canAccessRecruiterPortal: isAuthenticated && !!user?.capabilities?.employer,
     /** Can access candidate portal */
-    canAccessCandidatePortal: isAuthenticated && user?.role === 'CANDIDATE',
+    canAccessCandidatePortal: isAuthenticated && !!user?.capabilities?.candidate,
 
     /** Can create jobs */
     canCreateJob: isAuthenticated &&

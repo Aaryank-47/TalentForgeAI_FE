@@ -13,7 +13,8 @@ import { setAccessToken, clearAccessToken } from '../../store/slices/authSlice';
 import { queryClient } from '../../lib/queryClient';
 import { authKeys } from '../../constants/queryKeys';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+// const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3001/api/v1';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api/v1';
 // const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://talentforgeai-backend-uqrt.onrender.com/api/v1';
 console.log("BASE_URL", BASE_URL);
 

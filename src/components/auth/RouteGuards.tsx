@@ -131,7 +131,18 @@ export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
     return <Outlet />;
   }
 
-  if (!user || (!allowedRoles.includes(user.role) && !currentWorkspace)) {
+  if (!user) {
+    const fallback = redirectTo || resolveWorkspaceRoute(currentWorkspace, user);
+    return <Navigate to={fallback} replace />;
+  }
+
+  // Base roles relax checks to rely on capabilities instead of hardcoded UserRole
+  const hasAllowedCapability = 
+    (allowedRoles.includes('CANDIDATE') && user.capabilities?.candidate) ||
+    (allowedRoles.includes('EMPLOYER') && user.capabilities?.employer) ||
+    allowedRoles.includes(user.role);
+
+  if (!hasAllowedCapability && !currentWorkspace) {
     const fallback = redirectTo || resolveWorkspaceRoute(currentWorkspace, user);
     return <Navigate to={fallback} replace />;
   }

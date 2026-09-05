@@ -119,30 +119,6 @@ const LoginForm = ({ onSwitchToRegister }: { onSwitchToRegister: () => void }) =
     try {
       const { user: authUser, availableWorkspaces } = await login({ email, password });
       
-      // If user has multiple workspaces, show Workspace Selection screen
-      if (availableWorkspaces.length > 1) {
-        navigate('/select-workspace', { replace: true });
-        return;
-      }
-
-      // If user has exactly 1 workspace, navigate directly into it
-      if (availableWorkspaces.length === 1) {
-        const ws = availableWorkspaces[0];
-        if (ws.type === 'CANDIDATE') {
-          navigate('/candidate/home', { replace: true });
-        } else {
-          navigate('/recruiter/dashboard', { replace: true });
-        }
-        return;
-      }
-
-      // If user has no workspaces/profiles yet (new signup), direct to onboarding
-      if (!authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
-        navigate('/onboarding', { replace: true });
-        return;
-      }
-
-      // Fallback based on user role
       const destination = resolvePortalRoute(authUser);
       navigate(destination, { replace: true });
     } catch (err: any) {
