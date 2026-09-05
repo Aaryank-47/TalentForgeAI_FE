@@ -249,7 +249,7 @@ export const questionApi = {
    * Get question categories
    */
   getCategories: async (): Promise<QuestionCategory[]> => {
-    const res = await api.get<{ success: boolean; data: QuestionCategory[] | { categories: QuestionCategory[] } }>('/questions/categories');
+    const res = await api.get<{ success: boolean; data: QuestionCategory[] | { categories: QuestionCategory[] } }>('/questions/categories?limit=39');
     if (Array.isArray(res)) return res;
     if (res && Array.isArray((res as any).data)) return (res as any).data;
     if (res && (res as any).data?.categories) return (res as any).data.categories;
@@ -271,7 +271,7 @@ export const questionApi = {
    * Get question tags
    */
   getTags: async (): Promise<QuestionTag[]> => {
-    const res = await api.get<{ success: boolean; data: QuestionTag[] | { tags: QuestionTag[] } }>('/questions/tags');
+    const res = await api.get<{ success: boolean; data: QuestionTag[] | { tags: QuestionTag[] } }>('/questions/tags?limit=50');
     if (Array.isArray(res)) return res;
     if (res && Array.isArray((res as any).data)) return (res as any).data;
     if (res && (res as any).data?.tags) return (res as any).data.tags;

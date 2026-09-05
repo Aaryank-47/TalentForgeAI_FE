@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -12,6 +12,7 @@ import {
 } from '../../services/api/question.api';
 import { questionKeys } from '../../constants/queryKeys';
 import { Badge } from '../../components/ui/Badge';
+import { SearchableDropdown } from '../../components/ui/SearchableDropdown';
 import {
   Plus,
   Search,
@@ -46,6 +47,22 @@ export default function QuestionLibraryPage() {
 
   // Modals state
   const [showCreateQuestionModal, setShowCreateQuestionModal] = useState(false);
+
+  // Close modals on ESC key
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowCreateQuestionModal(false);
+        setEditingQuestionId(null);
+        // resetQuestionForm() might be unavailable here due to hoisting, but it's safe to call later or just let the modal reset on close.
+        setShowCreateCategoryModal(false);
+        setShowCreateTagModal(false);
+        setShowCreateLanguageModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, []);
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
   const [showCreateCategoryModal, setShowCreateCategoryModal] = useState(false);
   const [showCreateTagModal, setShowCreateTagModal] = useState(false);
@@ -64,6 +81,7 @@ export default function QuestionLibraryPage() {
   const [newEstimatedTime, setNewEstimatedTime] = useState(15);
   const [newDefaultMarks, setNewDefaultMarks] = useState(10);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
+  const [categorySearchText, setCategorySearchText] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
 
   // MCQ Config State
@@ -267,6 +285,7 @@ export default function QuestionLibraryPage() {
     setNewEstimatedTime(q.estimatedTime);
     setNewDefaultMarks(q.defaultMarks);
     setSelectedCategoryId(q.categoryId || '');
+    setCategorySearchText(q.category?.name || categories.find((c: QuestionCategory) => c.id === q.categoryId)?.name || '');
     setSelectedTagIds(q.tags?.map((t: any) => t.tagId || t.tag?.id).filter(Boolean) || []);
 
     if (q.type === 'MCQ' && q.mcqDetail?.options) {
@@ -395,6 +414,7 @@ export default function QuestionLibraryPage() {
     setNewEstimatedTime(15);
     setNewDefaultMarks(10);
     setSelectedCategoryId('');
+    setCategorySearchText('');
     setSelectedTagIds([]);
     setMcqOptions([
       { optionText: '', displayOrder: 1, isCorrect: true },
@@ -802,8 +822,18 @@ export default function QuestionLibraryPage() {
 
       {/* ─── MODAL: CREATE / EDIT QUESTION ────────────────────────────────────────── */}
       {showCreateQuestionModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={() => {
+            setShowCreateQuestionModal(false);
+            setEditingQuestionId(null);
+            resetQuestionForm();
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-xl border border-slate-100 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-display font-bold text-slate-900 text-base">
                 {editingQuestionId ? 'Edit Question' : 'Add New Question'}
@@ -890,34 +920,29 @@ export default function QuestionLibraryPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Category</label>
-                  <select
-                    className="input-field text-xs"
+                  <SearchableDropdown
+                    options={categories.map((c: QuestionCategory) => ({ value: c.id, label: c.name }))}
                     value={selectedCategoryId}
-                    onChange={e => setSelectedCategoryId(e.target.value)}
-                  >
-                    <option value="">No Category</option>
-                    {categories.map((c: QuestionCategory) => (
-                      <option key={c.id} value={c.id}>{c.name}</option>
-                    ))}
-                  </select>
+                    onChange={(val) => {
+                      setSelectedCategoryId(val);
+                      setCategorySearchText(categories.find((c: QuestionCategory) => c.id === val)?.name || '');
+                    }}
+                    placeholder="Search category..."
+                  />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Attach Tags</label>
-                  <select
-                    className="input-field text-xs"
-                    onChange={e => {
-                      const val = e.target.value;
+                  <SearchableDropdown
+                    options={tags.map((t: QuestionTag) => ({ value: t.id, label: t.name }))}
+                    value=""
+                    onChange={(val) => {
                       if (val && !selectedTagIds.includes(val)) {
                         setSelectedTagIds(prev => [...prev, val]);
                       }
                     }}
-                  >
-                    <option value="">Select tag to add...</option>
-                    {tags.map((t: QuestionTag) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
+                    placeholder="Search and select tag to add..."
+                  />
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {selectedTagIds.map(tid => {
                       const tObj = tags.find((t: QuestionTag) => t.id === tid);
@@ -1184,8 +1209,14 @@ export default function QuestionLibraryPage() {
 
       {/* ─── MODAL: CREATE CATEGORY ────────────────────────────────────────── */}
       {showCreateCategoryModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={() => setShowCreateCategoryModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="font-display font-bold text-slate-900 text-sm">Add Category</h3>
             <input
               className="input-field text-xs"
@@ -1218,8 +1249,14 @@ export default function QuestionLibraryPage() {
 
       {/* ─── MODAL: CREATE TAG ────────────────────────────────────────────── */}
       {showCreateTagModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={() => setShowCreateTagModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="font-display font-bold text-slate-900 text-sm">Add Question Tag</h3>
             <input
               className="input-field text-xs"
@@ -1252,8 +1289,14 @@ export default function QuestionLibraryPage() {
 
       {/* ─── MODAL: CREATE LANGUAGE ───────────────────────────────────────── */}
       {showCreateLanguageModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100">
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50"
+          onClick={() => setShowCreateLanguageModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl border border-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
             <h3 className="font-display font-bold text-slate-900 text-sm">Add Programming Language</h3>
             <input
               className="input-field text-xs"
