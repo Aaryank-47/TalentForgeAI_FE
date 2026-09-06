@@ -319,7 +319,7 @@ export default function AIInterviewDetailPage() {
               {[
                 { label: 'Duration', value: candidate.duration },
                 { label: 'Questions', value: `${realQuestionsList.length} answered` },
-                { label: 'Avg Confidence', value: `${Math.round(realQuestionsList.reduce((a, t) => a + t.confidence, 0) / (realQuestionsList.length || 1))}%` },
+                { label: 'Avg Confidence', value: `${Math.round(realQuestionsList.reduce((a: number, t: any) => a + t.confidence, 0) / (realQuestionsList.length || 1))}%` },
                 { label: 'Total Words', value: 'N/A' },
                 { label: 'Tab Switches', value: String(candidate.tabSwitches) },
                 { label: 'Noise Flags', value: String(candidate.noiseFlags) },
@@ -416,7 +416,7 @@ export default function AIInterviewDetailPage() {
           <div className="card p-5">
             <h3 className="font-bold text-slate-900 mb-3">Question Markers</h3>
             <div className="space-y-2">
-              {realQuestionsList.map((t, i) => (
+              {realQuestionsList.map((t: any, i: number) => (
                 <button
                   key={t.id || `marker-${i}`}
                   onClick={() => setPlaybackTime(QUESTION_MARKERS[i] || 0)}
