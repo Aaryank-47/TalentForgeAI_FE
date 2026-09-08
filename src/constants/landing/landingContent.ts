@@ -6,12 +6,13 @@
 
 export const navbarContent = {
   navItems: [
-    { label: 'For Recruiters', href: '#recruiter-features', iconKey: 'building' },
-    { label: 'For Candidates', href: '#candidate-features', iconKey: 'user-circle' },
-    { label: 'Pricing', href: '#pricing', iconKey: 'currency-rupee' },
-    { label: 'About', href: '#about', iconKey: 'question-circle' },
+    { label: 'Home', href: '/', iconKey: 'home' },
+    { label: 'Recruiters', href: '/recruiters', iconKey: 'building' },
+    { label: 'Candidates', href: '/candidates', iconKey: 'user-circle' },
+    { label: 'Pricing', href: '/pricing', iconKey: 'currency-rupee' },
+    { label: 'About', href: '/about', iconKey: 'question-circle' },
   ],
-  mobileNavItems: ['For Recruiters', 'For Candidates', 'Pricing', 'About'],
+  mobileNavItems: ['Home', 'Recruiters', 'Candidates', 'Pricing', 'About'],
   ctaLoginLabel: 'Log in',
   ctaRegisterLabel: 'Get Started Free',
   ctaRegisterPath: '/register',
@@ -114,10 +115,10 @@ export const recruiterFeaturesContent = {
     },
   ],
   colorMap: {
-    blue: { bg: 'bg-blue-50', border: 'border-blue-100/70', badge: 'bg-blue-100 text-blue-700', stat: 'text-[#2563EB]', glow: 'group-hover:shadow-blue-100/60' },
-    violet: { bg: 'bg-violet-50', border: 'border-violet-100/70', badge: 'bg-violet-100 text-violet-700', stat: 'text-[#7C3AED]', glow: 'group-hover:shadow-violet-100/60' },
-    cyan: { bg: 'bg-cyan-50', border: 'border-cyan-100/70', badge: 'bg-cyan-100 text-cyan-700', stat: 'text-[#0891B2]', glow: 'group-hover:shadow-cyan-100/60' },
-    emerald: { bg: 'bg-emerald-50', border: 'border-emerald-100/70', badge: 'bg-emerald-100 text-emerald-700', stat: 'text-[#059669]', glow: 'group-hover:shadow-emerald-100/60' },
+    blue: { bg: 'bg-blue-50/80', border: 'border-blue-100/60', badge: 'bg-blue-100/80 text-[#2563EB]', stat: 'text-[#2563EB]', glow: 'group-hover:shadow-blue-100/60' },
+    violet: { bg: 'bg-blue-50/80', border: 'border-blue-100/60', badge: 'bg-blue-100/80 text-[#2563EB]', stat: 'text-[#2563EB]', glow: 'group-hover:shadow-blue-100/60' },
+    cyan: { bg: 'bg-blue-50/80', border: 'border-blue-100/60', badge: 'bg-blue-100/80 text-[#2563EB]', stat: 'text-[#2563EB]', glow: 'group-hover:shadow-blue-100/60' },
+    emerald: { bg: 'bg-blue-50/80', border: 'border-blue-100/60', badge: 'bg-blue-100/80 text-[#2563EB]', stat: 'text-[#2563EB]', glow: 'group-hover:shadow-blue-100/60' },
   } as Record<string, { bg: string; border: string; badge: string; stat: string; glow: string }>,
 };
 
@@ -139,9 +140,9 @@ export const candidateFeaturesContent = {
     { label: 'Offer', time: 'Pending', active: false, done: false },
   ],
   profileTags: [
-    { label: 'Skills', color: 'emerald' },
-    { label: 'Experience', color: 'emerald' },
-    { label: 'Portfolio', color: 'amber' },
+    { label: 'Skills', color: 'blue' },
+    { label: 'Experience', color: 'blue' },
+    { label: 'Portfolio', color: 'blue' },
   ],
   features: [
     { iconKey: 'search', title: 'Smart Job Discovery', desc: 'AI matches you with roles that fit your skills, experience, and career goals — not just keywords.' },
@@ -161,11 +162,11 @@ export const atsShowcaseContent = {
   subheadline:
     'A next-gen ATS that your team will actually enjoy using. Customizable stages, AI-powered auto-advancement, real-time collaboration, and deep analytics — all in one view.',
   stages: [
-    { label: 'Applied', count: 42, color: '#E2E8F0', textColor: '#475569' },
-    { label: 'Screening', count: 18, color: '#DBEAFE', textColor: '#2563EB' },
-    { label: 'Interview', count: 9, color: '#EDE9FE', textColor: '#7C3AED' },
-    { label: 'Final Round', count: 4, color: '#D1FAE5', textColor: '#059669' },
-    { label: 'Offer', count: 1, color: '#FEF3C7', textColor: '#D97706' },
+    { label: 'Applied', count: 42, color: '#F1F5F9', textColor: '#475569' },
+    { label: 'Screening', count: 18, color: '#E0E7FF', textColor: '#3730A3' },
+    { label: 'Interview', count: 9, color: '#DBEAFE', textColor: '#1E40AF' },
+    { label: 'Final Round', count: 4, color: '#BFDBFE', textColor: '#1D4ED8' },
+    { label: 'Offer', count: 1, color: '#93C5FD', textColor: '#2563EB' },
   ],
   candidates: [
     { name: 'Sarah Chen', role: 'Sr. Engineer', score: 94, stage: 1, avatar: '#3B82F6' },
@@ -233,9 +234,9 @@ export const analyticsContent = {
     hour: { value: 1, duration: 800, prefix: '< ', suffix: 'hr', label: 'Avg. screening time', trend: '↓ from 3 days' },
   },
   miniStats: [
-    { label: 'Sourced', value: '1,240', iconKey: 'users', bg: 'bg-blue-50' },
-    { label: 'Interviewed', value: '186', iconKey: 'video', bg: 'bg-violet-50' },
-    { label: 'Hired', value: '98', iconKey: 'award', bg: 'bg-emerald-50' },
+    { label: 'Sourced', value: '1,240', iconKey: 'users', bg: 'bg-blue-50/80' },
+    { label: 'Interviewed', value: '186', iconKey: 'video', bg: 'bg-blue-50/80' },
+    { label: 'Hired', value: '98', iconKey: 'award', bg: 'bg-blue-50/80' },
   ],
 };
 

@@ -1,7 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { MediaProvider } from './context/MediaProvider';
 import { ProtectedRoute, RoleRoute, PublicRoute } from './components/auth/RouteGuards';
-import LandingPage from './pages/LandingPage';
+import HomePage from './pages/marketing/HomePage';
+import RecruitersPage from './pages/marketing/RecruitersPage';
+import MarketingCandidatesPage from './pages/marketing/CandidatesPage';
+import PricingPage from './pages/marketing/PricingPage';
+import AboutPage from './pages/marketing/AboutPage';
 import AuthPage from './pages/auth/AuthPage';
 import SignupRolePage from './pages/SignupRolePage';
 import SelectCompanyPage from './pages/auth/SelectCompanyPage';
@@ -89,7 +93,11 @@ function App() {
     <Router>
       <Routes>
         {/* ─── Fully Public Routes (no auth required) ─── */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/recruiters" element={<RecruitersPage />} />
+        <Route path="/candidates" element={<MarketingCandidatesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/signup-role" element={<SignupRolePage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/invitations/accept" element={<AcceptInvitationPage />} />

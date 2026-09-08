@@ -61,6 +61,16 @@ import ai_proctoring from '../../assets/ai_proctoring.png';
 import workspace from '../../assets/setupWorkspace.png';
 import jobPost from '../../assets/postJob.png';
 import ai_interview_img from '../../assets/aiInterview.png';
+import { marketingTokens } from '../../constants/landing/marketingTokens';
+
+export const MarketingIconContainer = ({ children, size = 'md' }: { children: React.ReactNode, size?: 'sm' | 'md' | 'lg' }) => {
+  const sizeClasses = marketingTokens.iconSizes[size].container;
+  return (
+    <div className={`${sizeClasses} ${marketingTokens.radius.iconContainer} ${marketingTokens.colors.iconContainerBg} ${marketingTokens.colors.iconContainerBorder} flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110 shadow-sm`}>
+      {children}
+    </div>
+  );
+};
 
 // ============================================================================
 // 1. HeroSection
@@ -332,11 +342,11 @@ export const RecruiterFeatures = () => {
 // ============================================================================
 
 const candidateFeaturesIconMap: Record<string, React.ReactNode> = {
-  search: <Search className="w-5 h-5 text-emerald-600" />,
-  eye: <Eye className="w-5 h-5 text-emerald-600" />,
-  brain: <Brain className="w-5 h-5 text-emerald-600" />,
-  'user-check': <UserCheck className="w-5 h-5 text-emerald-600" />,
-  'trending-up': <TrendingUp className="w-5 h-5 text-emerald-600" />,
+  search: <Search className="w-5 h-5 text-[#2563EB]" />,
+  eye: <Eye className="w-5 h-5 text-[#2563EB]" />,
+  brain: <Brain className="w-5 h-5 text-[#2563EB]" />,
+  'user-check': <UserCheck className="w-5 h-5 text-[#2563EB]" />,
+  'trending-up': <TrendingUp className="w-5 h-5 text-[#2563EB]" />,
 };
 
 export const CandidateFeatures = () => {
@@ -351,19 +361,19 @@ export const CandidateFeatures = () => {
 
           {/* Left: candidate experience visual */}
           <div className="relative">
-            <div className="absolute -inset-8 rounded-[40px] opacity-[0.06]" style={{ background: 'radial-gradient(ellipse, #34D399, transparent 70%)' }} />
+            <div className="absolute -inset-8 rounded-[40px] opacity-[0.06]" style={{ background: 'radial-gradient(ellipse, #3B82F6, transparent 70%)' }} />
 
             {/* Application Status Card */}
             <div className="relative bg-white rounded-[24px] border border-slate-100 shadow-xl p-6 mb-6">
               <div className="flex items-center justify-between mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white text-[12px] font-bold shadow-md">JC</div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-[12px] font-bold shadow-md">JC</div>
                   <div>
                     <div className="text-[14px] font-bold text-[#0F172A]">Jordan Clark</div>
                     <div className="text-[11px] text-slate-400">Applied for Sr. Product Designer</div>
                   </div>
                 </div>
-                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">Active</span>
+                <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">Active</span>
               </div>
 
               {/* Timeline */}
@@ -371,12 +381,12 @@ export const CandidateFeatures = () => {
                 {timelineSteps.map((step, i) => (
                   <div key={i} className="flex items-start gap-4 mb-0 last:mb-0">
                     <div className="flex flex-col items-center">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${step.done ? 'bg-emerald-500 text-white' : step.active ? 'bg-emerald-100 border-2 border-emerald-500' : 'bg-slate-100 border-2 border-slate-200'}`}>
+                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${step.done ? 'bg-blue-500 text-white' : step.active ? 'bg-blue-100 border-2 border-blue-500' : 'bg-slate-100 border-2 border-slate-200'}`}>
                         {step.done && <Check className="w-3 h-3" />}
-                        {step.active && !step.done && <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />}
+                        {step.active && !step.done && <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />}
                       </div>
                       {i < timelineSteps.length - 1 && (
-                        <div className={`w-0.5 h-8 ${step.done ? 'bg-emerald-300' : 'bg-slate-200'}`} />
+                        <div className={`w-0.5 h-8 ${step.done ? 'bg-blue-300' : 'bg-slate-200'}`} />
                       )}
                     </div>
                     <div className="pb-6">
@@ -392,20 +402,20 @@ export const CandidateFeatures = () => {
             <div className="relative bg-white rounded-[20px] border border-slate-100 shadow-lg p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-[12px] font-bold text-[#0F172A]">Profile Strength</span>
-                <span className="text-[14px] font-black text-emerald-600">87%</span>
+                <span className="text-[14px] font-black text-blue-600">87%</span>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
-                <div className="h-full w-[87%] bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full animate-score-fill" />
+                <div className="h-full w-[87%] bg-gradient-to-r from-blue-400 to-blue-500 rounded-full animate-score-fill" />
               </div>
               <div className="flex gap-2">
-                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <Check className="w-2.5 h-2.5 text-emerald-600" /> Skills
+                <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Check className="w-2.5 h-2.5 text-blue-600" /> Skills
                 </span>
-                <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <Check className="w-2.5 h-2.5 text-emerald-600" /> Experience
+                <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <Check className="w-2.5 h-2.5 text-blue-600" /> Experience
                 </span>
-                <span className="text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                  <ArrowUpRight className="w-2.5 h-2.5 text-amber-600" /> Portfolio
+                <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  <ArrowUpRight className="w-2.5 h-2.5 text-blue-600" /> Portfolio
                 </span>
               </div>
             </div>
@@ -413,12 +423,12 @@ export const CandidateFeatures = () => {
 
           {/* Right: messaging + feature list */}
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-[12px] font-bold uppercase tracking-wider mb-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100/80 text-[#2563EB] text-[12px] font-bold uppercase tracking-wider mb-5">
               <Users className="w-3.5 h-3.5" /> {candidateFeaturesContent.badge}
             </div>
             <h2 className="text-[36px] md:text-[44px] font-display font-extrabold text-[#0F172A] leading-tight mb-5">
               {candidateFeaturesContent.headline1}<br />
-              <span className="text-emerald-500">{candidateFeaturesContent.headline2}</span>
+              <span className="text-[#2563EB]">{candidateFeaturesContent.headline2}</span>
             </h2>
             <p className="text-[16px] text-slate-500 leading-relaxed mb-10">
               {candidateFeaturesContent.subheadline}
@@ -427,9 +437,9 @@ export const CandidateFeatures = () => {
             <div className="space-y-5 mb-10">
               {features.map((f, i) => (
                 <div key={i} className="flex items-start gap-4 group cursor-default">
-                  <div className="w-10 h-10 rounded-[10px] bg-emerald-50 border border-emerald-100/60 flex items-center justify-center flex-shrink-0 transition-transform duration-300 group-hover:scale-110">
+                  <MarketingIconContainer size="md">
                     {candidateFeaturesIconMap[f.iconKey]}
-                  </div>
+                  </MarketingIconContainer>
                   <div>
                     <h4 className="text-[14px] font-bold text-[#0F172A] mb-0.5">{f.title}</h4>
                     <p className="text-[13px] text-slate-500 leading-relaxed">{f.desc}</p>
@@ -438,7 +448,7 @@ export const CandidateFeatures = () => {
               ))}
             </div>
 
-            <Link to={candidateFeaturesContent.ctaPath} className="group inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[14px] px-6 py-3.5 rounded-[12px] transition-all shadow-lg shadow-emerald-200/50 hover:-translate-y-0.5">
+            <Link to={candidateFeaturesContent.ctaPath} className="group inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3.5 rounded-[12px] transition-all shadow-lg shadow-blue-200/60 hover:-translate-y-0.5">
               {candidateFeaturesContent.ctaLabel}
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
@@ -596,16 +606,16 @@ export const ATSShowcase = () => {
 // ============================================================================
 
 const aiInterviewFeatureIconMap: Record<string, React.ReactNode> = {
-  zap: <Zap className="w-4 h-4 text-violet-600" />,
-  brain: <Brain className="w-4 h-4 text-violet-600" />,
-  clock: <Clock className="w-4 h-4 text-violet-600" />,
+  zap: <Zap className="w-4 h-4 text-[#2563EB]" />,
+  brain: <Brain className="w-4 h-4 text-[#2563EB]" />,
+  clock: <Clock className="w-4 h-4 text-[#2563EB]" />,
 };
 
 const TypingDots = () => (
   <div className="flex gap-1 items-center">
-    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-typing-dot" style={{ animationDelay: '0ms' }} />
-    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-typing-dot" style={{ animationDelay: '200ms' }} />
-    <div className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-typing-dot" style={{ animationDelay: '400ms' }} />
+    <div className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-typing-dot" style={{ animationDelay: '0ms' }} />
+    <div className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-typing-dot" style={{ animationDelay: '200ms' }} />
+    <div className="w-1.5 h-1.5 rounded-full bg-[#94A3B8] animate-typing-dot" style={{ animationDelay: '400ms' }} />
   </div>
 );
 
@@ -613,19 +623,16 @@ export const AIInterviewShowcase = () => {
   const { questions, assessmentScores, featureBullets } = aiInterviewContent;
 
   return (
-    <section className="py-28 relative" style={{ background: '#FAF8FF' }}>
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-200/30 to-transparent" />
-      <div className="absolute top-[10%] right-[-4%] w-[400px] h-[400px] rounded-full opacity-[0.04]" style={{ background: 'radial-gradient(circle, #7C3AED, transparent 70%)' }} />
-      <div className="absolute bottom-[10%] left-[-5%] w-[300px] h-[300px] rounded-full opacity-[0.03]" style={{ background: 'radial-gradient(circle, #A78BFA, transparent 70%)' }} />
+    <section className="py-28 relative" style={{ background: '#F5F8FF' }}>
 
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-2xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-violet-100/80 text-violet-700 text-[12px] font-bold uppercase tracking-wider mb-5">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100/80 text-[#2563EB] text-[12px] font-bold uppercase tracking-wider mb-5">
             <Video className="w-3.5 h-3.5" /> {aiInterviewContent.badge}
           </div>
           <h2 className="text-[36px] md:text-[44px] font-display font-extrabold text-[#0F172A] leading-tight mb-4">
             {aiInterviewContent.headline1}<br />
-            <span className="text-violet-600">{aiInterviewContent.headline2}</span>
+            <span className="text-[#2563EB]">{aiInterviewContent.headline2}</span>
           </h2>
           <p className="text-[16px] text-slate-500 leading-relaxed">
             {aiInterviewContent.subheadline}
@@ -635,66 +642,64 @@ export const AIInterviewShowcase = () => {
         <div className="grid lg:grid-cols-2 gap-16 items-start">
           {/* Left: Interview UI */}
           <div className="relative">
-            <div className="absolute -inset-6 rounded-[32px] opacity-[0.06]" style={{ background: 'radial-gradient(ellipse, #7C3AED, transparent 70%)' }} />
-
-            <div className="relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-[24px] p-6 shadow-2xl shadow-slate-900/20">
+            <div className="relative bg-white rounded-[24px] p-6 shadow-sm border border-[#E2E8F0]">
               {/* Header */}
-              <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center justify-between mb-6 pb-5 border-b border-slate-100">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-violet-600 flex items-center justify-center shadow-lg shadow-violet-500/30">
-                    <Bot className="w-5 h-5 text-white" />
+                  <div className="w-10 h-10 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
+                    <Bot className="w-5 h-5 text-[#2563EB]" />
                   </div>
                   <div>
-                    <div className="text-[13px] font-bold text-white">TalentForge AI</div>
+                    <div className="text-[14px] font-bold text-slate-800">TalentForge AI</div>
                     <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                      <span className="text-[11px] text-slate-400">Live Interview</span>
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#22C55E]" />
+                      <span className="text-[12px] text-slate-500 font-medium">Live Interview</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1">
-                    <div className="w-2 h-2 rounded-full bg-red-500 animate-recording-pulse" />
-                    <span className="text-[10px] font-bold text-red-400">REC</span>
+                  <div className="flex items-center gap-1.5 bg-red-50 border border-red-100 rounded-full px-3 py-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    <span className="text-[11px] font-bold text-red-600">REC</span>
                   </div>
-                  <span className="text-[11px] font-bold text-slate-400 bg-slate-700/80 px-3 py-1.5 rounded-full font-mono">0:24:13</span>
+                  <span className="text-[12px] font-bold text-slate-600 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full font-mono">0:24:13</span>
                 </div>
               </div>
 
               {/* Questions */}
-              <div className="space-y-3 mb-5">
+              <div className="space-y-5 mb-6">
                 {questions.map((item, i) => (
-                  <div key={i} className={`rounded-[14px] p-4 transition-all duration-300 ${i === 1 ? 'bg-violet-600/20 border border-violet-500/30 shadow-lg shadow-violet-500/10' : 'bg-slate-700/50'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${i === 1 ? 'bg-violet-500/30 text-violet-300' : 'bg-slate-600 text-slate-300'}`}>{item.type}</span>
-                      {i === 1 && <span className="text-[10px] text-violet-400 font-medium flex items-center gap-1"><Activity className="w-3 h-3 animate-pulse" /> Listening...</span>}
-                      {i === 0 && <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1"><Check className="w-3 h-3" /> Answered</span>}
+                  <div key={i} className={`relative pl-4 border-l-2 transition-all duration-300 ${i === 1 ? 'border-[#2563EB]' : 'border-slate-200 opacity-60'}`}>
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className={`text-[11px] font-bold uppercase tracking-wider ${i === 1 ? 'text-[#2563EB]' : 'text-slate-500'}`}>{item.type}</span>
+                      {i === 1 && <span className="text-[11px] text-[#2563EB] font-semibold flex items-center gap-1 bg-blue-50 px-2 py-0.5 rounded-full"><Activity className="w-3 h-3" /> Listening...</span>}
+                      {i === 0 && <span className="text-[11px] text-[#22C55E] font-semibold flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded-full"><Check className="w-3 h-3" /> Answered</span>}
                     </div>
-                    <p className="text-[13px] text-slate-200 leading-relaxed">{item.q}</p>
+                    <p className={`text-[14px] leading-relaxed ${i === 1 ? 'text-slate-800 font-medium' : 'text-slate-600'}`}>{item.q}</p>
                   </div>
                 ))}
               </div>
 
               {/* Response area with waveform */}
-              <div className="bg-slate-700/40 rounded-[14px] p-4 border border-slate-600/30">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center shadow-sm">
-                    <span className="text-[9px] font-bold text-white">SC</span>
+              <div className="bg-slate-50 rounded-[16px] p-5 border border-slate-200">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center border border-slate-200 shadow-sm">
+                    <span className="text-[10px] font-bold text-slate-700">SC</span>
                   </div>
-                  <span className="text-[11px] font-semibold text-slate-300">Sarah Chen — Candidate</span>
-                  <div className="ml-auto flex items-center gap-1.5">
-                    <Mic className="w-3 h-3 text-violet-400" />
-                    <span className="text-[10px] text-violet-400 font-medium">Speaking</span>
+                  <span className="text-[13px] font-semibold text-slate-800">Sarah Chen <span className="font-normal text-slate-400">— Candidate</span></span>
+                  <div className="ml-auto flex items-center gap-1.5 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-md">
+                    <Mic className="w-3.5 h-3.5 text-[#2563EB]" />
+                    <span className="text-[11px] text-[#2563EB] font-semibold">Speaking</span>
                   </div>
                 </div>
 
                 {/* Voice waveform */}
-                <div className="flex items-center gap-1 mb-2">
-                  <div className="flex gap-[2px] items-center h-6 flex-1">
+                <div className="flex items-center gap-1 mb-3">
+                  <div className="flex gap-[3px] items-center h-8 flex-1">
                     {Array.from({ length: 40 }).map((_, i) => (
                       <div
                         key={i}
-                        className="flex-1 bg-violet-400/60 rounded-full animate-waveform"
+                        className="flex-1 bg-[#2563EB]/40 rounded-full animate-waveform"
                         style={{
                           animationDelay: `${i * 50}ms`,
                           animationDuration: `${600 + (i * 13) % 400}ms`,
@@ -705,17 +710,17 @@ export const AIInterviewShowcase = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400 italic">"In my previous role at..."</span>
+                  <span className="text-[13px] text-slate-500 italic">"In my previous role at..."</span>
                   <TypingDots />
                 </div>
               </div>
 
               {/* AI processing bar */}
-              <div className="mt-4 flex items-center gap-2 bg-slate-700/30 rounded-lg px-3 py-2">
-                <Sparkles className="w-3.5 h-3.5 text-violet-400 animate-pulse" />
-                <span className="text-[10px] text-slate-400">AI is analyzing response patterns in real-time...</span>
-                <div className="ml-auto w-16 h-1 bg-slate-600 rounded-full overflow-hidden">
-                  <div className="h-full bg-violet-400 rounded-full animate-progress-bar" />
+              <div className="mt-5 flex items-center gap-2 bg-blue-50/50 rounded-lg px-4 py-2.5 border border-blue-100/50">
+                <Sparkles className="w-4 h-4 text-[#2563EB]" />
+                <span className="text-[12px] font-medium text-slate-600">AI is analyzing response patterns in real-time...</span>
+                <div className="ml-auto w-24 h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-[#2563EB] rounded-full animate-progress-bar" />
                 </div>
               </div>
             </div>
@@ -724,7 +729,7 @@ export const AIInterviewShowcase = () => {
           {/* Right: Report preview */}
           <div>
             <h3 className="text-[20px] font-display font-bold text-[#0F172A] mb-5">{aiInterviewContent.reportTitle}</h3>
-            <div className="bg-white border border-slate-100 rounded-[20px] p-6 shadow-lg shadow-slate-100/50 mb-6">
+            <div className="bg-white border border-[#E2E8F0] rounded-[20px] p-6 shadow-sm mb-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-bold text-[#2563EB] text-[13px]">SC</div>
@@ -746,8 +751,8 @@ export const AIInterviewShowcase = () => {
                       <span className="text-[12px] text-slate-600">{item.label}</span>
                       <span className="text-[12px] font-bold text-[#0F172A]">{item.score}%</span>
                     </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-[#2563EB] to-[#7C3AED] rounded-full" style={{ width: `${item.score}%` }} />
+                    <div className="h-1.5 bg-[#F1F5F9] rounded-full overflow-hidden">
+                      <div className="h-full bg-[#2563EB] rounded-full" style={{ width: `${item.score}%` }} />
                     </div>
                   </div>
                 ))}
@@ -756,9 +761,11 @@ export const AIInterviewShowcase = () => {
 
             <div className="space-y-3">
               {featureBullets.map((item, i) => (
-                <div key={i} className="flex items-center gap-3 p-4 bg-violet-50/60 rounded-[12px] border border-violet-100/60 hover:bg-violet-50 transition-colors">
-                  <div className="w-8 h-8 rounded-lg bg-violet-100/80 flex items-center justify-center flex-shrink-0">{aiInterviewFeatureIconMap[item.iconKey]}</div>
-                  <span className="text-[13px] text-slate-700">{item.text}</span>
+                <div key={i} className="flex items-center gap-3 p-4 bg-white rounded-[12px] border border-[#E2E8F0] shadow-sm hover:shadow-md transition-shadow">
+                  <MarketingIconContainer size="md">
+                    {aiInterviewFeatureIconMap[item.iconKey]}
+                  </MarketingIconContainer>
+                  <span className="text-[13px] text-[#0F172A] font-medium">{item.text}</span>
                 </div>
               ))}
             </div>
@@ -774,9 +781,9 @@ export const AIInterviewShowcase = () => {
 // ============================================================================
 
 const analyticsMiniIconMap: Record<string, React.ReactNode> = {
-  users: <Users className="w-4 h-4 text-blue-500" />,
-  video: <Video className="w-4 h-4 text-violet-500" />,
-  award: <Award className="w-4 h-4 text-emerald-500" />,
+  users: <Users className="w-4 h-4 text-[#2563EB]" />,
+  video: <Video className="w-4 h-4 text-[#2563EB]" />,
+  award: <Award className="w-4 h-4 text-[#2563EB]" />,
 };
 
 export const AnalyticsShowcase = () => {
@@ -804,12 +811,12 @@ export const AnalyticsShowcase = () => {
         <div className="grid lg:grid-cols-2 gap-16 items-center">
           {/* Left: Messaging */}
           <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-100/80 text-orange-700 text-[12px] font-bold uppercase tracking-wider mb-5">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-100/80 text-[#2563EB] text-[12px] font-bold uppercase tracking-wider mb-5">
               <BarChart2 className="w-3.5 h-3.5" /> {analyticsContent.badge}
             </div>
             <h2 className="text-[36px] md:text-[44px] font-display font-extrabold text-[#0F172A] leading-tight mb-5">
               {analyticsContent.headline1}<br />
-              <span className="text-orange-500">{analyticsContent.headline2}</span>
+              <span className="text-[#2563EB]">{analyticsContent.headline2}</span>
             </h2>
             <p className="text-[16px] text-slate-500 leading-relaxed mb-8">
               {analyticsContent.subheadline}
@@ -819,11 +826,11 @@ export const AnalyticsShowcase = () => {
                 <div key={i} className="bg-white rounded-[16px] border border-slate-100 p-4 shadow-sm hover:shadow-md transition-shadow">
                   <div className="text-[22px] font-display font-black text-[#0F172A] tabular-nums">{s.value}</div>
                   <div className="text-[11px] text-slate-400 mb-1">{s.label}</div>
-                  <div className="text-[11px] font-semibold text-emerald-600">{s.trend}</div>
+                  <div className="text-[11px] font-semibold text-[#2563EB]">{s.trend}</div>
                 </div>
               ))}
             </div>
-            <Link to={analyticsContent.ctaPath} className="group inline-flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-bold text-[14px] px-6 py-3.5 rounded-[12px] transition-all shadow-lg shadow-orange-200/50 hover:-translate-y-0.5">
+            <Link to={analyticsContent.ctaPath} className="group inline-flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3.5 rounded-[12px] transition-all shadow-lg shadow-blue-200/60 hover:-translate-y-0.5">
               {analyticsContent.ctaLabel}
               <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
@@ -831,7 +838,7 @@ export const AnalyticsShowcase = () => {
 
           {/* Right: Analytics UI */}
           <div className="relative">
-            <div className="absolute -inset-6 rounded-[32px] opacity-[0.05]" style={{ background: 'radial-gradient(ellipse, #F59E0B, transparent 70%)' }} />
+            <div className="absolute -inset-6 rounded-[32px] opacity-[0.05]" style={{ background: 'radial-gradient(ellipse, #3B82F6, transparent 70%)' }} />
 
             <div className="relative bg-white rounded-[24px] border border-slate-100 shadow-xl shadow-slate-100/50 p-6">
               <div className="flex items-center justify-between mb-6">
@@ -926,7 +933,7 @@ export const HowItWorks = () => {
         </div>
 
         <div className="relative">
-          <div className="hidden lg:block absolute top-10 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-blue-200/60 via-violet-200/60 to-amber-200/60 z-0" />
+          <div className="hidden lg:block absolute top-10 left-[12.5%] right-[12.5%] h-0.5 bg-gradient-to-r from-blue-200/60 via-blue-300/60 to-blue-200/60 z-0" />
 
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 relative z-10">
             {steps.map((s, i) => (
