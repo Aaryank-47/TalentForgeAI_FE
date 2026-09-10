@@ -17,6 +17,7 @@ import {
 } from '../../services/api/company.api';
 import { companyKeys, authKeys } from '../../constants/queryKeys';
 import { Modal } from '../../components/ui/Modal';
+import { getCountries, getCountryCallingCode, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 
 import {
   settingsTabs as tabs,
@@ -76,11 +77,15 @@ const SettingsPage = () => {
     companySize: '',
     companyEmail: '',
     phoneNumber: '',
+    country: 'US' as CountryCode,
     description: '',
     headquarters: '',
     linkedinUrl: '',
     twitterUrl: '',
   });
+
+  const [phoneError, setPhoneError] = useState('');
+  const countries = React.useMemo(() => getCountries(), []);
 
   // Fetch Company Details from backend
   const {
@@ -117,6 +122,7 @@ const SettingsPage = () => {
         companySize: companyDetails.companySize || '',
         companyEmail: companyDetails.companyEmail || '',
         phoneNumber: companyDetails.phoneNumber || '',
+        country: (companyDetails.country as CountryCode) || 'US',
         description: companyDetails.description || '',
         headquarters: companyDetails.headquarters || '',
         linkedinUrl: companyDetails.linkedinUrl || '',
@@ -130,12 +136,14 @@ const SettingsPage = () => {
         companySize: prev.companySize || fallbackCompany.companySize || '',
         companyEmail: prev.companyEmail || fallbackCompany.companyEmail || '',
         phoneNumber: prev.phoneNumber || fallbackCompany.phoneNumber || '',
+        country: 'US',
         description: prev.description || fallbackCompany.description || '',
         headquarters: prev.headquarters || fallbackCompany.headquarters || '',
         linkedinUrl: prev.linkedinUrl || '',
         twitterUrl: prev.twitterUrl || '',
       }));
     }
+    setPhoneError('');
   }, [companyDetails, fallbackCompany]);
 
   // Update Company Profile Mutation
@@ -315,6 +323,7 @@ const SettingsPage = () => {
         companySize: companyDetails.companySize || '',
         companyEmail: companyDetails.companyEmail || '',
         phoneNumber: companyDetails.phoneNumber || '',
+        country: 'US',
         description: companyDetails.description || '',
         headquarters: companyDetails.headquarters || '',
         linkedinUrl: companyDetails.linkedinUrl || '',
@@ -328,6 +337,7 @@ const SettingsPage = () => {
         companySize: fallbackCompany.companySize || '',
         companyEmail: '',
         phoneNumber: '',
+        country: 'US',
         description: '',
         headquarters: fallbackCompany.headquarters || '',
         linkedinUrl: '',
@@ -348,6 +358,15 @@ const SettingsPage = () => {
     if (!formData.companyName.trim()) {
       toast.error('Company Name is required.');
       return;
+    }
+
+    setPhoneError('');
+    if (formData.phoneNumber) {
+      const isValid = isValidPhoneNumber(formData.phoneNumber, formData.country);
+      if (!isValid) {
+        setPhoneError('Please enter a valid phone number with the correct number of digits.');
+        return;
+      }
     }
 
     const payload: UpdateCompanyDto = {
@@ -682,16 +701,34 @@ const SettingsPage = () => {
                     {/* Phone */}
                     <div>
                       <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone</label>
-                      <input
-                        type="tel"
-                        disabled={!isEditing}
-                        className={`input-field text-sm transition-colors ${
-                          !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
-                        }`}
-                        placeholder="+1 (555) 000-0000"
-                        value={formData.phoneNumber}
-                        onChange={e => setFormData(c => ({ ...c, phoneNumber: e.target.value }))}
-                      />
+                      <div className="flex gap-2">
+                        <select
+                          disabled={!isEditing}
+                          value={formData.country}
+                          onChange={e => setFormData(c => ({ ...c, country: e.target.value as CountryCode, phoneNumber: '' }))}
+                          className={`w-1/3 px-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none transition-colors ${
+                            !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : 'bg-white'
+                          }`}
+                        >
+                          {countries.map(c => (
+                            <option key={c} value={c}>{c} (+{getCountryCallingCode(c)})</option>
+                          ))}
+                        </select>
+                        <input
+                          type="tel"
+                          disabled={!isEditing}
+                          className={`w-2/3 px-3.5 py-2 border ${phoneError ? 'border-red-500' : 'border-slate-200'} rounded-xl text-xs focus:ring-2 focus:ring-primary-500 focus:outline-none transition-colors ${
+                            !isEditing ? 'bg-slate-50 text-slate-600 cursor-not-allowed border-slate-200' : ''
+                          }`}
+                          placeholder="Enter phone number"
+                          value={formData.phoneNumber}
+                          onChange={e => {
+                            setPhoneError('');
+                            setFormData(c => ({ ...c, phoneNumber: e.target.value }));
+                          }}
+                        />
+                      </div>
+                      {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
                     </div>
 
                     {/* Description */}

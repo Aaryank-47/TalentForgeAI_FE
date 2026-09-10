@@ -22,6 +22,7 @@ export interface CompanyDetails {
   headquarters: string | null;
   linkedinUrl: string | null;
   twitterUrl: string | null;
+  country: string | null;
   profileCompletion?: number;
   isVerified?: boolean;
   createdAt?: string;
@@ -41,6 +42,7 @@ export interface CreateCompanyDto {
   foundedYear?: number;
   linkedinUrl?: string;
   twitterUrl?: string;
+  country?: string;
 }
 
 export type UpdateCompanyDto = Partial<CreateCompanyDto>;

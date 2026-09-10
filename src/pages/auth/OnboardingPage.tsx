@@ -9,13 +9,14 @@
  * Clear message: "You can use both experiences with the same account."
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../services/api/auth.api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authKeys, companyKeys } from '../../constants/queryKeys';
 import type { Workspace } from '../../store/slices/workspaceSlice';
+import { getCountries, getCountryCallingCode, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 import {
   User,
   Building,
@@ -58,7 +59,11 @@ export default function OnboardingPage() {
     fullName: user?.fullName || '',
     phoneNumber: '',
     headline: '',
+    country: 'US' as CountryCode,
   });
+  const [phoneError, setPhoneError] = useState('');
+  
+  const countries = useMemo(() => getCountries(), []);
 
   // Company Setup Form
   const [companyForm, setCompanyForm] = useState({
@@ -83,6 +88,15 @@ export default function OnboardingPage() {
   // ── 1. Candidate Setup Submission ──────────────────────────────────────────
   const handleCandidateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPhoneError('');
+
+    if (candidateForm.phoneNumber) {
+      const isValid = isValidPhoneNumber(candidateForm.phoneNumber, candidateForm.country);
+      if (!isValid) {
+        setPhoneError('Please enter a valid phone number with the correct number of digits.');
+        return;
+      }
+    }
     try {
       setIsSubmitting(true);
       const res = await authApi.createCandidateProfile({
@@ -329,13 +343,28 @@ export default function OnboardingPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number (Optional)</label>
-                <input
-                  type="tel"
-                  value={candidateForm.phoneNumber}
-                  onChange={(e) => setCandidateForm({ ...candidateForm, phoneNumber: e.target.value })}
-                  placeholder="+1 (555) 000-0000"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="flex gap-2">
+                  <select
+                    value={candidateForm.country}
+                    onChange={(e) => setCandidateForm({ ...candidateForm, country: e.target.value as CountryCode, phoneNumber: '' })}
+                    className="w-1/3 px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  >
+                    {countries.map(c => (
+                      <option key={c} value={c}>{c} (+{getCountryCallingCode(c)})</option>
+                    ))}
+                  </select>
+                  <input
+                    type="tel"
+                    value={candidateForm.phoneNumber}
+                    onChange={(e) => {
+                      setPhoneError('');
+                      setCandidateForm({ ...candidateForm, phoneNumber: e.target.value });
+                    }}
+                    placeholder="Enter phone number"
+                    className={`w-2/3 px-3.5 py-2.5 border ${phoneError ? 'border-red-500' : 'border-slate-200'} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                  />
+                </div>
+                {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
               </div>
 
               <div className="flex items-center gap-3 pt-3">
