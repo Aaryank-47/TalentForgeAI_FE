@@ -9,13 +9,14 @@
  * Clear message: "You can use both experiences with the same account."
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { authApi } from '../../services/api/auth.api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { authKeys, companyKeys } from '../../constants/queryKeys';
 import type { Workspace } from '../../store/slices/workspaceSlice';
+import { getCountries, getCountryCallingCode, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 import {
   User,
   Building,
@@ -59,7 +60,11 @@ export default function OnboardingPage() {
     fullName: user?.fullName || '',
     phoneNumber: '',
     headline: '',
+    country: 'US' as CountryCode,
   });
+  const [phoneError, setPhoneError] = useState('');
+  
+  const countries = useMemo(() => getCountries(), []);
 
   // Company Setup Form
   const [companyForm, setCompanyForm] = useState({

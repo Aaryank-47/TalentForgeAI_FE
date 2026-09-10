@@ -70,7 +70,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isInitialized: boolean;
   error: string | null;
-  login: (dto: LoginDto) => Promise<{ user: AuthUser; availableWorkspaces: Workspace[] }>;
+  login: (dto: { email: string; password?: string; otp?: string }) => Promise<{ user: AuthUser; availableWorkspaces: Workspace[] }>;
   registerUser: (dto: { fullName?: string; email: string; password: string }) => Promise<AuthUser>;
   registerCandidate: (dto: RegisterCandidateDto) => Promise<AuthUser>;
   registerEmployer: (dto: RegisterEmployerSimpleDto) => Promise<AuthUser>;
@@ -271,7 +271,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Login Mutation
   const loginMutation = useMutation({
-    mutationFn: (dto: LoginDto) => authApi.login(dto),
+    mutationFn: (dto: { email: string; password?: string; otp?: string }) => {
+      if (dto.otp) {
+        return authApi.verifyOtpLogin({ email: dto.email, otp: dto.otp });
+      }
+      return authApi.login({ email: dto.email, password: dto.password! });
+    },
     onSuccess: async (data) => {
       const token = data.tokens?.accessToken;
       if (token) {
@@ -369,7 +374,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── 8. Public API Methods ────────────────────────────────────────────────────
 
-  const login = useCallback(async (dto: LoginDto): Promise<{ user: AuthUser; availableWorkspaces: Workspace[] }> => {
+  const login = useCallback(async (dto: { email: string; password?: string; otp?: string }): Promise<{ user: AuthUser; availableWorkspaces: Workspace[] }> => {
     const res = await loginMutation.mutateAsync(dto);
     const platformRole = mapBackendRole(res.user.role);
     

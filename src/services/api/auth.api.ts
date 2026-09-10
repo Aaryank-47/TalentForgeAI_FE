@@ -230,6 +230,14 @@ export const authApi = {
   login: (dto: LoginDto) =>
     api.post<LoginApiResponse>('/auth/login', dto),
 
+  /** Send OTP for passwordless login */
+  sendOtpLogin: (dto: { email: string }) =>
+    api.post<any>('/auth/otp/send', dto),
+
+  /** Verify OTP for passwordless login */
+  verifyOtpLogin: (dto: { email: string; otp: string }) =>
+    api.post<LoginApiResponse>('/auth/otp/verify', dto),
+
   /** Get current authenticated user profile */
   getMe: () =>
     api.get<AuthMeResponse>('/auth/me'),

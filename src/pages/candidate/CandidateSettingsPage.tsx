@@ -7,6 +7,7 @@ import { authApi } from '../../services/api/auth.api';
 import { candidateKeys, authKeys } from '../../constants/queryKeys';
 import { useAuth } from '../../context/AuthContext';
 import toast from 'react-hot-toast';
+import { getCountries, getCountryCallingCode, isValidPhoneNumber, type CountryCode } from 'libphonenumber-js';
 
 const tabs = ['Account', 'Security', 'Notifications', 'Privacy'];
 
@@ -40,10 +41,11 @@ const CandidateSettingsPage = () => {
   });
 
   // Account & Preferences Form
-  const [accountForm, setAccountForm] = useState<UpdateCandidateProfileDto>({
+  const [accountForm, setAccountForm] = useState<UpdateCandidateProfileDto & { country?: CountryCode }>({
     fullName: '',
     headline: '',
     phoneNumber: '',
+    country: 'US',
     currentLocation: '',
     preferredLocation: '',
     currentCompany: '',
@@ -61,6 +63,9 @@ const CandidateSettingsPage = () => {
     queryFn: () => candidateApi.getCandidateProfile(),
   });
 
+  const [phoneError, setPhoneError] = useState('');
+  const countries = React.useMemo(() => getCountries(), []);
+
   // Sync profile data to local form state
   useEffect(() => {
     if (candidate) {
@@ -68,6 +73,7 @@ const CandidateSettingsPage = () => {
         fullName: candidate.fullName || user?.fullName || '',
         headline: candidate.headline || '',
         phoneNumber: candidate.phoneNumber || '',
+        country: 'US',
         currentLocation: candidate.currentLocation || '',
         preferredLocation: candidate.preferredLocation || '',
         currentCompany: candidate.currentCompany || '',
@@ -121,8 +127,19 @@ const CandidateSettingsPage = () => {
 
   const handleSaveAccount = (e: React.FormEvent) => {
     e.preventDefault();
+    setPhoneError('');
+
+    if (accountForm.phoneNumber && accountForm.country) {
+      const isValid = isValidPhoneNumber(accountForm.phoneNumber, accountForm.country);
+      if (!isValid) {
+        setPhoneError('Please enter a valid phone number with the correct number of digits.');
+        return;
+      }
+    }
+
     const payload: Record<string, any> = {};
     Object.entries(accountForm).forEach(([k, v]) => {
+      if (k === 'country') return;
       if (v !== '' && v !== null && v !== undefined) {
         payload[k] = typeof v === 'string' ? v.trim() : v;
       }
@@ -200,13 +217,28 @@ const CandidateSettingsPage = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Phone</label>
-                    <input
-                      type="text"
-                      value={accountForm.phoneNumber || ''}
-                      onChange={e => setAccountForm({ ...accountForm, phoneNumber: e.target.value })}
-                      className="input-field text-sm"
-                      placeholder="+1 (555) 000-0000"
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={accountForm.country}
+                        onChange={e => setAccountForm({ ...accountForm, country: e.target.value as CountryCode, phoneNumber: '' })}
+                        className="w-1/3 px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none bg-white"
+                      >
+                        {countries.map(c => (
+                          <option key={c} value={c}>{c} (+{getCountryCallingCode(c)})</option>
+                        ))}
+                      </select>
+                      <input
+                        type="tel"
+                        value={accountForm.phoneNumber || ''}
+                        onChange={e => {
+                          setPhoneError('');
+                          setAccountForm({ ...accountForm, phoneNumber: e.target.value });
+                        }}
+                        className={`w-2/3 px-3.5 py-2 border ${phoneError ? 'border-red-500' : 'border-slate-200'} rounded-xl text-sm focus:ring-2 focus:ring-primary-500 focus:outline-none`}
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                    {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
                   </div>
                   <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Location</label>
