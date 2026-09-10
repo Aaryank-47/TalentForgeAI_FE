@@ -7,7 +7,12 @@ export type AssessmentType =
   | 'dsa'
   | 'mixed'
   | 'live_machine_coding'
-  | 'project';
+  | 'project'
+  | 'behavioral'
+  | 'case_study'
+  | 'coding'
+  | 'descriptive'
+  | 'logical_reasoning';
 
 export type AssessmentStatus = 'draft' | 'active' | 'archived' | 'scheduled';
 

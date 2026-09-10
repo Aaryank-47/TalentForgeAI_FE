@@ -48,6 +48,7 @@ const defaultSettings: SettingsType = {
   shuffleQuestions: true, shuffleOptions: true, allowNavigation: true,
   autoSubmit: true, calculatorAllowed: false, fullscreenRequired: true,
   cameraRequired: true, screenSharingRequired: false,
+  microphoneRequired: false, recordingEnabled: false, tabMonitoring: true, faceDetection: false, noiseDetection: false,
 };
 
 // ─── Steps ─────────────────────────────────────────────────────
@@ -65,6 +66,11 @@ const TYPE_LABELS: Record<AssessmentType, string> = {
   mixed: 'MCQ + DSA Assessment',
   live_machine_coding: 'Live Machine Coding',
   project: 'Coding Task / Project',
+  behavioral: 'Behavioral Assessment',
+  case_study: 'Case Study',
+  coding: 'Coding Assessment',
+  descriptive: 'Descriptive Assessment',
+  logical_reasoning: 'Logical Reasoning',
 };
 
 const CreateAssessmentPage: React.FC = () => {
