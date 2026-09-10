@@ -4,7 +4,6 @@ import MonacoEditorWrapper from '../assessment/MonacoEditorWrapper';
 // Tabs: Resume | Notes | Job | Evaluation | Participants | Chat
 // ─────────────────────────────────────────────────────────────
 import React from 'react';
-import { X } from 'lucide-react';
 import type { LiveInterview } from '../../types/interview.types';
 import type { RoomParticipant } from '../../types/participant.types';
 import { useInterview } from '../../context/InterviewContext';

@@ -49,7 +49,7 @@ export type SpeechRecognitionErrorType =
 
 // Use unknown cast since SpeechRecognition may not be in all TS DOM lib configs
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type AnyConstructor = new () => SpeechRecognition;
+type AnyConstructor = new () => any;
 
 function getSpeechRecognitionCtor(): AnyConstructor | null {
   if (typeof window === 'undefined') return null;
@@ -66,7 +66,8 @@ export function isSpeechRecognitionSupported(): boolean {
 // Recognition instance management
 // ─────────────────────────────────────────────────────────────
 
-let _recognition: SpeechRecognition | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _recognition: any = null;
 let _isRunning = false;
 let _accumulatedFinal = '';
 

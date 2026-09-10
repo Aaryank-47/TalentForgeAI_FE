@@ -1,7 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Outlet, Navigate } from 'react-router-dom';
 import { MediaProvider } from './context/MediaProvider';
 import { ProtectedRoute, RoleRoute, PublicRoute } from './components/auth/RouteGuards';
-import LandingPage from './pages/LandingPage';
+import HomePage from './pages/marketing/HomePage';
+import RecruitersPage from './pages/marketing/RecruitersPage';
+import MarketingCandidatesPage from './pages/marketing/CandidatesPage';
+import PricingPage from './pages/marketing/PricingPage';
+import AboutPage from './pages/marketing/AboutPage';
 import AuthPage from './pages/auth/AuthPage';
 import SignupRolePage from './pages/SignupRolePage';
 import SelectCompanyPage from './pages/auth/SelectCompanyPage';
@@ -15,7 +19,6 @@ import CandidateHomePage from './pages/candidate/CandidateHomePage';
 import FindJobsPage from './pages/candidate/FindJobsPage';
 import MyApplicationsPage from './pages/candidate/MyApplicationsPage';
 import CandidateAssessmentsPage from './pages/candidate/CandidateAssessmentsPage';
-import CandidateInterviewsPage from './pages/candidate/CandidateInterviewsPage';
 import CandidateProfilePage from './pages/candidate/CandidateProfilePage';
 import CandidateSettingsPage from './pages/candidate/CandidateSettingsPage';
 import CandidateMessagesPage from './pages/candidate/CandidateMessagesPage';
@@ -43,7 +46,6 @@ import CreateJobPage from './pages/recruiter/CreateJobPage';
 import CandidatesPage from './pages/recruiter/CandidatesPage';
 import PipelinePage from './pages/recruiter/PipelinePage';
 import AssessmentsPage from './pages/recruiter/AssessmentsPage';
-import InterviewsPage from './pages/recruiter/InterviewsPage';
 import AnalyticsPage from './pages/recruiter/AnalyticsPage';
 import MessagesPage from './pages/recruiter/MessagesPage';
 import SettingsPage from './pages/recruiter/SettingsPage';
@@ -91,7 +93,11 @@ function App() {
     <Router>
       <Routes>
         {/* ─── Fully Public Routes (no auth required) ─── */}
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<HomePage />} />
+        <Route path="/recruiters" element={<RecruitersPage />} />
+        <Route path="/candidates" element={<MarketingCandidatesPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/signup-role" element={<SignupRolePage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route path="/invitations/accept" element={<AcceptInvitationPage />} />

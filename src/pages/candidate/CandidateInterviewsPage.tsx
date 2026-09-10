@@ -366,7 +366,7 @@ const CandidateInterviewsPage = () => {
               {detailTab === 'Instructions & Prep' && (
                 <div className="space-y-3">
                   <h4 className="text-xs font-bold text-slate-900">Instructions & Preparation</h4>
-                  {selectedUpcoming.instructions.map((inst, i) => {
+                  {selectedUpcoming.instructions.map((inst: any, i: number) => {
                     const InstIcon = [Mic, Clock, FileText, Brain][i] || Pin;
                     return (
                       <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-[#E5E7EB]">
@@ -389,7 +389,7 @@ const CandidateInterviewsPage = () => {
                       <>
                         <h4 className="text-xs font-bold text-slate-900 mt-4 mb-2">Skills You'll Need</h4>
                         <div className="flex flex-wrap gap-1.5">
-                          {selectedUpcoming.skillsNeeded.map(s => (
+                          {selectedUpcoming.skillsNeeded.map((s: string) => (
                             <span key={s} className="text-[10px] bg-primary-50 text-primary-700 border border-primary-100 px-2.5 py-1 rounded-full font-semibold">{s}</span>
                           ))}
                         </div>

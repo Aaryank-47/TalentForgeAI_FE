@@ -1,5 +1,4 @@
 import React from 'react';
-import { CheckCircle, Circle, SkipForward, Flag } from 'lucide-react';
 
 type QuestionStatus = 'unanswered' | 'answered' | 'skipped' | 'marked';
 

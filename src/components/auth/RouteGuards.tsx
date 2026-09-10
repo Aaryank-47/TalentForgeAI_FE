@@ -131,7 +131,18 @@ export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
     return <Outlet />;
   }
 
-  if (!user || (!allowedRoles.includes(user.role) && !currentWorkspace)) {
+  if (!user) {
+    const fallback = redirectTo || resolveWorkspaceRoute(currentWorkspace, user);
+    return <Navigate to={fallback} replace />;
+  }
+
+  // Base roles relax checks to rely on capabilities instead of hardcoded UserRole
+  const hasAllowedCapability = 
+    (allowedRoles.includes('CANDIDATE') && user.capabilities?.candidate) ||
+    (allowedRoles.includes('EMPLOYER') && user.capabilities?.employer) ||
+    allowedRoles.includes(user.role);
+
+  if (!hasAllowedCapability && !currentWorkspace) {
     const fallback = redirectTo || resolveWorkspaceRoute(currentWorkspace, user);
     return <Navigate to={fallback} replace />;
   }
@@ -154,6 +165,15 @@ export function PublicRoute({ redirectAuthenticatedTo }: PublicRouteProps) {
   }
 
   if (isAuthenticated && user) {
+    const candidateCount = user.hasCandidateProfile ? 1 : 0;
+    const companyCount = user.companies?.length || 0;
+    const totalWorkspaces = candidateCount + companyCount;
+
+    // Force workspace selection if they have multiple and haven't selected one yet
+    if (totalWorkspaces > 1 && !currentWorkspace) {
+      return <Navigate to="/select-workspace" replace />;
+    }
+
     const from = (location.state as { from?: { pathname: string } })?.from?.pathname;
     const destination = redirectAuthenticatedTo || from || resolveWorkspaceRoute(currentWorkspace, user);
     return <Navigate to={destination} replace />;

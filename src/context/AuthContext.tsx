@@ -57,6 +57,7 @@ export interface AuthUser {
   companies: CompanyMemberItem[];
   companyId?: string;
   companyRole?: CompanyMemberRole;
+  capabilities: { candidate: boolean; employer: boolean };
 }
 
 // ─── Context Value ────────────────────────────────────────────────────────────
@@ -123,12 +124,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const list: Workspace[] = [];
 
     // Candidate capability: if user has a candidate profile or explicit candidate capability returned by backend
-    const hasCandidate = !!authMeData.candidate?.enabled || (!!authMeData.profile && 'profileCompletion' in authMeData.profile) || (!!authMeData.profile && 'isOpenToWork' in authMeData.profile);
+    const hasCandidate = authMeData.capabilities?.candidate ?? (!!authMeData.candidate?.enabled || (!!authMeData.profile && 'profileCompletion' in authMeData.profile) || (!!authMeData.profile && 'isOpenToWork' in authMeData.profile));
     if (hasCandidate) {
       const candidateId = authMeData.candidate?.id || (authMeData.profile?.id ?? authMeData.user.id);
       let candidateName = authMeData.candidate?.fullName || '';
       if (!candidateName && authMeData.profile && 'fullName' in authMeData.profile) {
-        candidateName = authMeData.profile.fullName;
+        candidateName = (authMeData.profile as any).fullName;
       }
       list.push({
         type: 'CANDIDATE',
@@ -244,11 +245,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       lastLoginAt: u.lastLoginAt,
       fullName,
       profile: p,
-      hasCandidateProfile: !!authMeData.candidate?.enabled || (!!p && ('profileCompletion' in p || 'isOpenToWork' in p)),
+      hasCandidateProfile: authMeData.capabilities?.candidate ?? (!!p && 'profileCompletion' in p && (p as any).profileCompletion > 0),
       candidateProfileId: authMeData.candidate?.id,
       companies: companyMemberships,
       companyId: activeCompanyWorkspace?.id,
       companyRole: activeCompanyWorkspace?.role,
+      capabilities: authMeData.capabilities ?? { candidate: false, employer: false }
     };
   }, [authMeData, currentWorkspace]);
 
@@ -280,12 +282,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (token) {
         dispatch(setAccessToken(token));
       }
-      queryClient.setQueryData(authKeys.me, {
-        user: data.user,
-        profile: data.profile,
-      });
-      // Invalidate to trigger full getMe with companies
-      await queryClient.invalidateQueries({ queryKey: authKeys.me });
+      // We intentionally do not setQueryData or invalidateQueries here.
+      // The `login` wrapper function will fetch the full `me` data (including companies)
+      // and update the cache, preventing premature redirects by <PublicRoute>.
       setLocalAuthError(null);
     },
     onError: (err: any) => {
@@ -381,9 +380,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Fetch authoritative me data with workspaces
     const meData = await authApi.getMe();
+
+    // Set the full data in the cache to avoid incomplete states
+    queryClient.setQueryData(authKeys.me, meData);
     
     const workspaces: Workspace[] = [];
-    const hasCandidate = !!meData.candidate?.enabled || !!(meData.profile && 'profileCompletion' in meData.profile);
+    const hasCandidate = meData.capabilities?.candidate ?? (!!(meData.profile && 'profileCompletion' in meData.profile && (meData.profile as any).profileCompletion > 0));
     if (hasCandidate) {
       workspaces.push({
         type: 'CANDIDATE',
@@ -419,6 +421,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hasCandidateProfile: hasCandidate,
       candidateProfileId: meData.candidate?.id,
       companies: meData.companies || [],
+      capabilities: meData.capabilities ?? { candidate: false, employer: false },
     };
 
     return {
@@ -440,6 +443,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       fullName: dto.fullName || '',
       hasCandidateProfile: false,
       companies: [],
+      capabilities: { candidate: false, employer: false },
     };
   }, [registerUserMutation]);
 
@@ -457,6 +461,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       hasCandidateProfile: true,
       candidateProfileId: res.candidate.id,
       companies: [],
+      capabilities: { candidate: true, employer: false },
     };
   }, [registerCandidateMutation]);
 
@@ -499,9 +504,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             industry: null,
             companySize: null,
             headquarters: null,
+            website: null,
+            description: null,
+            companyEmail: null,
+            phoneNumber: null,
           },
         },
       ],
+      capabilities: { candidate: false, employer: true },
     };
   }, [registerCompanyOwnerMutation]);
 
@@ -522,6 +532,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Overall loading state
   const isActionLoading =
     loginMutation.isPending ||
+    registerUserMutation.isPending ||
     registerCandidateMutation.isPending ||
     registerCompanyOwnerMutation.isPending ||
     logoutMutation.isPending;

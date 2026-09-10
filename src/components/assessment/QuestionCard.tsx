@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Eye, HelpCircle } from 'lucide-react';
+import { Check, Eye } from 'lucide-react';
 import type { MCQQuestion } from '../../types/assessment';
 
 interface QuestionCardProps {

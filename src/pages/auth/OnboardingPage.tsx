@@ -43,6 +43,7 @@ export default function OnboardingPage() {
 
   const [step, setStep] = useState<OnboardingStep>('choose');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Fetch industries & sizes dynamically from the backend / database
   const { data: metadataResponse } = useQuery({
@@ -88,15 +89,21 @@ export default function OnboardingPage() {
   // ── 1. Candidate Setup Submission ──────────────────────────────────────────
   const handleCandidateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setPhoneError('');
+    setFormErrors({});
+    
+    let hasError = false;
+    const errors: Record<string, string> = {};
 
-    if (candidateForm.phoneNumber) {
-      const isValid = isValidPhoneNumber(candidateForm.phoneNumber, candidateForm.country);
-      if (!isValid) {
-        setPhoneError('Please enter a valid phone number with the correct number of digits.');
-        return;
-      }
+    if (!candidateForm.fullName.trim()) {
+      errors.fullName = 'Full Name is required.';
+      hasError = true;
     }
+
+    if (hasError) {
+      setFormErrors(errors);
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       const res = await authApi.createCandidateProfile({
@@ -116,7 +123,15 @@ export default function OnboardingPage() {
       selectWorkspace(candidateWs);
       navigate('/candidate/home', { replace: true });
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to setup candidate profile');
+      if (err?.data?.errors?.properties) {
+        const newErrors: Record<string, string> = {};
+        Object.keys(err.data.errors.properties).forEach(key => {
+          newErrors[key] = err.data.errors.properties[key].errors[0];
+        });
+        setFormErrors(newErrors);
+      } else {
+        toast.error(err?.message || 'Failed to setup candidate profile');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -125,8 +140,18 @@ export default function OnboardingPage() {
   // ── 2. Company Setup Submission ────────────────────────────────────────────
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormErrors({});
+    
+    let hasError = false;
+    const errors: Record<string, string> = {};
+
     if (!companyForm.companyName.trim()) {
-      toast.error('Please enter a company name');
+      errors.companyName = 'Company Name is required.';
+      hasError = true;
+    }
+
+    if (hasError) {
+      setFormErrors(errors);
       return;
     }
 
@@ -152,7 +177,15 @@ export default function OnboardingPage() {
       selectWorkspace(companyWs);
       navigate('/recruiter/dashboard', { replace: true });
     } catch (err: any) {
-      toast.error(err?.message || 'Failed to create company');
+      if (err?.data?.errors?.properties) {
+        const newErrors: Record<string, string> = {};
+        Object.keys(err.data.errors.properties).forEach(key => {
+          newErrors[key] = err.data.errors.properties[key].errors[0];
+        });
+        setFormErrors(newErrors);
+      } else {
+        toast.error(err?.message || 'Failed to create company');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -324,10 +357,14 @@ export default function OnboardingPage() {
                   type="text"
                   required
                   value={candidateForm.fullName}
-                  onChange={(e) => setCandidateForm({ ...candidateForm, fullName: e.target.value })}
+                  onChange={(e) => {
+                    setCandidateForm({ ...candidateForm, fullName: e.target.value });
+                    if (formErrors.fullName) setFormErrors(prev => ({ ...prev, fullName: '' }));
+                  }}
                   placeholder="e.g. Jordan Clark"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.fullName ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-blue-500 focus:border-blue-500'}`}
                 />
+                {formErrors.fullName && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.fullName}</p>}
               </div>
 
               <div>
@@ -335,36 +372,29 @@ export default function OnboardingPage() {
                 <input
                   type="text"
                   value={candidateForm.headline}
-                  onChange={(e) => setCandidateForm({ ...candidateForm, headline: e.target.value })}
+                  onChange={(e) => {
+                    setCandidateForm({ ...candidateForm, headline: e.target.value });
+                    if (formErrors.headline) setFormErrors(prev => ({ ...prev, headline: '' }));
+                  }}
                   placeholder="e.g. Full-Stack Engineer | React & Node.js"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.headline ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-blue-500 focus:border-blue-500'}`}
                 />
+                {formErrors.headline && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.headline}</p>}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Phone Number (Optional)</label>
-                <div className="flex gap-2">
-                  <select
-                    value={candidateForm.country}
-                    onChange={(e) => setCandidateForm({ ...candidateForm, country: e.target.value as CountryCode, phoneNumber: '' })}
-                    className="w-1/3 px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                  >
-                    {countries.map(c => (
-                      <option key={c} value={c}>{c} (+{getCountryCallingCode(c)})</option>
-                    ))}
-                  </select>
-                  <input
-                    type="tel"
-                    value={candidateForm.phoneNumber}
-                    onChange={(e) => {
-                      setPhoneError('');
-                      setCandidateForm({ ...candidateForm, phoneNumber: e.target.value });
-                    }}
-                    placeholder="Enter phone number"
-                    className={`w-2/3 px-3.5 py-2.5 border ${phoneError ? 'border-red-500' : 'border-slate-200'} rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                  />
-                </div>
-                {phoneError && <p className="text-red-500 text-xs mt-1">{phoneError}</p>}
+                <input
+                  type="tel"
+                  value={candidateForm.phoneNumber}
+                  onChange={(e) => {
+                    setCandidateForm({ ...candidateForm, phoneNumber: e.target.value });
+                    if (formErrors.phoneNumber) setFormErrors(prev => ({ ...prev, phoneNumber: '' }));
+                  }}
+                  placeholder="+1 (555) 000-0000"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.phoneNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-blue-500 focus:border-blue-500'}`}
+                />
+                {formErrors.phoneNumber && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.phoneNumber}</p>}
               </div>
 
               <div className="flex items-center gap-3 pt-3">
@@ -382,6 +412,15 @@ export default function OnboardingPage() {
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
                   <span>Enter Candidate Portal</span>
+                </button>
+              </div>
+              <div className="mt-3 text-center">
+                <button 
+                  type="button"
+                  onClick={() => setStep('company_setup')}
+                  className="text-xs text-slate-500 hover:text-blue-600 font-medium transition-colors"
+                >
+                  Actually, I want to create a company workspace instead
                 </button>
               </div>
             </form>
@@ -410,10 +449,14 @@ export default function OnboardingPage() {
                   type="text"
                   required
                   value={companyForm.companyName}
-                  onChange={(e) => setCompanyForm({ ...companyForm, companyName: e.target.value })}
+                  onChange={(e) => {
+                    setCompanyForm({ ...companyForm, companyName: e.target.value });
+                    if (formErrors.companyName) setFormErrors(prev => ({ ...prev, companyName: '' }));
+                  }}
                   placeholder="e.g. Acme Technologies"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-sm focus:outline-none focus:ring-2 transition-all ${formErrors.companyName ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-blue-500 focus:border-blue-500'}`}
                 />
+                {formErrors.companyName && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.companyName}</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -458,20 +501,28 @@ export default function OnboardingPage() {
                   <input
                     type="url"
                     value={companyForm.website}
-                    onChange={(e) => setCompanyForm({ ...companyForm, website: e.target.value })}
+                    onChange={(e) => {
+                      setCompanyForm({ ...companyForm, website: e.target.value });
+                      if (formErrors.website) setFormErrors(prev => ({ ...prev, website: '' }));
+                    }}
                     placeholder="https://company.com"
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:ring-2 transition-all ${formErrors.website ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-blue-500 focus:border-blue-500'}`}
                   />
+                  {formErrors.website && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.website}</p>}
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Headquarters</label>
                   <input
                     type="text"
                     value={companyForm.headquarters}
-                    onChange={(e) => setCompanyForm({ ...companyForm, headquarters: e.target.value })}
+                    onChange={(e) => {
+                      setCompanyForm({ ...companyForm, headquarters: e.target.value });
+                      if (formErrors.headquarters) setFormErrors(prev => ({ ...prev, headquarters: '' }));
+                    }}
                     placeholder="e.g. San Francisco, CA"
-                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:ring-2 transition-all ${formErrors.headquarters ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-blue-500 focus:border-blue-500'}`}
                   />
+                  {formErrors.headquarters && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.headquarters}</p>}
                 </div>
               </div>
 
@@ -480,10 +531,14 @@ export default function OnboardingPage() {
                 <textarea
                   rows={2}
                   value={companyForm.description}
-                  onChange={(e) => setCompanyForm({ ...companyForm, description: e.target.value })}
+                  onChange={(e) => {
+                    setCompanyForm({ ...companyForm, description: e.target.value });
+                    if (formErrors.description) setFormErrors(prev => ({ ...prev, description: '' }));
+                  }}
                   placeholder="What does your company do?"
-                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full px-3.5 py-2.5 border rounded-xl text-xs focus:outline-none focus:ring-2 transition-all ${formErrors.description ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-blue-500 focus:border-blue-500'}`}
                 />
+                {formErrors.description && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.description}</p>}
               </div>
 
               <div className="flex items-center gap-3 pt-3">
@@ -501,6 +556,15 @@ export default function OnboardingPage() {
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building className="w-4 h-4" />}
                   <span>Create Company & Continue</span>
+                </button>
+              </div>
+              <div className="mt-3 text-center">
+                <button 
+                  type="button"
+                  onClick={() => setStep('candidate_setup')}
+                  className="text-xs text-slate-500 hover:text-blue-600 font-medium transition-colors"
+                >
+                  Actually, I want to set up a candidate profile instead
                 </button>
               </div>
             </form>

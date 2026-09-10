@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  FileText, Upload, Trash2, RefreshCw, CheckCircle, AlertCircle, Loader2,
-  ExternalLink, Sparkles, Clock, ArrowRight, X, Check
+  FileText, Upload, Trash2, RefreshCw, Loader2,
+  ExternalLink, Sparkles, Check
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { candidateApi, type CandidateResume } from '../../services/api/candidate.api';

@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import {
-  Edit2, Upload, Plus, Trash2, ExternalLink, Eye, Download, RefreshCw,
-  MapPin, Mail, Phone, Globe, GraduationCap,
-  FileText, CheckCircle, X, Star, Zap, Loader2,
+  Edit2, Plus, Trash2,  MapPin, Mail, Phone, Globe, GraduationCap,
+  CheckCircle, X, Zap, Loader2,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -450,7 +449,7 @@ const CandidateProfilePage = () => {
                     {links.map(l => (
                       <a
                         key={l.key}
-                        href={l.href}
+                        href={l.href || undefined}
                         target="_blank"
                         rel="noreferrer"
                         className="flex items-center gap-1.5 text-[11px] text-primary-600 hover:text-primary-700 font-medium bg-primary-50 px-2.5 py-1 rounded-full border border-primary-100 transition-colors"

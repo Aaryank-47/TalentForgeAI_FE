@@ -6,12 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   LineChart, Line, ResponsiveContainer,
 } from 'recharts';
-import {
-  aiInterviewCompleted,
-  interviewTranscript,
-  aiEvaluationReport,
-  integrityReport,
-} from '../../constants/recruiter_mockData';
+
 import {
   EvaluationCard,
   ProgressBar,
@@ -56,7 +51,7 @@ export default function AIInterviewDetailPage() {
   const [selectedDecision, setSelectedDecision] = useState<string | null>(null);
 
   // Fetch real report from DB
-  const { data: realReportData } = useQuery({
+  const { data: realReportData, isLoading } = useQuery({
     queryKey: ['recruiter-ai-report', companyId, id],
     queryFn: async () => {
       if (!companyId || !id) return null;
@@ -70,48 +65,122 @@ export default function AIInterviewDetailPage() {
     enabled: Boolean(companyId && id),
   });
 
-  const fallbackCandidate = aiInterviewCompleted.find(iv => iv.id === id) || aiInterviewCompleted[0];
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-slate-500 font-medium animate-pulse">Loading AI Report...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const candidate = realReportData ? {
+  if (!realReportData) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 space-y-4">
+        <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center">
+          <AlertTriangle className="w-6 h-6 text-slate-400" />
+        </div>
+        <p className="text-slate-600 font-medium">No report data found for this interview.</p>
+        <button onClick={() => navigate('/recruiter/ai-interviews')} className="btn-secondary">
+          Go Back
+        </button>
+      </div>
+    );
+  }
+
+  const candidate = {
     id: realReportData.session?.id || id,
-    candidate: realReportData.session?.job?.company?.name ? 'Candidate' : (fallbackCandidate?.candidate || 'Interview Candidate'),
-    role: realReportData.session?.job?.title || realReportData.session?.interview?.title || fallbackCandidate?.role,
+    candidate: realReportData.session?.candidate?.fullName || realReportData.session?.job?.company?.name || 'Interview Candidate',
+    role: realReportData.session?.job?.title || realReportData.session?.interview?.title || 'Unknown Role',
     date: new Date(realReportData.session?.endedAt || realReportData.session?.startedAt || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     duration: '25 min',
-    aiScore: realReportData.finalEvaluation?.overallScore ?? fallbackCandidate?.aiScore ?? 85,
+    aiScore: realReportData.finalEvaluation?.overallScore ?? 0,
     recommendation: realReportData.finalEvaluation?.recommendation === 'STRONG_HIRE' ? 'Strong Hire' :
                     realReportData.finalEvaluation?.recommendation === 'HIRE' ? 'Hire' :
-                    realReportData.finalEvaluation?.recommendation === 'CONSIDER' || realReportData.finalEvaluation?.recommendation === 'HOLD' ? 'Consider' : (fallbackCandidate?.recommendation || 'Hire'),
-    riskLevel: fallbackCandidate?.riskLevel || 'Low',
-    tabSwitches: fallbackCandidate?.tabSwitches || 0,
-    noiseFlags: fallbackCandidate?.noiseFlags || 0,
-    initials: fallbackCandidate?.initials || 'CD',
-    color: fallbackCandidate?.color || 'from-violet-500 to-violet-700',
-  } : fallbackCandidate;
+                    realReportData.finalEvaluation?.recommendation === 'CONSIDER' || realReportData.finalEvaluation?.recommendation === 'HOLD' ? 'Consider' : 'Reject',
+    riskLevel: 'Low', // We can enhance this if we compute risk level from tabSwitches
+    tabSwitches: realReportData.finalEvaluation?.integrityMetrics?.tabSwitches || 0,
+    noiseFlags: realReportData.finalEvaluation?.integrityMetrics?.noiseFlags || 0,
+    initials: (realReportData.session?.candidate?.fullName || 'I C').split(' ').map((n: string) => n[0]).join('').substring(0,2).toUpperCase(),
+    color: 'from-violet-500 to-violet-700',
+  };
 
-  const report = realReportData?.finalEvaluation ? {
-    ...aiEvaluationReport,
-    overallScore: realReportData.finalEvaluation.overallScore,
+  const realDimensions = [
+    { label: 'Technical', score: realReportData.finalEvaluation?.technicalScore ?? realReportData.finalEvaluation?.overallScore ?? 0, color: 'bg-indigo-500', icon: 'settings' },
+    { label: 'Communication', score: realReportData.finalEvaluation?.communicationScore ?? realReportData.finalEvaluation?.overallScore ?? 0, color: 'bg-blue-500', icon: 'message-square' },
+    { label: 'Problem Solving', score: realReportData.finalEvaluation?.problemSolvingScore ?? realReportData.finalEvaluation?.overallScore ?? 0, color: 'bg-emerald-500', icon: 'brain' },
+    { label: 'Overall', score: realReportData.finalEvaluation?.overallScore ?? 0, color: 'bg-teal-500', icon: 'sparkles' },
+  ];
+
+  const realRadarData = [
+    { subject: 'Technical', score: realReportData.finalEvaluation?.technicalScore ?? realReportData.finalEvaluation?.overallScore ?? 0, fullMark: 100 },
+    { subject: 'Communication', score: realReportData.finalEvaluation?.communicationScore ?? realReportData.finalEvaluation?.overallScore ?? 0, fullMark: 100 },
+    { subject: 'Problem\nSolving', score: realReportData.finalEvaluation?.problemSolvingScore ?? realReportData.finalEvaluation?.overallScore ?? 0, fullMark: 100 },
+    { subject: 'Overall', score: realReportData.finalEvaluation?.overallScore ?? 0, fullMark: 100 },
+  ];
+
+  const realQuestionPerformance = realReportData?.questions?.length > 0 ? realReportData.questions.map((q: any, i: number) => ({
+    question: `Q${i + 1}`,
+    score: q.answer?.evaluation?.score || 0
+  })).filter((q: any) => q.score > 0) : [];
+
+  const realConfidenceTrend = realReportData?.questions?.length > 0 ? realReportData.questions.map((q: any, i: number) => ({
+    question: `Q${i + 1}`,
+    confidence: q.answer?.evaluation?.score || 0
+  })).filter((q: any) => q.confidence > 0) : [];
+
+  const realResponseTimes = realReportData?.questions?.length > 0 ? realReportData.questions.map((q: any, i: number) => ({
+    question: `Q${i + 1}`,
+    seconds: 120 // Static duration placeholder since answer duration isn't tracked in DB yet
+  })) : [];
+
+  const report = {
+    overallScore: realReportData.finalEvaluation?.overallScore ?? 0,
     recommendation: candidate.recommendation,
-    aiSummary: realReportData.finalEvaluation.overallFeedback || aiEvaluationReport.aiSummary,
-    strengths: realReportData.finalEvaluation.strengths?.length ? realReportData.finalEvaluation.strengths : aiEvaluationReport.strengths,
-    areasForImprovement: realReportData.finalEvaluation.weaknesses?.length ? realReportData.finalEvaluation.weaknesses : aiEvaluationReport.areasForImprovement,
-  } : aiEvaluationReport;
+    aiSummary: realReportData.finalEvaluation?.overallFeedback ?? 'No summary available.',
+    strengths: realReportData.finalEvaluation?.strengths ?? [],
+    areasForImprovement: realReportData.finalEvaluation?.weaknesses ?? [],
+    dimensions: realDimensions,
+    radarData: realRadarData,
+    questionPerformance: realQuestionPerformance,
+    confidenceTrend: realConfidenceTrend,
+    responseTimes: realResponseTimes,
+    talkingRatio: { candidate: 68, silence: 15, ai: 17 }, // Still placeholder as we don't have this tracked yet
+    evaluatedAt: new Date().toLocaleDateString(),
+  };
 
-  const integrity = integrityReport;
+  const integrity = {
+    tabSwitchCount: realReportData.finalEvaluation?.integrityMetrics?.tabSwitches || 0,
+    noiseFlags: realReportData.finalEvaluation?.integrityMetrics?.noiseFlags || 0,
+    faceVisibility: {
+        status: realReportData.finalEvaluation?.integrityMetrics?.faceVisibility || 'Good',
+        percentVisible: 94,
+        detail: 'Face was mostly visible during the session.'
+    },
+    riskDetail: 'Integrity data fetched from real session evaluation.',
+    tabSwitchTimestamps: [],
+    noiseFlagTimestamps: [],
+    noiseType: 'Unknown',
+    onlyCandidateVoice: true
+  };
 
   const realQuestionsList = realReportData?.questions?.map((q: any, i: number) => ({
-    id: q.id || i + 1,
+    id: q.id || String(i + 1),
     questionNumber: q.sequence || i + 1,
     timestamp: `0${i * 2}:30`,
     question: q.question,
     answer: q.answer?.answerText || 'Candidate completed spoken response.',
     aiFeedback: q.answer?.evaluation?.feedback || 'Candidate demonstrated technical depth and clarity.',
-    score: q.answer?.evaluation?.score || 85,
+    score: q.answer?.evaluation?.score || 0,
     topic: q.topic || q.skill || 'Technical Proficiency',
-  }));
+    duration: '1m 30s',
+    confidence: q.answer?.evaluation?.score || 0,
+    category: q.topic || 'General',
+  })) || [];
 
-  const transcriptSource = realQuestionsList && realQuestionsList.length > 0 ? realQuestionsList : interviewTranscript;
+  const transcriptSource = realQuestionsList;
 
   const filteredTranscript = transcriptSource.filter((t: any) =>
     t.question.toLowerCase().includes(transcriptSearch.toLowerCase()) ||
@@ -204,11 +273,11 @@ export default function AIInterviewDetailPage() {
                     <span>Strengths</span>
                   </p>
                   <ul className="space-y-1">
-                    {report.strengths.map(s => (
-                      <li key={s} className="text-xs text-slate-600 flex items-start gap-1.5">
+                    {report.strengths?.length > 0 ? report.strengths.map((s: string, idx: number) => (
+                      <li key={`s-${idx}`} className="text-xs text-slate-600 flex items-start gap-1.5">
                         <span className="text-emerald-500 flex-shrink-0">•</span>{s}
                       </li>
-                    ))}
+                    )) : <li className="text-xs text-slate-500">No strengths recorded.</li>}
                   </ul>
                 </div>
                 <div>
@@ -217,11 +286,11 @@ export default function AIInterviewDetailPage() {
                     <span>Areas to Improve</span>
                   </p>
                   <ul className="space-y-1">
-                    {report.areasForImprovement.map(s => (
-                      <li key={s} className="text-xs text-slate-600 flex items-start gap-1.5">
+                    {report.areasForImprovement?.length > 0 ? report.areasForImprovement.map((s: string, idx: number) => (
+                      <li key={`w-${idx}`} className="text-xs text-slate-600 flex items-start gap-1.5">
                         <span className="text-amber-500 flex-shrink-0">•</span>{s}
                       </li>
-                    ))}
+                    )) : <li className="text-xs text-slate-500">No weaknesses recorded.</li>}
                   </ul>
                 </div>
               </div>
@@ -249,9 +318,9 @@ export default function AIInterviewDetailPage() {
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-3">Quick Stats</p>
               {[
                 { label: 'Duration', value: candidate.duration },
-                { label: 'Questions', value: `${interviewTranscript.length} answered` },
-                { label: 'Avg Confidence', value: `${Math.round(interviewTranscript.reduce((a, t) => a + t.confidence, 0) / interviewTranscript.length)}%` },
-                { label: 'Total Words', value: `${interviewTranscript.reduce((a, t) => a + t.wordCount, 0)} words` },
+                { label: 'Questions', value: `${realQuestionsList.length} answered` },
+                { label: 'Avg Confidence', value: `${Math.round(realQuestionsList.reduce((a: number, t: any) => a + t.confidence, 0) / (realQuestionsList.length || 1))}%` },
+                { label: 'Total Words', value: 'N/A' },
                 { label: 'Tab Switches', value: String(candidate.tabSwitches) },
                 { label: 'Noise Flags', value: String(candidate.noiseFlags) },
               ].map(stat => (
@@ -316,7 +385,7 @@ export default function AIInterviewDetailPage() {
                         className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-slate-900 cursor-pointer hover:scale-125 transition-transform"
                         style={{ left: `${(t / TOTAL_SECONDS) * 100}%` }}
                         onClick={() => setPlaybackTime(t)}
-                        title={`Q${i + 1}: ${interviewTranscript[i]?.category}`}
+                        title={`Q${i + 1}: ${realQuestionsList[i]?.category || 'General'}`}
                       />
                     ))}
                   </div>
@@ -347,9 +416,9 @@ export default function AIInterviewDetailPage() {
           <div className="card p-5">
             <h3 className="font-bold text-slate-900 mb-3">Question Markers</h3>
             <div className="space-y-2">
-              {interviewTranscript.map((t, i) => (
+              {realQuestionsList.map((t: any, i: number) => (
                 <button
-                  key={t.questionId}
+                  key={t.id || `marker-${i}`}
                   onClick={() => setPlaybackTime(QUESTION_MARKERS[i] || 0)}
                   className="w-full flex items-center gap-3 p-3 rounded-xl border border-slate-200 hover:border-primary-200 hover:bg-primary-50/30 text-left transition-all"
                 >
@@ -378,10 +447,10 @@ export default function AIInterviewDetailPage() {
             />
           </div>
           <div className="space-y-4">
-            {filteredTranscript.map(t => (
+            {filteredTranscript.map((t: any, idx: number) => (
               <TranscriptCard
-                key={t.questionId}
-                order={t.order}
+                key={t.id || `transcript-${idx}`}
+                order={t.questionNumber}
                 question={t.question}
                 answer={t.answer}
                 timestamp={t.timestamp}

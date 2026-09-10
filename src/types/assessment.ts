@@ -143,6 +143,11 @@ export interface SharedAssessmentSettings {
   fullscreenRequired: boolean;
   cameraRequired: boolean;
   screenSharingRequired: boolean;
+  microphoneRequired?: boolean;
+  recordingEnabled?: boolean;
+  tabMonitoring?: boolean;
+  faceDetection?: boolean;
+  noiseDetection?: boolean;
 }
 
 export interface Assessment {

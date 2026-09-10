@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Plus, Trash2, Eye, Save, Send, Check, Search, Filter,
-  Clock, Award, BookOpen, Layers, AlertCircle, X, ChevronRight,
-  ChevronDown, Pencil, Loader2, Sparkles, CheckCircle2, FileQuestion
+  ArrowLeft, Plus, Trash2, Eye, Send, Check, Search,
+  Clock, Award, BookOpen, AlertCircle, Pencil, Loader2, 
+  CheckCircle2, FileQuestion
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 

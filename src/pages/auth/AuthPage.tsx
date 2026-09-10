@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, ArrowRight, Bot, Sparkles, Users, BarChart2, Check, Loader2, KeyRound } from 'lucide-react';
+import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Bot, Sparkles, Users, BarChart2, Check, Loader2 } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
 import { useAuth } from '../../context/AuthContext';
 import { resolvePortalRoute } from '../../lib/permissions';
@@ -85,46 +85,28 @@ const OTPAuthForm = () => {
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
-    setIsLoading(true);
-    try {
-      await authApi.sendOtpLogin({ email });
-      setStep('otp');
-    } catch (err: any) {
-      setLocalError(err?.message || 'Failed to send OTP. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setFormErrors({});
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLocalError(null);
-    setIsLoading(true);
     try {
-      const { user: authUser, availableWorkspaces } = await login({ email, otp });
+      const { user: authUser, availableWorkspaces } = await login({ email, password });
       
-      // 1. Brand new user (no candidate profile, no companies) -> Onboarding
-      if (!authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
-        navigate('/onboarding', { replace: true });
-        return;
-      }
-
-      // 2. Only Candidate (has profile, no companies) -> Candidate Dashboard
-      if (authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
-        navigate('/candidate/home', { replace: true });
-        return;
-      }
-
-      // 3. Has multiple roles OR is only Employer (1 or more companies) -> Workspace Selection
-      navigate('/select-workspace', { replace: true });
+      const destination = resolvePortalRoute(authUser);
+      navigate(destination, { replace: true });
     } catch (err: any) {
-      setLocalError(err?.message || 'Invalid OTP. Please try again.');
-    } finally {
-      setIsLoading(false);
+      if (err?.data?.errors?.properties) {
+        const newErrors: Record<string, string> = {};
+        Object.keys(err.data.errors.properties).forEach(key => {
+          newErrors[key] = err.data.errors.properties[key].errors[0];
+        });
+        setFormErrors(newErrors);
+      } else {
+        setLocalError(err?.message || error || 'Invalid email or password. Please try again.');
+      }
     }
   };
 
@@ -153,58 +135,172 @@ const OTPAuthForm = () => {
         <div className="relative flex justify-center text-[12px]"><span className="bg-white px-3 text-slate-400">or continue with email</span></div>
       </div>
 
-      {step === 'email' ? (
-        <form onSubmit={handleSendOtp} className="space-y-4">
-          <div>
-            <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@company.com"
-                disabled={isLoading}
-                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all disabled:opacity-60"
-              />
-            </div>
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address *</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="email"
+              required
+              value={email}
+              onChange={e => {
+                setEmail(e.target.value);
+                if (formErrors.email) setFormErrors(prev => ({ ...prev, email: '' }));
+              }}
+              placeholder="you@company.com"
+              disabled={isLoading}
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${formErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`}
+            />
           </div>
+          {formErrors.email && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.email}</p>}
+        </div>
 
-          {localError && (
-            <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">{localError}</p>
-          )}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-[13px] font-medium text-slate-700">Password *</label>
+            <Link to="/forgot-password" className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8]">Forgot password?</Link>
+          </div>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              value={password}
+              onChange={e => {
+                setPassword(e.target.value);
+                if (formErrors.password) setFormErrors(prev => ({ ...prev, password: '' }));
+              }}
+              placeholder="••••••••"
+              disabled={isLoading}
+              className={`w-full pl-10 pr-10 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all disabled:opacity-60 ${formErrors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`}
+            />
+            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {formErrors.password && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.password}</p>}
+        </div>
+
+        {(localError) && (
+          <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">{localError}</p>
+        )}
+
+        <div className="flex items-center gap-2">
+          <input id="remember" type="checkbox" className="w-4 h-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]/30" />
+          <label htmlFor="remember" className="text-[13px] text-slate-600">Remember me for 30 days</label>
+        </div>
+
+        <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-2 disabled:opacity-70 disabled:cursor-not-allowed">
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+          {isLoading ? 'Signing in…' : 'Sign in'}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+// ─── Register Form ────────────────────────────────────────────────────────────
+
+const RegisterForm = ({ onSwitchToLogin }: { onSwitchToLogin: () => void }) => {
+  const navigate = useNavigate();
+  const { registerUser, isLoading, error } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLocalError(null);
+    setFormErrors({});
+
+    if (form.password !== form.confirm) {
+      setLocalError('Passwords do not match.');
+      return;
+    }
+    try {
+      await registerUser({
+        fullName: form.name,
+        email: form.email,
+        password: form.password,
+      });
+      // Redirect user to email verification with their email address pre-filled
+      navigate(`/verify-email?email=${encodeURIComponent(form.email)}`, { replace: true });
+    } catch (err: any) {
+      if (err?.data?.errors?.properties) {
+        const newErrors: Record<string, string> = {};
+        Object.keys(err.data.errors.properties).forEach(key => {
+          newErrors[key] = err.data.errors.properties[key].errors[0];
+        });
+        setFormErrors(newErrors);
+      } else {
+        setLocalError(err?.message || error || 'Registration failed. Please try again.');
+      }
+    }
+  };
+
+  const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm(f => ({ ...f, [k]: e.target.value }));
+    if (formErrors[k]) setFormErrors(prev => ({ ...prev, [k]: '' }));
+  };
 
           <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-2 disabled:opacity-70 disabled:cursor-not-allowed">
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
             {isLoading ? 'Sending code…' : 'Continue with Email'}
           </button>
-        </form>
-      ) : (
-        <form onSubmit={handleVerifyOtp} className="space-y-4">
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-[13px] font-medium text-slate-700">Enter Code</label>
-              <button type="button" onClick={() => setStep('email')} className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8]">
-                Change email
-              </button>
-            </div>
-            <div className="relative">
-              <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="text"
-                required
-                value={otp}
-                onChange={e => setOtp(e.target.value)}
-                placeholder="6-digit code"
-                maxLength={6}
-                disabled={isLoading}
-                className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all disabled:opacity-60"
-              />
-            </div>
-            <p className="text-[12px] text-slate-500 mt-2">
-              We sent a verification code to <strong>{email}</strong>
-            </p>
+        </p>
+      </div>
+
+      <form onSubmit={handleRegister} className="space-y-3.5">
+        {/* Full Name */}
+        <div>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Full Name *</label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type="text" required value={form.name} onChange={set('name')} placeholder="Jordan Clark"
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${formErrors.fullName ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`} />
+          </div>
+          {formErrors.fullName && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.fullName}</p>}
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Email address *</label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type="email" required value={form.email} onChange={set('email')} placeholder="you@company.com"
+              className={`w-full pl-10 pr-4 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${formErrors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`} />
+          </div>
+          {formErrors.email && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.email}</p>}
+        </div>
+
+        {/* Password */}
+        <div>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Password *</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type={showPassword ? 'text' : 'password'} required value={form.password} onChange={set('password')} placeholder="Min. 8 characters"
+              className={`w-full pl-10 pr-10 py-2.5 border rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 transition-all ${formErrors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/30' : 'border-slate-200 focus:ring-[#2563EB]/30 focus:border-[#2563EB]'}`} />
+            <button type="button" onClick={() => setShowPassword(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {formErrors.password && <p className="text-[11px] text-red-500 font-medium mt-1">{formErrors.password}</p>}
+        </div>
+
+        {/* Confirm Password */}
+        <div>
+          <label className="block text-[13px] font-medium text-slate-700 mb-1.5">Confirm Password *</label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input type={showConfirm ? 'text' : 'password'} required value={form.confirm} onChange={set('confirm')} placeholder="Re-enter password"
+              className="w-full pl-10 pr-10 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all" />
+            <button type="button" onClick={() => setShowConfirm(p => !p)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
           </div>
 
           {localError && (

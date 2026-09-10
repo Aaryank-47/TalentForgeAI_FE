@@ -161,7 +161,8 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
       const token = tokenStorage.getAccessToken();
       if (!token) return;
       try {
-        const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+        // const baseUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+        const baseUrl = import.meta.env.VITE_WS_URL || 'https://talentforgeai-backend-uqrt.onrender.com';
         const res = await fetch(`${baseUrl}/api/v1/auth/me`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
@@ -367,7 +368,8 @@ export const InterviewProvider: React.FC<InterviewProviderProps> = ({
       setIsCameraOn(true);
 
       // 2. Establish Socket Connection
-      const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+      // const wsUrl = import.meta.env.VITE_WS_URL || 'http://localhost:3000';
+      const wsUrl = import.meta.env.VITE_WS_URL || 'https://talentforgeai-backend-uqrt.onrender.com';
       const token = tokenStorage.getAccessToken();
       
       const socket = io(`${wsUrl}/interviews`, {

@@ -11,11 +11,7 @@ import toast from 'react-hot-toast';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../../../context/AuthContext';
 import { interviewApi } from '../../../services/api/interview.api';
-import {
-  rescheduleInterviewSession,
-  cancelInterviewSession,
-  toLiveInterview
-} from '../../../services/interviewSession.service';
+import { toLiveInterview } from '../../../services/interviewSession.service';
 import { LiveInterviewStatusBadge } from '../../../components/live-interview/LiveInterviewStatusBadge';
 import { RescheduleModal, CancelInterviewModal } from '../../../components/live-interview/InterviewModals';
 

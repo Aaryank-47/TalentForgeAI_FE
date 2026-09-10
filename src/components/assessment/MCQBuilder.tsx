@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Hash, Clock, Minus, Percent } from 'lucide-react';
 import QuestionBank from './QuestionBank';
 import type { MCQConfig } from '../../types/assessment';

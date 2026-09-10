@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Search, Filter, Plus, MoreHorizontal, Star, X, ChevronRight,
-  Video, Send, XCircle, Clock, Activity, Briefcase, MapPin,
-  ChevronDown, GripVertical, Loader2, AlertCircle, User, Mail, Calendar, CheckCircle2
+  Search, X, Send, XCircle, Activity, Briefcase, ChevronDown, 
+  GripVertical, Loader2, AlertCircle, Calendar, CheckCircle2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { useAuth } from '../../context/AuthContext';
-import { jobApi, type JobItem } from '../../services/api/job.api';
+import { jobApi } from '../../services/api/job.api';
 import { assessmentApi } from '../../services/api/assessment.api';
-import { applicationWorkflowApi, type HiringBoardStage, type HiringBoardApplication } from '../../services/api/workflow.api';
+import { applicationWorkflowApi, type HiringBoardApplication } from '../../services/api/workflow.api';
 import { jobKeys, workflowKeys } from '../../constants/queryKeys';
 
 const PipelinePage = () => {

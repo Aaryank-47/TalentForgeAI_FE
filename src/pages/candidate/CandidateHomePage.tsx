@@ -469,7 +469,7 @@ const CandidateHomePage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {aiJobs.map((job) => (
+                {aiJobs.map((job: any) => (
                   <div key={job.id} className="card p-4 hover:border-primary-200 hover:shadow-md transition-all group relative flex flex-col justify-between">
                     <div>
                       <div className="flex items-start justify-between mb-3">
