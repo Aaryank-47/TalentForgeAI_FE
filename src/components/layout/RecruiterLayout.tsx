@@ -190,8 +190,8 @@ const RecruiterLayout = () => {
   const [notifOpen, setNotifOpen] = useState(false);
   const { user, currentWorkspace, logout } = useAuth();
 
-  const profileRef = useRef<HTMLDivElement>(null);
-  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<any>(null);
+  const notifRef = useRef<any>(null);
 
   useOnClickOutside(profileRef, () => setProfileOpen(false));
   useOnClickOutside(notifRef, () => setNotifOpen(false));

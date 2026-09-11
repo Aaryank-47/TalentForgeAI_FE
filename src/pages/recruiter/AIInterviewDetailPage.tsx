@@ -273,7 +273,7 @@ export default function AIInterviewDetailPage() {
                     <span>Strengths</span>
                   </p>
                   <ul className="space-y-1">
-                    {report.strengths?.length > 0 ? report.strengths.map((s: string, idx: number) => (
+                    {report.strengths?.length > 0 ? report.strengths.map((s: any, idx: number) => (
                       <li key={`s-${idx}`} className="text-xs text-slate-600 flex items-start gap-1.5">
                         <span className="text-emerald-500 flex-shrink-0">•</span>{s}
                       </li>
@@ -286,7 +286,7 @@ export default function AIInterviewDetailPage() {
                     <span>Areas to Improve</span>
                   </p>
                   <ul className="space-y-1">
-                    {report.areasForImprovement?.length > 0 ? report.areasForImprovement.map((s: string, idx: number) => (
+                    {report.areasForImprovement?.length > 0 ? report.areasForImprovement.map((s: any, idx: number) => (
                       <li key={`w-${idx}`} className="text-xs text-slate-600 flex items-start gap-1.5">
                         <span className="text-amber-500 flex-shrink-0">•</span>{s}
                       </li>

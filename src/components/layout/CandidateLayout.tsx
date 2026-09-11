@@ -89,8 +89,8 @@ const CandidateLayout: React.FC = () => {
     candidate?.experiences?.[0]?.companyName ||
     '';
 
-  const profileRef = useRef<HTMLDivElement>(null);
-  const notifRef = useRef<HTMLDivElement>(null);
+  const profileRef = useRef<any>(null);
+  const notifRef = useRef<any>(null);
 
   useOnClickOutside(profileRef, () => setProfileOpen(false));
   useOnClickOutside(notifRef, () => setNotifOpen(false));

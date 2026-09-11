@@ -131,7 +131,7 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   const filteredCandidates = useMemo(() => {
     if (!candidateSearch.trim()) return assignedCandidates;
     const query = candidateSearch.toLowerCase();
-    return assignedCandidates.filter((asg: { id: string; candidate: { name: string; title: string; experience: string } }) =>
+    return assignedCandidates.filter((asg: any) =>
       asg.candidate.name.toLowerCase().includes(query) ||
       asg.candidate.title.toLowerCase().includes(query) ||
       asg.candidate.experience.toLowerCase().includes(query)
@@ -141,7 +141,7 @@ export const CreateInterviewModal: React.FC<CreateInterviewModalProps> = ({
   const filteredInterviewers = useMemo(() => {
     if (!interviewerSearch.trim()) return interviewers;
     const query = interviewerSearch.toLowerCase();
-    return interviewers.filter((cm: CompanyMember) =>
+    return interviewers.filter((cm: any) =>
       cm.name.toLowerCase().includes(query) ||
       cm.role.toLowerCase().includes(query) ||
       cm.department.toLowerCase().includes(query) ||
