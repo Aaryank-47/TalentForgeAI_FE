@@ -186,7 +186,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const initializeAuth = async () => {
       try {
         const token = await executeRefreshToken();
-        console.log("getting refresh token from backend  : ", token);
+        // console.log("getting refresh token from backend  : ", token);
         if (isMounted) {
           if (token) {
             dispatch(setAccessToken(token));
