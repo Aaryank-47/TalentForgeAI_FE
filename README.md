@@ -81,20 +81,48 @@ Registration → Login → Company/Workspace Setup → Recruiter Dashboard → C
 
 ## API Integration
 
-Communication with the backend is centralized in `src/services/api/apiClient.ts`.
+Communication with the backend is centralized in [`src/services/api/apiClient.ts`](file:///c:/Project/TalentForge/Frontend/src/services/api/apiClient.ts).
 
-- **Base URL**: Configured via `VITE_API_BASE_URL`.
-- **Authentication headers**: Injects `Authorization: Bearer <token>` from the Redux store into every request.
-- **Cookies**: Uses `credentials: 'include'` to send HttpOnly cookies (containing the refresh token).
-- **Token Refresh**: Implements single-flight concurrent token refresh logic. On a 401 Unauthorized response, it automatically calls the refresh endpoint, updates the Redux store, and retries the failed request.
+- **Base URL**: Configured dynamically via `VITE_API_BASE_URL` (defaults to `http://localhost:3000/api/v1`).
+- **Authorization Headers**: Automatically attaches `Authorization: Bearer <token>` from the in-memory Redux store (`authSlice`).
+- **Multi-Tenant Context Headers**: Automatically attaches `x-company-id` header when operating inside an active company workspace (`workspaceSlice`).
+- **HttpOnly Cookies**: All requests specify `credentials: 'include'` to send and receive HttpOnly cookies for refresh token management.
+- **Single-Flight Concurrency Interceptor**: Intercepts `401 Unauthorized` responses. Parallel failed requests are queued behind a deduplicated refresh promise (`executeRefreshToken()`). Only a single refresh request is sent to `/auth/new-refresh-token`. Upon success, all queued HTTP requests update their headers and retry automatically.
+
+---
 
 ## Authentication
 
-1. **Login/Registration**: User authenticates via API.
-2. **Access Token**: Received in the JSON response and stored strictly in-memory (Redux state) for security. LocalStorage is actively purged of sensitive keys.
-3. **Refresh Token**: Set by the backend as an HttpOnly cookie.
-4. **Session Persistence**: On app load or 401, the API client automatically attempts a silent refresh using the cookie to get a new access token.
-5. **Logout**: Clears Redux state, calls the backend logout endpoint (which clears the cookie), and redirects to the login page.
+TalentForge AI enforces a secure enterprise-grade authentication workflow designed around zero token storage in browser local storage.
+
+### 🛡️ Authentication Architecture
+
+1. **In-Memory Access Tokens**:
+   - Access tokens are stored strictly in-memory inside the Redux state (`authSlice`).
+   - On application startup (`main.tsx`), `localStorage` and `sessionStorage` are actively sanitized to ensure no sensitive access tokens persist across sessions.
+
+2. **HttpOnly Cookie Refresh Tokens**:
+   - Long-lived refresh tokens are managed via secure, HttpOnly, SameSite cookies.
+   - Cross-site request security is strictly enforced with browser cookie policies.
+
+3. **Session Rehydration**:
+   - On application launch, the SPA performs a silent session rehydration by fetching the user profile from `/auth/me`.
+   - If the in-memory access token is missing or expired, `apiClient` automatically executes a single-flight silent refresh using the HttpOnly cookie without interrupting user interaction.
+
+4. **Multi-Device Limit & Session Control**:
+   - Accounts are limited to a maximum number of concurrent active device sessions (default: 3).
+   - Attempting to log in beyond the device limit triggers a device limit error modal in the UI.
+   - Users can choose to:
+     - Clear all active device sessions by providing their password (`/auth/deviceLimit/logout/all-devices`).
+     - Perform a **Force OTP Login** (`/auth/otp/force-login`) which revokes existing sessions and authorizes the current device.
+
+5. **Authentication Workflows Supported**:
+   - **Email & Password**: Registration and login for Candidate, Employer, and Company Owner roles.
+   - **Passwordless OTP Login**: Direct OTP login via email with Redis-backed rate limiting.
+   - **Email Verification**: Account activation using 6-digit email OTPs.
+   - **Password Recovery**: Secure OTP-driven password reset issuing single-use JWT reset tokens.
+
+---
 
 ## Assessments
 
