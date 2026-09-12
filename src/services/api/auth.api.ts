@@ -238,6 +238,10 @@ export const authApi = {
   verifyOtpLogin: (dto: { email: string; otp: string }) =>
     api.post<LoginApiResponse>('/auth/otp/verify', dto),
 
+  /** Force-login via OTP — logs out all other devices first, then signs in */
+  forceOtpLogin: (dto: { email: string; otp: string }) =>
+    api.post<LoginApiResponse>('/auth/otp/force-login', dto),
+
   /** Get current authenticated user profile */
   getMe: () =>
     api.get<AuthMeResponse>('/auth/me'),
