@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Mail, ArrowRight, Bot, Sparkles, Users, BarChart2, Check, Loader2, KeyRound } from 'lucide-react';
+import { Mail, ArrowRight, Bot, Sparkles, Users, BarChart2, Check, Loader2, KeyRound, RefreshCw, AlertCircle } from 'lucide-react';
 import jobportal from '../../assets/jobportal_logo2.jpg';
 import { useAuth } from '../../context/AuthContext';
-import { resolvePortalRoute } from '../../lib/permissions';
+import { useAppDispatch } from '../../store';
+import { setAccessToken } from '../../store/slices/authSlice';
 import { authApi } from '../../services/api/auth.api';
 
 // ─── Illustration Panel ───────────────────────────────────────────────────────
@@ -79,12 +80,26 @@ const IllustrationPanel = () => (
 const OTPAuthForm = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const dispatch = useAppDispatch();
   
   const [step, setStep] = useState<'email' | 'otp'>('email');
   const [email, setEmail] = useState('');
   const [otp, setOtp] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [isForcingLogin, setIsForcingLogin] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [isDeviceLimit, setIsDeviceLimit] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
+
+  // Countdown timer — only active after OTP is sent
+  useEffect(() => {
+    if (step !== 'otp' || cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown(prev => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [step, cooldown]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +108,7 @@ const OTPAuthForm = () => {
     try {
       await authApi.sendOtpLogin({ email });
       setStep('otp');
+      setCooldown(60);
     } catch (err: any) {
       setLocalError(err?.message || 'Failed to send OTP. Please try again.');
     } finally {
@@ -100,33 +116,87 @@ const OTPAuthForm = () => {
     }
   };
 
+  const handleResendOtp = async () => {
+    if (cooldown > 0 || isLoading || isResending) return;
+    setLocalError(null);
+    setIsDeviceLimit(false);
+    setIsResending(true);
+    try {
+      await authApi.sendOtpLogin({ email });
+      setOtp('');
+      setCooldown(60);
+    } catch (err: any) {
+      setLocalError(err?.message || 'Failed to resend OTP. Please try again.');
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocalError(null);
+    setIsDeviceLimit(false);
     setIsLoading(true);
     try {
-      const { user: authUser, availableWorkspaces } = await login({ email, otp });
-      
-      // 1. Brand new user (no candidate profile, no companies) -> Onboarding
-      if (!authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
-        navigate('/onboarding', { replace: true });
-        return;
-      }
-
-      // 2. Only Candidate (has profile, no companies) -> Candidate Dashboard
-      if (authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
-        navigate('/candidate/home', { replace: true });
-        return;
-      }
-
-      // 3. Has multiple roles OR is only Employer (1 or more companies) -> Workspace Selection
-      navigate('/select-workspace', { replace: true });
+      const { user: authUser } = await login({ email, otp });
+      navigateAfterLogin(authUser);
     } catch (err: any) {
-      setLocalError(err?.message || 'Invalid OTP. Please try again.');
+      const msg: string = err?.message || 'Invalid OTP. Please try again.';
+      if (/maximum number of logged-in devices|device.limit/i.test(msg)) {
+        setIsDeviceLimit(true);
+      }
+      setLocalError(msg);
     } finally {
       setIsLoading(false);
     }
   };
+
+  const navigateAfterLogin = (authUser: any) => {
+    if (!authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
+      navigate('/onboarding', { replace: true });
+      return;
+    }
+    if (authUser.hasCandidateProfile && (!authUser.companies || authUser.companies.length === 0)) {
+      navigate('/candidate/home', { replace: true });
+      return;
+    }
+    navigate('/select-workspace', { replace: true });
+  };
+
+  const handleForceLogin = async () => {
+    setLocalError(null);
+    setIsDeviceLimit(false);
+    setIsForcingLogin(true);
+    try {
+      // Call the dedicated force-login endpoint which logs out all other sessions server-side
+      const data = await authApi.forceOtpLogin({ email, otp });
+      // Manually hydrate access token into Redux (same as the normal login mutation does)
+      if (data.tokens?.accessToken) {
+        dispatch(setAccessToken(data.tokens.accessToken));
+      }
+      // Fetch authoritative me data and build the authUser for navigation
+      const meData = await authApi.getMe();
+      const hasCandidate = meData.capabilities?.candidate ?? false;
+      const workspaces: any[] = [];
+      if (hasCandidate) workspaces.push({ type: 'CANDIDATE' });
+      if (meData.companies?.length) workspaces.push(...meData.companies.filter((c: any) => c.status === 'ACTIVE').map((c: any) => ({ type: 'COMPANY' })));
+
+      const authUser = {
+        hasCandidateProfile: hasCandidate,
+        companies: meData.companies || [],
+      };
+      navigateAfterLogin(authUser);
+    } catch (err: any) {
+      setLocalError(err?.message || 'Failed to sign in. Please try again.');
+    } finally {
+      setIsForcingLogin(false);
+    }
+  };
+
+  // Amber warning when the OTP is expired / not found — nudge user to resend
+  const isOtpExpired = localError
+    ? /expired|not found|request a new/i.test(localError)
+    : false;
 
   return (
     <div className="flex flex-col justify-center h-full px-10 py-14 max-w-[420px] w-full mx-auto">
@@ -172,7 +242,10 @@ const OTPAuthForm = () => {
           </div>
 
           {localError && (
-            <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">{localError}</p>
+            <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[8px] px-3 py-2 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <span>{localError}</span>
+            </p>
           )}
 
           <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-2 disabled:opacity-70 disabled:cursor-not-allowed">
@@ -185,7 +258,11 @@ const OTPAuthForm = () => {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-[13px] font-medium text-slate-700">Enter Code</label>
-              <button type="button" onClick={() => setStep('email')} className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8]">
+              <button
+                type="button"
+                onClick={() => { setStep('email'); setOtp(''); setLocalError(null); setCooldown(0); }}
+                className="text-[12px] font-medium text-[#2563EB] hover:text-[#1D4ED8]"
+              >
                 Change email
               </button>
             </div>
@@ -198,7 +275,7 @@ const OTPAuthForm = () => {
                 onChange={e => setOtp(e.target.value)}
                 placeholder="6-digit code"
                 maxLength={6}
-                disabled={isLoading}
+                disabled={isLoading || isResending || isForcingLogin}
                 className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-[10px] text-[14px] text-[#0F172A] placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] transition-all disabled:opacity-60"
               />
             </div>
@@ -207,11 +284,76 @@ const OTPAuthForm = () => {
             </p>
           </div>
 
-          {localError && (
-            <p className="text-[13px] text-red-600 bg-red-50 border border-red-200 rounded-[8px] px-3 py-2">{localError}</p>
+          {/* Error banner — amber for OTP expired, orange for device limit, red otherwise */}
+          {localError && !isDeviceLimit && (
+            <div className={`flex items-start gap-2 rounded-[8px] px-3 py-2.5 border text-[13px] ${
+              isOtpExpired
+                ? 'bg-amber-50 border-amber-200 text-amber-800'
+                : 'bg-red-50 border-red-200 text-red-600'
+            }`}>
+              <AlertCircle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${
+                isOtpExpired ? 'text-amber-500' : 'text-red-500'
+              }`} />
+              <span>{localError}</span>
+            </div>
           )}
 
-          <button type="submit" disabled={isLoading} className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-2 disabled:opacity-70 disabled:cursor-not-allowed">
+          {/* Device limit banner */}
+          {isDeviceLimit && (
+            <div className="rounded-[10px] border border-orange-200 bg-orange-50 px-3.5 py-3 text-[13px]">
+              <div className="flex items-start gap-2 mb-2.5">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0 text-orange-500" />
+                <span className="text-orange-800 font-medium leading-snug">
+                  You've reached the device limit.
+                  <span className="font-normal text-orange-700"> Sign in here to automatically log out all other devices.</span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleForceLogin}
+                disabled={isForcingLogin || isLoading}
+                className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold text-[13px] px-4 py-2 rounded-[8px] transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {isForcingLogin
+                  ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Signing in…</>
+                  : <><ArrowRight className="w-3.5 h-3.5" /> Sign in &amp; logout other devices</>
+                }
+              </button>
+            </div>
+          )}
+
+          {/* Resend OTP row */}
+          <div className="flex items-center justify-between pt-0.5">
+            <span className="text-[12px] text-slate-400">Didn't receive the code?</span>
+            {cooldown > 0 ? (
+              <span className="text-[12px] font-medium text-slate-400 tabular-nums">
+                Resend in <span className="text-[#2563EB]">{cooldown}s</span>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={isResending || isLoading}
+                className={`flex items-center gap-1.5 text-[12px] font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed ${
+                  isOtpExpired
+                    ? 'text-amber-600 hover:text-amber-700 underline underline-offset-2'
+                    : 'text-[#2563EB] hover:text-[#1D4ED8]'
+                }`}
+              >
+                {isResending
+                  ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  : <RefreshCw className="w-3.5 h-3.5" />
+                }
+                {isResending ? 'Sending…' : 'Resend OTP'}
+              </button>
+            )}
+          </div>
+
+          <button
+            type="submit"
+            disabled={isLoading || isResending || isForcingLogin || otp.trim().length === 0}
+            className="w-full flex items-center justify-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-[14px] px-6 py-3 rounded-[10px] transition-all shadow-md shadow-blue-200/60 hover:-translate-y-0.5 hover:shadow-lg mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
             {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
             {isLoading ? 'Verifying…' : 'Sign In'}
           </button>
