@@ -172,6 +172,48 @@ const CreateAssessmentPage: React.FC = () => {
     }
   }, [existingAssessmentData]);
 
+  // ── Sync Section Durations & Total Marks ───────────────────────
+  useEffect(() => {
+    let computedTotalMarks = 100;
+
+    if (selectedType === 'mcq') {
+      computedTotalMarks = mcqConfig.selectedQuestionIds.length * mcqConfig.marksPerQuestion;
+      if (mcqConfig.timeLimit !== duration && duration > 0) {
+        setMcqConfig(prev => ({ ...prev, timeLimit: duration }));
+      }
+    } else if (selectedType === 'dsa') {
+      computedTotalMarks = dsaConfig.selectedProblemIds.length * dsaConfig.marksPerQuestion;
+      if (dsaConfig.totalDuration !== duration && duration > 0) {
+        setDsaConfig(prev => ({ ...prev, totalDuration: duration }));
+      }
+    } else if (selectedType === 'mixed') {
+      const mcqMarks = mixedConfig.mcq.selectedQuestionIds.length * mixedConfig.mcq.marksPerQuestion;
+      const dsaMarks = mixedConfig.dsa.selectedProblemIds.length * mixedConfig.dsa.marksPerQuestion;
+      computedTotalMarks = mcqMarks + dsaMarks;
+
+      const currentSum = (mixedConfig.mcq.timeLimit || 0) + (mixedConfig.dsa.totalDuration || 0);
+      if (currentSum !== duration && duration > 0) {
+        const mcqTime = Math.min(mixedConfig.mcq.timeLimit || Math.floor(duration / 2), Math.max(5, duration - 5));
+        const dsaTime = Math.max(5, duration - mcqTime);
+        setMixedConfig(prev => ({
+          ...prev,
+          mcq: { ...prev.mcq, timeLimit: mcqTime },
+          dsa: { ...prev.dsa, totalDuration: dsaTime },
+        }));
+      }
+    }
+
+    if (computedTotalMarks > 0 && settings.totalMarks !== computedTotalMarks) {
+      setSettings(prev => ({ ...prev, totalMarks: computedTotalMarks }));
+    }
+  }, [
+    selectedType, duration,
+    mcqConfig.selectedQuestionIds.length, mcqConfig.marksPerQuestion, mcqConfig.timeLimit,
+    dsaConfig.selectedProblemIds.length, dsaConfig.marksPerQuestion, dsaConfig.totalDuration,
+    mixedConfig.mcq.selectedQuestionIds.length, mixedConfig.mcq.marksPerQuestion, mixedConfig.mcq.timeLimit,
+    mixedConfig.dsa.selectedProblemIds.length, mixedConfig.dsa.marksPerQuestion, mixedConfig.dsa.totalDuration
+  ]);
+
   // Create / Update Assessment Mutation
   const createAssessmentMutation = useMutation({
     mutationFn: async (shouldPublish: boolean) => {
@@ -448,13 +490,29 @@ const CreateAssessmentPage: React.FC = () => {
           </div>
 
           {selectedType === 'mcq' && (
-            <MCQBuilder config={mcqConfig} onChange={setMcqConfig} />
+            <MCQBuilder
+              config={mcqConfig}
+              onChange={(newConfig) => {
+                setMcqConfig(newConfig);
+                if (newConfig.timeLimit !== duration && newConfig.timeLimit > 0) {
+                  setDuration(newConfig.timeLimit);
+                }
+              }}
+            />
           )}
           {selectedType === 'dsa' && (
-            <DSABuilder config={dsaConfig} onChange={setDsaConfig} />
+            <DSABuilder
+              config={dsaConfig}
+              onChange={(newConfig) => {
+                setDsaConfig(newConfig);
+                if (newConfig.totalDuration !== duration && newConfig.totalDuration > 0) {
+                  setDuration(newConfig.totalDuration);
+                }
+              }}
+            />
           )}
           {selectedType === 'mixed' && (
-            <MixedAssessmentBuilder config={mixedConfig} onChange={setMixedConfig} />
+            <MixedAssessmentBuilder config={mixedConfig} onChange={setMixedConfig} totalDuration={duration} />
           )}
           {selectedType === 'live_machine_coding' && (
             <MachineCodingBuilder config={machineCodingConfig} onChange={setMachineCodingConfig} />
@@ -520,12 +578,12 @@ const CreateAssessmentPage: React.FC = () => {
                 type="button"
                 onClick={handleSaveDraft}
                 disabled={createAssessmentMutation.isPending}
-                className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-700 font-medium text-sm rounded-xl hover:bg-slate-50 transition-colors cursor-pointer"
+                className="flex items-center gap-2 px-5 py-2.5 border border-slate-200 text-slate-700 font-medium text-sm rounded-xl hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50"
               >
-                {createAssessmentMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                {createAssessmentMutation.isPending && createAssessmentMutation.variables === false ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
                 ) : (
-                  <Save className="w-4 h-4" />
+                  <Save className="w-4 h-4 text-slate-500" />
                 )}
                 Save as Draft
               </button>
@@ -533,12 +591,12 @@ const CreateAssessmentPage: React.FC = () => {
                 type="button"
                 onClick={handlePublish}
                 disabled={createAssessmentMutation.isPending}
-                className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white font-semibold text-sm rounded-xl hover:bg-primary-700 transition-colors shadow-xs cursor-pointer"
+                className="flex items-center gap-2 px-6 py-2.5 bg-primary-600 text-white font-semibold text-sm rounded-xl hover:bg-primary-700 transition-colors shadow-xs cursor-pointer disabled:opacity-50"
               >
-                {createAssessmentMutation.isPending ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                {createAssessmentMutation.isPending && createAssessmentMutation.variables === true ? (
+                  <Loader2 className="w-4 h-4 animate-spin text-white" />
                 ) : (
-                  <Send className="w-4 h-4" />
+                  <Send className="w-4 h-4 text-white" />
                 )}
                 Publish Assessment
               </button>

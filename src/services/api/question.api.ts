@@ -174,19 +174,21 @@ export const questionApi = {
       });
     }
     const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
-    const res = await api.get<{ success: boolean; data: { questions: QuestionItem[]; total: number } | QuestionItem[] }>(
-      `/questions${query}`
-    );
+    const res = await api.get<any>(`/questions${query}`);
+
+    // Backend wraps in { success, message, data: { data: [...], pagination: {...} } }
+    // via PaginationHelper.buildResponse
+    if (res?.data?.data && Array.isArray(res.data.data)) {
+      return { questions: res.data.data, total: res.data.pagination?.totalItems ?? res.data.data.length };
+    }
+    // Fallback: plain array
+    if (Array.isArray(res?.data)) {
+      return { questions: res.data, total: res.data.length };
+    }
     if (Array.isArray(res)) {
       return { questions: res, total: res.length };
     }
-    if (res && Array.isArray((res as any).data)) {
-      return { questions: (res as any).data, total: (res as any).data.length };
-    }
-    if (res && (res as any).data?.questions) {
-      return (res as any).data;
-    }
-    return { questions: (res as any)?.questions || [], total: (res as any)?.total || 0 };
+    return { questions: [], total: 0 };
   },
 
   /**

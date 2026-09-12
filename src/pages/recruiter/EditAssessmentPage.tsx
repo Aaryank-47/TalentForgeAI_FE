@@ -89,17 +89,16 @@ export const EditAssessmentPage: React.FC = () => {
     }
   }, [assessment, sections]);
 
-  // Fetch Question Bank for Add Questions Modal
+  // Fetch Question Bank for Add Questions Modal (Global + all Companies)
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
     queryKey: questionKeys.list({
       type: currentSection?.sectionType === 'DSA' ? 'DSA' : 'MCQ',
       search: searchQuery || undefined,
-      companyId: companyId || assessment?.companyId
     }),
     queryFn: () => questionApi.getQuestions({
       type: currentSection?.sectionType === 'DSA' ? 'DSA' : 'MCQ',
       search: searchQuery || undefined,
-      companyId: companyId || assessment?.companyId
+      limit: 100,
     }),
     enabled: isAddQuestionsOpen,
   });
