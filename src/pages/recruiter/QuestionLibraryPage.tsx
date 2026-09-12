@@ -78,8 +78,8 @@ export default function QuestionLibraryPage() {
   const [newDescription, setNewDescription] = useState('');
   const [newType, setNewType] = useState<QuestionType>('MCQ');
   const [newDifficulty, setNewDifficulty] = useState<QuestionDifficulty>('MEDIUM');
-  const [newEstimatedTime, setNewEstimatedTime] = useState(15);
-  const [newDefaultMarks, setNewDefaultMarks] = useState(10);
+  const [newEstimatedTime, setNewEstimatedTime] = useState<number | ''>('');
+  const [newDefaultMarks, setNewDefaultMarks] = useState<number | ''>('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('');
   const [categorySearchText, setCategorySearchText] = useState('');
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -163,8 +163,8 @@ export default function QuestionLibraryPage() {
         description: newDescription.trim(),
         type: newType,
         difficulty: newDifficulty,
-        estimatedTime: Number(newEstimatedTime),
-        defaultMarks: Number(newDefaultMarks),
+        estimatedTime: newEstimatedTime ? Number(newEstimatedTime) : undefined,
+        defaultMarks: newDefaultMarks ? Number(newDefaultMarks) : undefined,
         ownership: 'COMPANY',
         companyId: companyId || null,
         categoryId: selectedCategoryId || null,
@@ -282,8 +282,8 @@ export default function QuestionLibraryPage() {
     setNewDescription(q.description);
     setNewType(q.type);
     setNewDifficulty(q.difficulty);
-    setNewEstimatedTime(q.estimatedTime);
-    setNewDefaultMarks(q.defaultMarks);
+    setNewEstimatedTime(q.estimatedTime || '');
+    setNewDefaultMarks(q.defaultMarks || '');
     setSelectedCategoryId(q.categoryId || '');
     setCategorySearchText(q.category?.name || categories.find((c: QuestionCategory) => c.id === q.categoryId)?.name || '');
     setSelectedTagIds(q.tags?.map((t: any) => t.tagId || t.tag?.id).filter(Boolean) || []);
@@ -411,8 +411,8 @@ export default function QuestionLibraryPage() {
     setNewDescription('');
     setNewType('MCQ');
     setNewDifficulty('MEDIUM');
-    setNewEstimatedTime(15);
-    setNewDefaultMarks(10);
+    setNewEstimatedTime('');
+    setNewDefaultMarks('');
     setSelectedCategoryId('');
     setCategorySearchText('');
     setSelectedTagIds([]);
@@ -894,23 +894,29 @@ export default function QuestionLibraryPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Est. Minutes</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Est. Minutes <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="number"
                     className="input-field text-xs"
+                    placeholder="e.g. 15"
                     value={newEstimatedTime}
-                    onChange={e => setNewEstimatedTime(Number(e.target.value))}
+                    onChange={e => setNewEstimatedTime(e.target.value ? Number(e.target.value) : '')}
                     min={1}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Marks</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Marks <span className="text-slate-400 font-normal">(Optional)</span>
+                  </label>
                   <input
                     type="number"
                     className="input-field text-xs"
+                    placeholder="e.g. 10"
                     value={newDefaultMarks}
-                    onChange={e => setNewDefaultMarks(Number(e.target.value))}
+                    onChange={e => setNewDefaultMarks(e.target.value ? Number(e.target.value) : '')}
                     min={1}
                   />
                 </div>

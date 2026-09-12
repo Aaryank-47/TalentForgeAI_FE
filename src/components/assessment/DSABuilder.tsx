@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '../../context/AuthContext';
-import { Hash, Clock, Percent, Search, Loader2 } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import ProblemCard from './ProblemCard';
 import DSAProblemModal from './DSAProblemModal';
 import { questionApi, type QuestionItem, type QuestionCategory, type QuestionTag } from '../../services/api/question.api';
@@ -14,11 +13,10 @@ interface DSABuilderProps {
 }
 
 const DSABuilder: React.FC<DSABuilderProps> = ({ config, onChange }) => {
-  const { user } = useAuth();
-  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
 
   const [previewProblem, setPreviewProblem] = useState<DSAProblem | null>(null);
   const [search, setSearch] = useState('');
+  const [selectedType, setSelectedType] = useState<string>('DSA');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedTag, setSelectedTag] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
@@ -33,13 +31,16 @@ const DSABuilder: React.FC<DSABuilderProps> = ({ config, onChange }) => {
     onChange({ ...config, selectedProblemIds: ids });
   };
 
-  // 1. Fetch Real DSA Questions from API (Company + Global)
+  // 1. Fetch questions (Global + all Companies, Draft & Published)
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: questionKeys.list({ type: 'DSA', search: search || undefined, companyId }),
+    queryKey: questionKeys.list({
+      type: selectedType === 'All' ? undefined : selectedType,
+      search: search || undefined
+    }),
     queryFn: () => questionApi.getQuestions({
-      type: 'DSA',
+      type: selectedType === 'All' ? undefined : (selectedType as any),
       search: search || undefined,
-      companyId
+      limit: 100,
     }),
   });
 
@@ -197,6 +198,18 @@ const DSABuilder: React.FC<DSABuilderProps> = ({ config, onChange }) => {
               className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
             />
           </div>
+
+          <select
+            value={selectedType}
+            onChange={e => setSelectedType(e.target.value)}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 font-medium"
+          >
+            <option value="All">All Types</option>
+            <option value="DSA">DSA</option>
+            <option value="MCQ">MCQ</option>
+            <option value="MACHINE_CODING">Machine Coding</option>
+            <option value="PROJECT">Project</option>
+          </select>
 
           <select
             value={selectedCategory}

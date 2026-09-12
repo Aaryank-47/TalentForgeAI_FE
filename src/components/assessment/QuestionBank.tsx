@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '../../context/AuthContext';
 import { Search, Loader2 } from 'lucide-react';
 import QuestionCard from './QuestionCard';
 import { questionApi, type QuestionItem, type QuestionCategory, type QuestionTag } from '../../services/api/question.api';
@@ -64,19 +63,25 @@ interface QuestionBankProps {
 }
 
 const QuestionBank: React.FC<QuestionBankProps> = ({ selectedIds, onToggle }) => {
-  const { user } = useAuth();
-  const companyId = user?.companyId || user?.companies?.[0]?.companyId;
 
   const [search, setSearch] = useState('');
+  const [selectedType, setSelectedType] = useState<string>('MCQ');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedTag, setSelectedTag] = useState('All');
   const [selectedDifficulty, setSelectedDifficulty] = useState('All');
   const [previewQuestion, setPreviewQuestion] = useState<MCQQuestion | null>(null);
 
-  // 1. Fetch Real MCQ Questions from API (Company + Global)
+  // 1. Fetch questions (Global + all Companies, Draft & Published)
   const { data: questionsData, isLoading: isLoadingQuestions } = useQuery({
-    queryKey: questionKeys.list({ type: 'MCQ', search: search || undefined, companyId }),
-    queryFn: () => questionApi.getQuestions({ type: 'MCQ', search: search || undefined, companyId }),
+    queryKey: questionKeys.list({
+      type: selectedType === 'All' ? undefined : selectedType,
+      search: search || undefined
+    }),
+    queryFn: () => questionApi.getQuestions({
+      type: selectedType === 'All' ? undefined : (selectedType as any),
+      search: search || undefined,
+      limit: 100
+    }),
   });
 
   // 2. Fetch Categories from API
@@ -134,6 +139,19 @@ const QuestionBank: React.FC<QuestionBankProps> = ({ selectedIds, onToggle }) =>
             className="pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
           />
         </div>
+
+        {/* Type Dropdown */}
+        <select
+          value={selectedType}
+          onChange={e => setSelectedType(e.target.value)}
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white text-slate-700 font-medium"
+        >
+          <option value="All">All Types</option>
+          <option value="MCQ">MCQ</option>
+          <option value="DSA">DSA</option>
+          <option value="MACHINE_CODING">Machine Coding</option>
+          <option value="PROJECT">Project</option>
+        </select>
 
         {/* Categories Dropdown */}
         <select
