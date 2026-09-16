@@ -558,13 +558,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     registerCompanyOwnerMutation.isPending ||
     logoutMutation.isPending;
 
+  const isAuthHydrating = !isInitialized || (!!accessToken && !user && !userError);
+  const isLoading = isAuthHydrating || isUserLoading || isActionLoading;
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       currentWorkspace,
       availableWorkspaces,
       isAuthenticated: !!user && !!accessToken,
-      isLoading: !isInitialized || isUserLoading || isActionLoading,
+      isLoading,
       isInitialized,
       error: localAuthError || (userError ? (userError as any).message : null),
       login,
