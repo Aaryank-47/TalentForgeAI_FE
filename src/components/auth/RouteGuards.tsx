@@ -36,10 +36,10 @@ export function AuthLoadingScreen() {
  * Redirects unauthenticated users to /login, preserving the intended destination.
  */
 export function ProtectedRoute() {
-  const { isAuthenticated, isInitialized } = useAuth();
+  const { isAuthenticated, isInitialized, isLoading } = useAuth();
   const location = useLocation();
 
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     return <AuthLoadingScreen />;
   }
 
@@ -58,9 +58,9 @@ export function ProtectedRoute() {
  * If user is in a company workspace, redirects to /recruiter/dashboard.
  */
 export function RequireCandidateWorkspace() {
-  const { user, currentWorkspace, availableWorkspaces, isInitialized } = useAuth();
+  const { user, currentWorkspace, availableWorkspaces, isInitialized, isLoading } = useAuth();
 
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     return <AuthLoadingScreen />;
   }
 
@@ -87,9 +87,9 @@ export function RequireCandidateWorkspace() {
  * If user is in candidate workspace, redirects to /candidate/home.
  */
 export function RequireCompanyWorkspace() {
-  const { currentWorkspace, availableWorkspaces, isInitialized } = useAuth();
+  const { currentWorkspace, availableWorkspaces, isInitialized, isLoading } = useAuth();
 
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     return <AuthLoadingScreen />;
   }
 
@@ -115,9 +115,9 @@ interface RoleRouteProps {
 }
 
 export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
-  const { user, isInitialized, currentWorkspace } = useAuth();
+  const { user, isInitialized, isLoading, currentWorkspace } = useAuth();
 
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     return <AuthLoadingScreen />;
   }
 
@@ -157,10 +157,10 @@ interface PublicRouteProps {
 }
 
 export function PublicRoute({ redirectAuthenticatedTo }: PublicRouteProps) {
-  const { isAuthenticated, isInitialized, user, currentWorkspace } = useAuth();
+  const { isAuthenticated, isInitialized, isLoading, user, currentWorkspace } = useAuth();
   const location = useLocation();
 
-  if (!isInitialized) {
+  if (!isInitialized || isLoading) {
     return <AuthLoadingScreen />;
   }
 
