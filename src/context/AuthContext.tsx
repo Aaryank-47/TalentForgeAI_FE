@@ -78,6 +78,7 @@ interface AuthContextValue {
   logoutAll: () => Promise<void>;
   selectWorkspace: (workspace: Workspace) => void;
   setUserRole: (role: UserRole) => void;
+  refreshUser: () => Promise<any>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -529,6 +530,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
+  const refreshUser = useCallback(async () => {
+    const res = await queryClient.fetchQuery({
+      queryKey: authKeys.me,
+      queryFn: () => authApi.getMe(),
+    });
+    return res;
+  }, [queryClient]);
+
   // Overall loading state
   const isActionLoading =
     loginMutation.isPending ||
@@ -554,6 +563,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logoutAll,
       selectWorkspace,
       setUserRole,
+      refreshUser,
     }),
     [
       user,
@@ -573,6 +583,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logoutAll,
       selectWorkspace,
       setUserRole,
+      refreshUser,
     ],
   );
 
