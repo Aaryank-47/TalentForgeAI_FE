@@ -52,6 +52,7 @@ export interface AuthUser {
   lastLoginAt?: string | null;
   fullName?: string;
   profile?: CandidateProfileData | EmployerProfileData | null;
+  employerProfile?: EmployerProfileData | null;
   hasCandidateProfile: boolean;
   candidateProfileId?: string;
   companies: CompanyMemberItem[];
@@ -227,11 +228,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const u = authMeData.user;
     const p = authMeData.profile;
+    const emp = authMeData.employer;
     const platformRole = mapBackendRole(u.role);
 
+    const activeProfile = currentWorkspace?.type === 'COMPANY'
+      ? (emp || (p && 'designation' in p ? p : null) || p)
+      : (p || emp);
+
     let fullName = '';
-    if (p && 'fullName' in p && typeof p.fullName === 'string') {
-      fullName = p.fullName;
+    if (activeProfile && 'fullName' in activeProfile && typeof activeProfile.fullName === 'string' && activeProfile.fullName) {
+      fullName = activeProfile.fullName;
+    } else if (emp?.fullName) {
+      fullName = emp.fullName;
+    } else if (authMeData.candidate?.fullName) {
+      fullName = authMeData.candidate.fullName;
     }
 
     const companyMemberships = authMeData.companies || [];
@@ -245,7 +255,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isEmailVerified: u.isEmailVerified,
       lastLoginAt: u.lastLoginAt,
       fullName,
-      profile: p,
+      profile: activeProfile,
+      employerProfile: emp || (p && 'designation' in p ? (p as EmployerProfileData) : null),
       hasCandidateProfile: authMeData.capabilities?.candidate ?? (!!p && 'profileCompletion' in p && (p as any).profileCompletion > 0),
       candidateProfileId: authMeData.candidate?.id,
       companies: companyMemberships,

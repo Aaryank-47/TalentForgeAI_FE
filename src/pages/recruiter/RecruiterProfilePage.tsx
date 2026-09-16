@@ -45,7 +45,7 @@ export const RecruiterProfilePage: React.FC = () => {
   });
 
   const currentUser = meData?.user || (user ? { id: user.id, email: user.email, role: user.role, status: user.status, isEmailVerified: user.isEmailVerified } : null);
-  const currentProfile = (meData?.profile as EmployerProfileData) || (user?.profile as EmployerProfileData | undefined);
+  const currentProfile = meData?.employer || (meData?.profile && 'designation' in meData.profile ? meData.profile : null) || user?.employerProfile || (user?.profile as EmployerProfileData | undefined);
   const companies = meData?.companies || user?.companies || [];
 
   // Form State
@@ -61,14 +61,15 @@ export const RecruiterProfilePage: React.FC = () => {
   // Populate form data when profile is available
   useEffect(() => {
     if (currentUser || currentProfile) {
-      const existingPhone = currentProfile?.phoneNumber || '';
+      const profileToUse = currentProfile || meData?.employer || user?.employerProfile;
+      const existingPhone = profileToUse?.phoneNumber || '';
       setFormData({
-        fullName: currentProfile?.fullName || user?.fullName || '',
-        designation: currentProfile?.designation || '',
-        department: currentProfile?.department || '',
+        fullName: profileToUse?.fullName || meData?.employer?.fullName || user?.fullName || '',
+        designation: profileToUse?.designation || '',
+        department: profileToUse?.department || '',
         phoneNumber: existingPhone,
-        linkedinUrl: currentProfile?.linkedinUrl || '',
-        profilePicture: currentProfile?.profilePicture || '',
+        linkedinUrl: profileToUse?.linkedinUrl || '',
+        profilePicture: profileToUse?.profilePicture || '',
       });
 
       // Auto-detect country code from existing phone number if present

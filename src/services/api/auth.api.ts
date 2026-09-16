@@ -160,6 +160,7 @@ export interface EmployerProfileData {
 export interface AuthMeResponse {
   user: AuthUserResponse;
   profile: CandidateProfileData | EmployerProfileData | null;
+  employer?: EmployerProfileData | null;
   capabilities?: {
     candidate: boolean;
     employer: boolean;
