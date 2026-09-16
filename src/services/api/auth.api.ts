@@ -88,6 +88,15 @@ export interface ChangePasswordDto {
   newPassword: string;
 }
 
+export interface UpdateEmployerProfileDto {
+  fullName?: string;
+  phoneNumber?: string | null;
+  designation?: string | null;
+  department?: string | null;
+  profilePicture?: string | null;
+  linkedinUrl?: string | null;
+}
+
 // ─── Response DTOs ─────────────────────────────────────────────────────────────
 
 export interface AuthTokens {
@@ -151,6 +160,7 @@ export interface EmployerProfileData {
 export interface AuthMeResponse {
   user: AuthUserResponse;
   profile: CandidateProfileData | EmployerProfileData | null;
+  employer?: EmployerProfileData | null;
   capabilities?: {
     candidate: boolean;
     employer: boolean;
@@ -297,4 +307,8 @@ export const authApi = {
   /** Create candidate profile for existing user (become candidate) */
   createCandidateProfile: (dto: { fullName: string; phoneNumber?: string; headline?: string }) =>
     api.post<any>('/candidate/me', dto),
+
+  /** Update employer profile (fullName, designation, department, etc.) */
+  updateEmployerProfile: (dto: UpdateEmployerProfileDto) =>
+    api.patch<{ profile: EmployerProfileData; me: AuthMeResponse }>('/auth/employer-profile', dto),
 };

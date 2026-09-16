@@ -55,6 +55,7 @@ import InterviewTemplatesPage from './pages/recruiter/InterviewTemplatesPage';
 import InterviewTemplateEditorPage from './pages/recruiter/InterviewTemplateEditorPage';
 import QuestionLibraryPage from './pages/recruiter/QuestionLibraryPage';
 import NotificationsPage from './pages/recruiter/NotificationsPage';
+import RecruiterProfilePage from './pages/recruiter/RecruiterProfilePage';
 
 // ─── Live Interview Module — Recruiter ─────────────────────
 import RecruiterLiveInterviewsPage from './pages/recruiter/live-interview/RecruiterLiveInterviewsPage';
@@ -205,6 +206,7 @@ function App() {
               <Route path="/recruiter/analytics" element={<AnalyticsPage />} />
               <Route path="/recruiter/messages" element={<MessagesPage />} />
               <Route path="/recruiter/notifications" element={<NotificationsPage />} />
+              <Route path="/recruiter/profile" element={<RecruiterProfilePage />} />
               <Route path="/recruiter/settings" element={<SettingsPage />} />
               <Route path="/recruiter/team" element={<SettingsPage />} />
               <Route path="/recruiter/company" element={<SettingsPage />} />
