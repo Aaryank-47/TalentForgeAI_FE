@@ -150,7 +150,7 @@ export function RoleRoute({ allowedRoles, redirectTo }: RoleRouteProps) {
   return <Outlet />;
 }
 
-// ─── PublicRoute ─────────────────────────────────────────────────────────────
+// ─── PublicRoute ────────────────────────────────────────────────────────────
 
 interface PublicRouteProps {
   redirectAuthenticatedTo?: string;
